@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set Next Day Meal</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #6a11cb, #2575fc);
+            color: #333;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+            max-width: 400px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container:before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(to right, rgba(106, 17, 203, 0.1), rgba(37, 117, 252, 0.1));
+            z-index: -1;
+            transform: rotate(45deg);
+            animation: gradientMove 6s infinite linear;
+        }
+
+        @keyframes gradientMove {
+            from {
+                transform: rotate(45deg) translateX(-10%);
+            }
+            to {
+                transform: rotate(45deg) translateX(10%);
+            }
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #2575fc;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+            accent-color: #2575fc;
+        }
+
+        button[type="submit"] {
+            background: linear-gradient(90deg, #6a11cb, #2575fc);
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            transition: background 0.3s ease;
+        }
+
+        button[type="submit"]:hover {
+            background: linear-gradient(90deg, #2575fc, #6a11cb);
+        }
+
+        a {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #2575fc;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        a:hover {
+            color: #6a11cb;
+        }
+
+        .brand {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: #aaa;
+            font-weight: 600;
+        }
+
+        .brand span {
+            color: #2575fc;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="brand">Powered by <span>RofazTech</span></div>
+        <h2>Set Next Day Meal</h2>
+        <form method="POST" action="{{ url_for('app.set_next_day_meal') }}">
+            {{ form.hidden_tag() }}
+            <div class="form-group">
+                {{ form.lunch.label }}
+                {{ form.lunch(class="form-check-input") }}
+            </div>
+            <div class="form-group">
+                {{ form.dinner.label }}
+                {{ form.dinner(class="form-check-input") }}
+            </div>
+            <button type="submit">Submit</button>
+        </form>
+        <a href="{{ url_for('app.user_dashboard') }}">Go back to Dashboard</a>
+    </div>
+</body>
+</html>
