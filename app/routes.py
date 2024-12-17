@@ -138,8 +138,10 @@ def admin_dashboard():
     num_of_users = User.query.count()  # More efficient way to count users
     balance = Balance.query.filter_by(user_id=session.get('user_id')).first()
     meals = Meal.query.filter_by(user_id=session.get('user_id'), meal_date=current_date()).first()
-    mealst = Meal.query.filter_by(user_id=session.get('user_id'), meal_date=current_date() + timedelta(days=1)).first()
+    mealst = Meal.query.filter_by(user_id=session.get('user_id'), meal_date=current_date() ).first()
     latest_price = Price.query.filter(Price.meal_date <= current_date()).order_by(Price.meal_date.desc()).first()
+    latest_price1 = Price.query.filter(Price.meal_date <= current_date()+timedelta(days=1)).order_by(Price.meal_date.desc()).first()
+
 
     # Handle potential AttributeError if meals or mealst is None
     lunch = meals.lunch if meals else False
@@ -157,8 +159,8 @@ def admin_dashboard():
     return render_template("admin_dashboard.html",
                            name=user.name,user_id=user.user_id, num=num_of_users,
                            balance=balance.current_balance if balance else 0,
-                           lunchP=latest_price.lunch_price if latest_price else 0,
-                           dinnerP=latest_price.dinner_price if latest_price else 0,
+                           lunchP=latest_price1.lunch_price if latest_price else 0,
+                           dinnerP=latest_price1.dinner_price if latest_price else 0,
                            lunch=lunch, dinner=dinner,
                            tlunch=tlunch, tdinner=tdinner,current_time=current_time,deadline=deadline,
                            total_value=total_value,no_meals=no_meals)
@@ -362,7 +364,8 @@ def user_dashboard():
     balance = Balance.query.filter_by(user_id=session.get('user_id')).first()
     meals = Meal.query.filter_by(user_id=session.get('user_id'), meal_date=current_date()).first()
     mealst = Meal.query.filter_by(user_id=session.get('user_id'), meal_date=current_date() + timedelta(days=1)).first()
-    latest_price = Price.query.filter(Price.meal_date <= current_date()+timedelta(days=1)).order_by(Price.meal_date.desc()).first()
+    latest_price1 = Price.query.filter(Price.meal_date <= current_date()+timedelta(days=1)).order_by(Price.meal_date.desc()).first()
+    latest_price = Price.query.filter(Price.meal_date <= current_date()).order_by(Price.meal_date.desc()).first()
 
     # Handle potential AttributeError if meals or mealst is None
     lunch = meals.lunch if meals else False
@@ -372,8 +375,8 @@ def user_dashboard():
 
     return render_template('user_dashboard.html',
                            name=user.name,user_id=user.user_id, balance=balance.current_balance  if balance else 0,
-                           lunchP=latest_price.lunch_price if latest_price else 0,
-                           dinnerP=latest_price.dinner_price if latest_price else 0,
+                           lunchP=latest_price1.lunch_price if latest_price else 0,
+                           dinnerP=latest_price1.dinner_price if latest_price else 0,
                            lunch=lunch, dinner=dinner,
                            tlunch=tlunch, tdinner=tdinner,current_time=current_time,deadline=deadline)
 @app.route('/user/set_next_day_meal', methods=['GET', 'POST'])
