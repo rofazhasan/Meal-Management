@@ -13,7 +13,7 @@
             color: #444;
             margin: 0;
             padding: 0;
-            transition: background-color 0.5s ease, color 0.5s ease; /* Add transition for smooth color change */
+            transition: background-color 0.5s ease, color 0.5s ease; 
         }
 
         body.dark-mode {
@@ -73,20 +73,20 @@
 
         .content {
             margin-left: 280px;
-            padding: 20px; /* Reduced padding */
+            padding: 20px; 
             transition: margin-left 0.3s ease-in-out;
         }
 
         /* Adjust content margin for smaller screens */
         @media (max-width: 768px) {
             .content {
-                margin-left: 0;
+                margin-left: 0; 
             }
         }
 
         .navbar {
             background: linear-gradient(to right, #ff6a95, #ff9068);
-            padding: 15px 20px; /* Reduced padding */
+            padding: 15px 20px; 
             border-radius: 10px;
             color: white;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
@@ -96,7 +96,7 @@
             align-items: center;
         }
 
-        .navbar .app-name { /* Added for app name and hamburger */
+        .navbar .app-name { 
             display: flex;
             align-items: center;
         }
@@ -104,12 +104,12 @@
         .navbar .app-name span {
             font-weight: bold;
             font-size: 1.4rem;
-            margin-right: 10px;
+            margin-right: 10px; 
         }
 
-        .navbar .welcome-message { /* Added for welcome message */
-            font-size: 1.2rem; /* Slightly smaller font size */
-            word-break: break-word; /* Allow wrapping */
+        .navbar .welcome-message { 
+            font-size: 1.2rem; 
+            word-break: break-word; 
         }
 
         .card {
@@ -119,7 +119,7 @@
             color: #333;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
-            margin-bottom: 20px; /* Added spacing between cards */
+            margin-bottom: 20px; 
         }
 
         .card:hover {
@@ -192,39 +192,39 @@
         }
 
         .hamburger {
-            display: none;
-            position: relative; /* Changed to relative for flexbox alignment */
+            display: none; 
             cursor: pointer;
         }
 
         @media (max-width: 768px) {
-    .hamburger {
-    display: block; 
-    position: absolute;
-    top: 15px;    
-    right: 20px;   
-    z-index: 101; /* Ensure it's above the sidebar */ 
-}
+            .hamburger {
+                display: block;
+                position: absolute; 
+                top: 15px;
+                right: 20px; 
+                z-index: 101; 
+            }
 
-.hamburger .bar {
-    display: block;
-    width: 25px;
-    height: 3px;
-    margin: 5px auto;
-    background-color: white;
-}
+            .hamburger .bar {
+                display: block;
+                width: 25px;
+                height: 3px;
+                margin: 5px auto; 
+                background-color: white;
+            }
 
-        .dark-mode-toggle { /* Added for dark mode toggle */
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 101;
-            cursor: pointer;
-            color: white; /* Default color */
-        }
+            .dark-mode-toggle { 
+                position: fixed;
+                top: 20px;
+                right: 20px; 
+                z-index: 101;
+                cursor: pointer;
+                color: white; 
+            }
 
-        .dark-mode .dark-mode-toggle {
-            color: black; /* Color in dark mode */
+            .dark-mode .dark-mode-toggle {
+                color: black; 
+            }
         }
     </style>
 </head>
@@ -248,12 +248,7 @@
     <div class="content">
         <nav class="navbar">
             <div class="app-name">
-                <span>Meal Tracker</span>
-                <div class="hamburger" onclick="toggleSidebar()">
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                </div>
+                <span>Meal Tracker</span> 
             </div>
             <div class="welcome-message">Welcome, {{ name }}</div>
             <div id="current-datetime" class="datetime-display"></div>
@@ -300,47 +295,40 @@
     </div>
 
 
-  <script>
-    function updateDateTime() {
-      const dhakaTimezone = 'Asia/Dhaka';
-      const now = new Date();
-      const options = {
-        timeZone: dhakaTimezone,
-        hour12: true,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      };
-      const timeString = now.toLocaleString('en-US', options);
+    <script>
+        function updateDateTime() {
+            const dhakaTimezone = 'Asia/Dhaka';
+            const now = new Date();
+            const options = {
+                timeZone: dhakaTimezone,
+                hour12: true,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            };
+            const timeString = now.toLocaleString('en-US', options);
 
-      const dateOptions = {
-        timeZone: dhakaTimezone,
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      };
-      const dateString = now.toLocaleString('en-US', dateOptions);
+            const dateOptions = {
+                timeZone: dhakaTimezone,
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            };
+            const dateString = now.toLocaleString('en-US', dateOptions);
 
-      document.getElementById('current-datetime').innerHTML = `
-          <div>Date: ${dateString}</div>
-          <div>Time: ${timeString}</div>
-      `;
-    }
-
-    setInterval(updateDateTime, 1000);
-    function toggleSidebar() {
-            const sidebar = document.querySelector('.sidebar');
-            sidebar.classList.toggle('show');
+            document.getElementById('current-datetime').innerHTML = `
+                <div>Date: ${dateString}</div>
+                <div>Time: ${timeString}</div>
+            `;
         }
-        function toggleDarkMode() {
-            const body = document.body;
-            body.classList.toggle('dark-mode');
-        }
+
+        setInterval(updateDateTime, 1000);
+        
         function toggleSidebar() {
             const sidebar = document.querySelector('.sidebar');
             sidebar.classList.toggle('show');
         }
-  </script>
+    </script>
 </body>
 
 </html>
