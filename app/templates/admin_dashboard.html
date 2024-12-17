@@ -30,7 +30,7 @@
         /* Hide sidebar by default on smaller screens */
         @media (max-width: 768px) {
             .sidebar {
-                transform: translateX(-280px);
+                transform: translateX(-280px); 
             }
             .sidebar.show {
                 transform: translateX(0);
@@ -66,14 +66,18 @@
         }
 
         .content {
-            margin-left: 20px; /* Smaller margin for mobile */
-            padding: 20px; /* Reduced padding */
+            margin-left: 300px; /* Adjusted margin to prevent overlap */
+            padding: 20px; 
             transition: margin-left 0.3s ease;
         }
 
-        .sidebar.open + .content {
-            margin-left: 280px; /* Adjust margin when sidebar is open */
+        /* Adjust content margin when sidebar is open on smaller screens */
+        @media (max-width: 768px) { 
+            .sidebar.show + .content {
+                margin-left: 280px; 
+            }
         }
+
 
         .card {
             border: none;
@@ -82,7 +86,7 @@
             color: #333;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             transition: transform 0.3s, box-shadow 0.3s;
-            margin-bottom: 20px; /* Added margin */
+            margin-bottom: 20px; 
         }
 
         .card:hover {
@@ -91,7 +95,7 @@
         }
 
         .card h5 {
-            font-size: 1.2rem; /* Reduced font size */
+            font-size: 1.2rem; 
             font-weight: 600;
             margin-bottom: 1rem;
         }
@@ -101,16 +105,16 @@
             margin-bottom: 20px;
             background: linear-gradient(90deg, #ff758c, #ff7eb3);
             color: white;
-            padding: 10px 20px; /* Reduced padding */
+            padding: 10px 20px; 
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap; /* Allow wrapping for smaller screens */
+            flex-wrap: wrap; 
         }
 
         .navbar .navbar-brand {
             font-weight: bold;
-            font-size: 1.5rem; /* Reduced font size */
+            font-size: 1.5rem; 
         }
 
         .datetime-display {
@@ -118,11 +122,11 @@
             font-weight: 500;
             background: #fff;
             color: #333;
-            padding: 8px 16px; /* Reduced padding */
+            padding: 8px 16px; 
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             text-align: center;
-            margin-top: 10px; /* Added margin for better spacing on mobile */
+            margin-top: 10px; 
         }
 
         .running-text {
@@ -130,7 +134,7 @@
             color: #ff5c8d;
             padding: 10px;
             border-radius: 5px;
-            font-size: 0.9rem; /* Reduced font size */
+            font-size: 0.9rem; 
             white-space: nowrap;
             overflow: hidden;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -158,7 +162,7 @@
         }
 
         .navbar .welcome-message {
-            font-size: 1rem; /* Reduced font size */
+            font-size: 1rem; 
             word-break: break-word;
             margin-left: 20px; 
         }
@@ -170,7 +174,7 @@
             background: linear-gradient(135deg, #182848, #4b6cb7);
             color: white;
             border-radius: 8px;
-            font-size: 0.9rem; /* Reduced font size */
+            font-size: 0.9rem; 
         }
 
         footer span {
@@ -178,7 +182,7 @@
         }
 
         .hamburger {
-            display: none; /* Hide hamburger menu on larger screens */
+            display: none; 
             cursor: pointer;
         }
 
@@ -191,24 +195,27 @@
 
         @media (max-width: 768px) {
             .sidebar {
-                left: -260px; /* Hide sidebar by default on mobile */
+                left: -280px; /* Hide sidebar off-screen */
             }
 
             .content {
-                margin-left: 20px; /* Smaller margin for mobile */
+                margin-left: 20px; 
             }
 
             .hamburger {
-                color:black;
-                display: block; /* Show hamburger menu on mobile */
+                display: block; 
+                position: fixed; /* Keep hamburger menu visible */
+                top: 15px;
+                left: 15px;
+                z-index: 101; /* Ensure it's above the sidebar */
             }
 
             .navbar .welcome-message {
-                margin-left: 10px; /* Reduce margin on mobile */
+                margin-left: 10px; 
             }
 
             .card h5 {
-                font-size: 1.1rem; /* Further reduce card title size */
+                font-size: 1.1rem; 
             }
         }
     </style>
@@ -296,7 +303,7 @@
                     {% endif %}
                 </div>
             </div>
-        </div> 
+        </div>  
 
         <footer>
             <p>Designed with ❤️ by <span>Md. Rofaz Hasan Rafiu</span></p>
@@ -330,7 +337,11 @@
 
         function toggleSidebar() {
             const sidebar = document.querySelector('.sidebar');
-            sidebar.classList.toggle('open');
+            sidebar.classList.toggle('show'); // Use 'show' to match CSS
+
+            // Adjust content margin when sidebar toggles on mobile
+            const content = document.querySelector('.content');
+            content.style.marginLeft = sidebar.classList.contains('show') ? '280px' : '20px'; 
         }
     </script>
 </body>
