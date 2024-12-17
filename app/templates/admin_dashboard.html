@@ -218,6 +218,19 @@
                 font-size: 1.1rem; 
             }
         }
+        .flash-message {
+            padding: 10px;
+            margin-bottom: 1rem;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .flash-message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
     </style>
 </head>
 <body>
@@ -252,7 +265,13 @@
         <div class="running-text">
             <span>Please Provide Your Meals Information before 11 PM for the next day. Otherwise, today's meal will be copied for the next day.</span>
         </div>
-
+{% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">{{ message }}</div> 
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         <div class="row"> 
             <div class="col-md-4">
                 <div class="card text-center p-4">
