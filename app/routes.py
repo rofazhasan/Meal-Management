@@ -148,7 +148,7 @@ def admin_dashboard():
     tdinner = mealst.dinner if mealst else False
     no_of_lunch = Meal.query.filter_by(meal_date=current_date(), lunch=True).count()
     no_of_dinner = Meal.query.filter_by(meal_date=current_date(), dinner=True).count()
-    latest_price = Price.query.filter(Price.meal_date <= current_date()).order_by(Price.meal_date.desc()).first()
+    latest_price = Price.query.filter(Price.meal_date <= current_date()+timedelta(days=1)).order_by(Price.meal_date.desc()).first()
     no_meals = no_of_dinner + no_of_lunch
     lunch_value = no_of_lunch * latest_price.lunch_price if latest_price else 0
     dinner_value = no_of_dinner * latest_price.dinner_price if latest_price else 0
@@ -352,8 +352,6 @@ def stop_all_meals():
             db.session.rollback()
             flash(f"Error stopping meals: {e}", "danger")
 
-    return render_template('view_user.html')
-
 
 @app.route('/user_dashboard')
 def user_dashboard():
@@ -364,7 +362,7 @@ def user_dashboard():
     balance = Balance.query.filter_by(user_id=session.get('user_id')).first()
     meals = Meal.query.filter_by(user_id=session.get('user_id'), meal_date=current_date()).first()
     mealst = Meal.query.filter_by(user_id=session.get('user_id'), meal_date=current_date() + timedelta(days=1)).first()
-    latest_price = Price.query.filter(Price.meal_date <= current_date()).order_by(Price.meal_date.desc()).first()
+    latest_price = Price.query.filter(Price.meal_date <= current_date()+timedelta(days=1)).order_by(Price.meal_date.desc()).first()
 
     # Handle potential AttributeError if meals or mealst is None
     lunch = meals.lunch if meals else False
