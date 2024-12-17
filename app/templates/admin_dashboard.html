@@ -23,17 +23,6 @@
             padding: 20px;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
-            z-index: 100; /* Ensure sidebar is on top */
-        }
-
-        /* Hide sidebar by default on smaller screens */
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-260px);
-            }
-            .sidebar.show {
-                transform: translateX(0);
-            }
         }
 
         .sidebar:hover {
@@ -65,16 +54,8 @@
         }
 
         .content {
-            margin-left: 280px; 
+            margin-left: 280px;
             padding: 30px;
-            transition: margin-left 0.3s ease-in-out;
-        }
-
-        /* Adjust content margin for smaller screens */
-        @media (max-width: 768px) {
-            .content {
-                margin-left: 0; 
-            }
         }
 
         .card {
@@ -127,7 +108,8 @@
         .running-text {
             background-color: #ffe6e9;
             color: #ff5c8d;
-            padding: 10px;
+
+   padding: 10px;
             border-radius: 5px;
             font-size: 1rem;
             white-space: nowrap;
@@ -141,7 +123,6 @@
             padding-left: 100%;
             animation: marquee 20s linear infinite;
         }
-
         @keyframes marquee {
             0% { transform: translateX(0); }
             100% { transform: translateX(-100%); }
@@ -155,47 +136,31 @@
         .btn:hover {
             transform: scale(1.05);
         }
-
+        .navbar .welcome-message { /* Added for welcome message */
+            font-size: 1.2rem; /* Slightly smaller font size */
+            word-break: break-word; /* Allow wrapping */
+            margin-left: 20px; /* Add some space to the left */
+        }
         footer {
-            margin-top: 30px;
-            padding: 20px;
-            text-align: center;
-            background: linear-gradient(135deg, #182848, #4b6cb7);
-            color: white;
-            border-radius: 8px;
-            font-size: 1rem;
-        }
+      margin-top: 30px;
+      padding: 20px;
+      text-align: center;
+      background: linear-gradient(135deg, #182848, #4b6cb7);
+      color: white;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
 
-        footer span {
-            font-weight: bold;
-        }
-
-        /* Add a hamburger menu for smaller screens */
-        .hamburger {
-            display: none;
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 101; /* Ensure it's above the sidebar */
-            cursor: pointer;
-        }
-
-        @media (max-width: 768px) {
-            .hamburger {
-                display: block;
-            }
-        }
-
-        .hamburger .bar {
-            display: block;
-            width: 25px;
-            height: 3px;
-            margin: 5px auto;
-            background-color: white;
-        }
+    footer span {
+      font-weight: bold;
+    }
     </style>
 </head>
 <body>
+    <div class="dark-mode-toggle" onclick="toggleDarkMode()">
+        <i class="fas fa-moon"></i>
+    </div>
+
     <div class="hamburger" onclick="toggleSidebar()">
         <div class="bar"></div>
         <div class="bar"></div>
@@ -216,7 +181,15 @@
 
     <div class="content">
         <nav class="navbar">
-            <span class="navbar-brand">Welcome, {{ name }}</span>
+            <div class="app-name">
+                <span>Meal Tracker</span>
+                <div class="hamburger" onclick="toggleSidebar()">
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                </div>
+            </div>
+            <div class="welcome-message">Welcome, {{ name }}</div>
             <div id="current-datetime" class="datetime-display"></div>
         </nav>
 
@@ -278,10 +251,9 @@
                 </div>
             </div>
         </div>
-
-        <footer>
-            <p>Designed with ❤️ by <span>Md. Rofaz Hasan Rafiu</span></p>
-        </footer>
+    <footer>
+      <p>Designed with ❤️ by <span>Md. Rofaz Hasan Rafiu</span></p>
+    </footer>
     </div>
 
     <script>
@@ -308,11 +280,9 @@
         }
 
         setInterval(updateDateTime, 1000);
-
-        // Function to toggle the sidebar on smaller screens
-        function toggleSidebar() {
-            const sidebar = document.querySelector('.sidebar');
-            sidebar.classList.toggle('show');
+        function toggleDarkMode() {
+            const body = document.body;
+            body.classList.toggle('dark-mode');
         }
     </script>
 </body>
