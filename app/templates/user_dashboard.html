@@ -13,6 +13,12 @@
             color: #444;
             margin: 0;
             padding: 0;
+            transition: background-color 0.5s ease, color 0.5s ease; /* Add transition for smooth color change */
+        }
+
+        body.dark-mode {
+            background-color: #333;
+            color: #eee;
         }
 
         .sidebar {
@@ -24,13 +30,13 @@
             padding: 20px;
             box-shadow: 2px 0 15px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease-in-out;
-            z-index: 100; /* Ensure sidebar is on top */
+            z-index: 100;
         }
 
         /* Hide sidebar by default on smaller screens */
         @media (max-width: 768px) {
             .sidebar {
-                transform: translateX(-280px); 
+                transform: translateX(-280px);
             }
             .sidebar.show {
                 transform: translateX(0);
@@ -66,30 +72,44 @@
         }
 
         .content {
-            margin-left: 300px; 
-            padding: 40px;
+            margin-left: 280px;
+            padding: 20px; /* Reduced padding */
             transition: margin-left 0.3s ease-in-out;
         }
 
         /* Adjust content margin for smaller screens */
         @media (max-width: 768px) {
             .content {
-                margin-left: 0; 
+                margin-left: 0;
             }
         }
 
         .navbar {
             background: linear-gradient(to right, #ff6a95, #ff9068);
-            padding: 15px 30px;
+            padding: 15px 20px; /* Reduced padding */
             border-radius: 10px;
             color: white;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .navbar span {
+        .navbar .app-name { /* Added for app name and hamburger */
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar .app-name span {
             font-weight: bold;
             font-size: 1.4rem;
+            margin-right: 10px;
+        }
+
+        .navbar .welcome-message { /* Added for welcome message */
+            font-size: 1.2rem; /* Slightly smaller font size */
+            word-break: break-word; /* Allow wrapping */
         }
 
         .card {
@@ -99,6 +119,7 @@
             color: #333;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-bottom: 20px; /* Added spacing between cards */
         }
 
         .card:hover {
@@ -170,13 +191,9 @@
             font-weight: bold;
         }
 
-        /* Add a hamburger menu for smaller screens */
         .hamburger {
             display: none;
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 101; /* Ensure it's above the sidebar */
+            position: relative; /* Changed to relative for flexbox alignment */
             cursor: pointer;
         }
 
@@ -193,10 +210,26 @@
             margin: 5px auto;
             background-color: white;
         }
+
+        .dark-mode-toggle { /* Added for dark mode toggle */
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 101;
+            cursor: pointer;
+            color: white; /* Default color */
+        }
+
+        .dark-mode .dark-mode-toggle {
+            color: black; /* Color in dark mode */
+        }
     </style>
 </head>
 
 <body>
+    <div class="dark-mode-toggle" onclick="toggleDarkMode()">
+        <i class="fas fa-moon"></i>  </div>
+
     <div class="hamburger" onclick="toggleSidebar()">
         <div class="bar"></div>
         <div class="bar"></div>
@@ -213,10 +246,19 @@
 
     <div class="content">
         <nav class="navbar">
-            <span>Welcome, {{ name }}</span>
-            <p>Current Meal Price (tomorrow): Lunch - ${{ lunchP }}, Dinner - ${{ dinnerP }}</p>
+            <div class="app-name">
+                <span>Meal Tracker</span>
+                <div class="hamburger" onclick="toggleSidebar()">
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                </div>
+            </div>
+            <div class="welcome-message">Welcome, {{ name }}</div>
             <div id="current-datetime" class="datetime-display"></div>
         </nav>
+
+        <p>Current Meal Price (tomorrow): Lunch - $<b>{{ lunchP }}</b>, Dinner - $<b>{{ dinnerP }}</b></p>
 
         <div class="running-text mb-4">
             <span>Please provide your meal information before 11 PM. Otherwise, today's meal will be copied for tomorrow.</span>
@@ -256,40 +298,48 @@
         </footer>
     </div>
 
-    <script>
-        function updateDateTime() {
-            const dhakaTimezone = 'Asia/Dhaka';
-            const now = new Date();
-            const options = {
-                timeZone: dhakaTimezone,
-                hour12: true,
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            };
-            const timeString = now.toLocaleString('en-US', options);
 
-            const dateOptions = {
-                timeZone: dhakaTimezone,
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            };
-            const dateString = now.toLocaleString('en-US', dateOptions);
+  <script>
+    function updateDateTime() {
+      const dhakaTimezone = 'Asia/Dhaka';
+      const now = new Date();
+      const options = {
+        timeZone: dhakaTimezone,
+        hour12: true,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      };
+      const timeString = now.toLocaleString('en-US', options);
 
-            document.getElementById('current-datetime').innerHTML = `
-                <div>Date: ${dateString}</div>
-                <div>Time: ${timeString}</div>
-            `;
+      const dateOptions = {
+        timeZone: dhakaTimezone,
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      };
+      const dateString = now.toLocaleString('en-US', dateOptions);
+
+      document.getElementById('current-datetime').innerHTML = `
+          <div>Date: ${dateString}</div>
+          <div>Time: ${timeString}</div>
+      `;
+    }
+
+    setInterval(updateDateTime, 1000);
+    function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('show');
         }
-
-        setInterval(updateDateTime, 1000);
-
-        // Function to toggle the sidebar on smaller screens
+        function toggleDarkMode() {
+            const body = document.body;
+            body.classList.toggle('dark-mode');
+        }
         function toggleSidebar() {
             const sidebar = document.querySelector('.sidebar');
             sidebar.classList.toggle('show');
         }
-    </script>
+  </script>
 </body>
+
 </html>
