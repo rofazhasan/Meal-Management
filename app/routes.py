@@ -387,7 +387,7 @@ def set_next_day_meal():
     form = SetNextDayMealForm()
     user = User.query.filter_by(user_id=session['user_id']).first()
     balance = Balance.query.filter_by(user_id=session['user_id']).first()
-    lastest_price = Price.query.filter(Price.meal_date <= current_date()).order_by(Price.meal_date.desc()).first()
+    lastest_price = Price.query.filter(Price.meal_date <= current_date()+timedelta(days=1)).order_by(Price.meal_date.desc()).first()
 
     if current_time() <= deadline():
         if form.validate_on_submit():
