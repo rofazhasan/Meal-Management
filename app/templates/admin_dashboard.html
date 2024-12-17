@@ -10,28 +10,36 @@
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
-        body {
+       body {
             font-family: 'Poppins', sans-serif;
-            background: linear-gradient(120deg, #f8f9fa, #e8f0fe);
-            color: #333;
+            background: linear-gradient(to right, #f0f4f8, #d9e4f5);
+            color: #444;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.5s ease, color 0.5s ease; 
+        }
+
+        body.dark-mode {
+            background-color: #333;
+            color: #eee;
         }
 
         .sidebar {
             height: 100vh;
-            position: fixed; 
+            position: fixed;
             width: 280px;
             background: linear-gradient(135deg, #4b6cb7, #182848);
             color: white;
             padding: 20px;
             box-shadow: 2px 0 15px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease-in-out; 
-            z-index: 100; 
+            transition: all 0.3s ease-in-out;
+            z-index: 100;
         }
 
         /* Hide sidebar by default on smaller screens */
         @media (max-width: 768px) {
             .sidebar {
-                transform: translateX(-280px); 
+                transform: translateX(-280px);
             }
             .sidebar.show {
                 transform: translateX(0);
@@ -67,21 +75,44 @@
         }
 
         .content {
-            margin-left: 300px; 
+            margin-left: 280px;
             padding: 20px; 
-            transition: all 0.3s ease; 
+            transition: margin-left 0.3s ease-in-out;
         }
 
-        /* Keep content full width on mobile, adjust when sidebar is shown */
-        @media (max-width: 768px) { 
+        /* Adjust content margin for smaller screens */
+        @media (max-width: 768px) {
             .content {
                 margin-left: 0; 
-                width: 100%; 
             }
-            .sidebar.show + .content {
-                margin-left: 280px; 
-                width: calc(100% - 280px); 
-            }
+        }
+
+        .navbar {
+            background: linear-gradient(to right, #ff6a95, #ff9068);
+            padding: 15px 20px; 
+            border-radius: 10px;
+            color: white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar .app-name { 
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar .app-name span {
+            font-weight: bold;
+            font-size: 1.4rem;
+            margin-right: 10px; 
+        }
+
+        .navbar .welcome-message { 
+            font-size: 1.2rem; 
+            word-break: break-word; 
         }
 
         .card {
@@ -90,7 +121,7 @@
             background-color: #fff;
             color: #333;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s, box-shadow 0.3s;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
             margin-bottom: 20px; 
         }
 
@@ -100,38 +131,30 @@
         }
 
         .card h5 {
-            font-size: 1.2rem; 
+            font-size: 1.4rem;
             font-weight: 600;
-            margin-bottom: 1rem;
+            margin-bottom: 15px;
         }
 
-        .navbar {
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-            background: linear-gradient(90deg, #ff758c, #ff7eb3);
-            color: white;
-            padding: 10px 20px; 
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap; 
-        }
-
-        .navbar .navbar-brand {
-            font-weight: bold;
-            font-size: 1.5rem; 
+        .card p {
+            font-size: 1.1rem;
         }
 
         .datetime-display {
-            font-size: 1rem;
+            font-size: 1.2rem;
             font-weight: 500;
-            background: #fff;
+            background: white;
             color: #333;
-            padding: 8px 16px; 
+            padding: 10px 20px;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             text-align: center;
-            margin-top: 10px; 
+        }
+
+        .btn {
+            margin-top: 1rem;
+            padding: 10px 20px;
+            font-weight: 500;
         }
 
         .running-text {
@@ -139,7 +162,7 @@
             color: #ff5c8d;
             padding: 10px;
             border-radius: 5px;
-            font-size: 0.9rem; 
+            font-size: 1rem;
             white-space: nowrap;
             overflow: hidden;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -149,27 +172,12 @@
         .running-text span {
             display: inline-block;
             padding-left: 100%;
-            animation: marquee 20s linear infinite;
+            animation: marquee 23s linear infinite;
         }
 
         @keyframes marquee {
             0% { transform: translateX(0); }
             100% { transform: translateX(-100%); }
-        }
-
-        .btn {
-            margin-top: 1rem;
-            transition: transform 0.3s;
-        }
-
-        .btn:hover {
-            transform: scale(1.05);
-        }
-
-        .navbar .welcome-message {
-            font-size: 1rem; 
-            word-break: break-word;
-            margin-left: 20px; 
         }
 
         footer {
@@ -179,7 +187,7 @@
             background: linear-gradient(135deg, #182848, #4b6cb7);
             color: white;
             border-radius: 8px;
-            font-size: 0.9rem; 
+            font-size: 1rem;
         }
 
         footer span {
@@ -191,36 +199,34 @@
             cursor: pointer;
         }
 
-        .bar {
-            width: 25px;
-            height: 3px;
-            background-color: white;
-            margin: 5px 0;
-        }
-
         @media (max-width: 768px) {
-            .sidebar {
-                left: -280px; /* Hide sidebar off-screen */
-            }
-
-            .content {
-                margin-left: 20px; 
-            }
-
             .hamburger {
-                display: block; 
-                position: fixed; /* Keep hamburger menu visible */
+                display: block;
+                position: absolute; 
                 top: 15px;
-                left: 15px;
-                z-index: 101; /* Ensure it's above the sidebar */
+                right: 20px; 
+                z-index: 101; 
             }
 
-            .navbar .welcome-message {
-                margin-left: 10px; 
+            .hamburger .bar {
+                display: block;
+                width: 25px;
+                height: 3px;
+                margin: 5px auto; 
+                background-color: white;
             }
 
-            .card h5 {
-                font-size: 1.1rem; 
+            .dark-mode-toggle { 
+                position: fixed;
+                top: 20px;
+                right: 20px; 
+                z-index: 101;
+                cursor: pointer;
+                color: white; 
+            }
+
+            .dark-mode .dark-mode-toggle {
+                color: black; 
             }
         }
         .flash-message {
