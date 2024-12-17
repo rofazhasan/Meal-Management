@@ -49,9 +49,9 @@ def change_password():
 
             flash('Password changed successfully!', 'success')
             if session['user_role'] == 'user':
-                    return redirect(url_for('app.user_dashboard'))
-                else:
-                    return redirect(url_for('app.admin_dashboard'))  # Redirect to user dashboard
+                return redirect(url_for('app.user_dashboard'))
+            else:
+                return redirect(url_for('app.admin_dashboard'))  # Redirect to user dashboard
         else:
             flash('Incorrect old password.', 'danger')
 
@@ -489,9 +489,9 @@ def stop_meal(user_id):
         flash(f"Error stopping meal: {e}", "danger")
 
     if session['user_role'] == 'user':
-                    return redirect(url_for('app.user_dashboard'))
-                else:
-                    return redirect(url_for('app.admin_dashboard'))
+        return redirect(url_for('app.user_dashboard'))
+    else:
+        return redirect(url_for('app.admin_dashboard'))
 
 
 
