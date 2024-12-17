@@ -117,12 +117,35 @@
             color: #2575fc;
             font-weight: bold;
         }
+
+        /* Added styles for flash messages */
+        .flash-message {
+            padding: 10px;
+            margin-bottom: 1rem;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .flash-message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="brand">Powered by <span>RofazTech</span></div>
         <h2>Set Next Day Meal</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">{{ message }}</div> 
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <form method="POST" action="{{ url_for('app.set_next_day_meal') }}">
             {{ form.hidden_tag() }}
             <div class="form-group">
