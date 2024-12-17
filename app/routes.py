@@ -48,7 +48,10 @@ def change_password():
             db.session.commit()
 
             flash('Password changed successfully!', 'success')
-            return redirect(url_for('app.user_dashboard'))  # Redirect to user dashboard
+            if session['user_role'] == 'user':
+                    return redirect(url_for('app.user_dashboard'))
+                else:
+                    return redirect(url_for('app.admin_dashboard'))  # Redirect to user dashboard
         else:
             flash('Incorrect old password.', 'danger')
 
@@ -485,7 +488,10 @@ def stop_meal(user_id):
         db.session.rollback()
         flash(f"Error stopping meal: {e}", "danger")
 
-    return redirect(url_for('app.user_dashboard'))
+    if session['user_role'] == 'user':
+                    return redirect(url_for('app.user_dashboard'))
+                else:
+                    return redirect(url_for('app.admin_dashboard'))
 
 
 
