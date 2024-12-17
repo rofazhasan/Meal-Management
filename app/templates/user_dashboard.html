@@ -199,11 +199,11 @@
 
         @media (max-width: 768px) {
     .hamburger {
-        display: block;
-        position: absolute; /* Add this */
-        top: 15px;    /* Adjust as needed */
-        right: 20px;   /* Adjust as needed */
-    }
+    display: block; 
+    position: absolute;
+    top: 15px;    
+    right: 20px;   
+    z-index: 101; /* Ensure it's above the sidebar */ 
 }
 
 .hamburger .bar {
