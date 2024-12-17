@@ -198,18 +198,21 @@
         }
 
         @media (max-width: 768px) {
-            .hamburger {
-                display: block;
-            }
-        }
+    .hamburger {
+        display: block;
+        position: absolute; /* Add this */
+        top: 15px;    /* Adjust as needed */
+        right: 20px;   /* Adjust as needed */
+    }
+}
 
-        .hamburger .bar {
-            display: block;
-            width: 25px;
-            height: 3px;
-            margin: 5px auto;
-            background-color: white;
-        }
+.hamburger .bar {
+    display: block;
+    width: 25px;
+    height: 3px;
+    margin: 5px auto;
+    background-color: white;
+}
 
         .dark-mode-toggle { /* Added for dark mode toggle */
             position: fixed;
@@ -227,8 +230,6 @@
 </head>
 
 <body>
-    <div class="dark-mode-toggle" onclick="toggleDarkMode()">
-        <i class="fas fa-moon"></i>  </div>
 
     <div class="hamburger" onclick="toggleSidebar()">
         <div class="bar"></div>
