@@ -368,14 +368,6 @@
         function toggleSidebar() {
             const sidebar = document.querySelector('.sidebar');
             sidebar.classList.toggle('show');
-
-            // Adjust content width dynamically on mobile
-            const content = document.querySelector('.content');
-            if (sidebar.classList.contains('show')) {
-                content.style.width = 'calc(100% - 280px)'; 
-            } else {
-                content.style.width = '100%'; 
-            }
         }
     </script>
 </body>
