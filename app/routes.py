@@ -239,7 +239,7 @@ def delete_user(user_id):
     except Exception as e:
         db.session.rollback()
         flash(f"Error adding user: {e}", "danger")
-    return render_template("delete_user.html", name=user.name,users=users)
+    return render_template('view_user.html', users=users)
 @app.route('/admin/update_meal_price',methods=['GET','POST'])
 def update_meal_price():
     if not (session.get('logged_in') and session.get('user_role') =='admin'):
