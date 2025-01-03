@@ -20,7 +20,7 @@ class AddUserForm(FlaskForm):
         'Name',
         validators=[DataRequired(), Length(max=100, message="Name cannot exceed 100 characters.")]
     )
-    email = EmailField('E-mail', validators=[DataRequired()])
+    email = EmailField('E-mail')
     phone = StringField(
         'Phone Number',
         validators=[DataRequired(), Length(min=10, max=15, message="Invalid phone number length.")]
