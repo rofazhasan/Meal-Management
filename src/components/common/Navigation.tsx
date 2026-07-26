@@ -2,7 +2,19 @@ import React from 'react';
 import { LayoutDashboard, CalendarCheck, Wallet, BarChart3, ShieldCheck, Users, Settings, ShieldAlert } from 'lucide-react';
 import { BN } from '../../constants/banglaText';
 
-export type TabType = 'dashboard' | 'meals' | 'wallet' | 'reports' | 'admin-dashboard' | 'admin-users' | 'admin-settings' | 'admin-audit';
+import { DollarSign, Building2 } from 'lucide-react';
+
+export type TabType = 
+  | 'dashboard' 
+  | 'meals' 
+  | 'wallet' 
+  | 'reports' 
+  | 'admin-dashboard' 
+  | 'admin-finance' 
+  | 'admin-branches' 
+  | 'admin-users' 
+  | 'admin-settings' 
+  | 'admin-audit';
 
 interface NavigationProps {
   activeTab: TabType;
@@ -22,7 +34,7 @@ export const Navigation: React.FC<NavigationProps> = ({
       <nav className="glass-panel border border-slate-800/80 p-1.5 my-3 rounded-2xl max-w-7xl mx-auto flex items-center justify-center gap-1 sm:gap-2 overflow-x-auto shadow-xl">
         <button
           onClick={() => onTabChange('admin-dashboard')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap active:scale-95 ${
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
             activeTab === 'admin-dashboard'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
@@ -38,8 +50,32 @@ export const Navigation: React.FC<NavigationProps> = ({
         </button>
 
         <button
+          onClick={() => onTabChange('admin-finance')}
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
+            activeTab === 'admin-finance'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+          }`}
+        >
+          <DollarSign className="w-4 h-4" />
+          ফাইন্যান্সিয়াল হাব
+        </button>
+
+        <button
+          onClick={() => onTabChange('admin-branches')}
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
+            activeTab === 'admin-branches'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+          }`}
+        >
+          <Building2 className="w-4 h-4" />
+          ব্রাঞ্চ ম্যানেজার
+        </button>
+
+        <button
           onClick={() => onTabChange('admin-users')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap active:scale-95 ${
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
             activeTab === 'admin-users'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
@@ -51,7 +87,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
         <button
           onClick={() => onTabChange('admin-settings')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap active:scale-95 ${
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
             activeTab === 'admin-settings'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
@@ -63,7 +99,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
         <button
           onClick={() => onTabChange('admin-audit')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap active:scale-95 ${
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
             activeTab === 'admin-audit'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
@@ -71,18 +107,6 @@ export const Navigation: React.FC<NavigationProps> = ({
         >
           <ShieldAlert className="w-4 h-4" />
           অডিট লগ
-        </button>
-
-        <button
-          onClick={() => onTabChange('reports')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap active:scale-95 ${
-            activeTab === 'reports'
-              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
-          }`}
-        >
-          <BarChart3 className="w-4 h-4" />
-          {BN.reports}
         </button>
       </nav>
     );

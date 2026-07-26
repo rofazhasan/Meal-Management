@@ -13,6 +13,8 @@ import { UserManagement } from './components/admin/UserManagement';
 import { AdminUserDetail } from './components/admin/AdminUserDetail';
 import { SettingsPanel } from './components/admin/SettingsPanel';
 import { AuditLogScreen } from './components/admin/AuditLogScreen';
+import { FinancialDashboard } from './components/admin/FinancialDashboard';
+import { BranchManagement } from './components/admin/BranchManagement';
 import { MockService } from './services/mockStorage';
 import { User } from './types';
 
@@ -31,18 +33,29 @@ const MainApplication: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [selectedUserForDetail, setSelectedUserForDetail] = useState<User | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('ALL');
 
   // Load active user on mount
   useEffect(() => {
     MockService.getCurrentUser().then((u) => {
       if (u) {
         setCurrentUser(u);
-        if (u.role === 'ADMIN') {
+        if (u.role === 'ADMIN' || u.role === 'SUPERADMIN') {
           setActiveTab('admin-dashboard');
         }
       }
     });
   }, []);
+
+  const { data: branches = [] } = useQuery({
+    queryKey: ['branches'],
+    queryFn: () => MockService.getBranches(),
+  });
+
+  const { data: financialMetrics } = useQuery({
+    queryKey: ['financialMetrics', selectedBranchId],
+    queryFn: () => MockService.getFinancialMetrics(selectedBranchId),
+  });
 
   // TanStack Queries for caching & state synchronization
   const { data: users = [], refetch: refetchUsers } = useQuery({
@@ -78,7 +91,6 @@ const MainApplication: React.FC = () => {
     refetchTransactions();
     refetchEmergencies();
 
-    // Sync active currentUser object
     if (currentUser) {
       MockService.getUsers().then((usrs) => {
         const updatedSelf = usrs.find((u) => u.id === currentUser.id);
@@ -96,7 +108,7 @@ const MainApplication: React.FC = () => {
 
   const handleSwitchRole = (newRole: 'USER' | 'ADMIN') => {
     if (!currentUser) return;
-    const updated: User = { ...currentUser, role: newRole };
+    const updated: User = { ...currentUser, role: newRole as any };
     MockService.setCurrentUser(updated);
     setCurrentUser(updated);
     if (newRole === 'ADMIN') {
@@ -124,7 +136,7 @@ const MainApplication: React.FC = () => {
         <AmbientBackground />
         <AuthScreen onLoginSuccess={(u) => {
           setCurrentUser(u);
-          if (u.role === 'ADMIN') setActiveTab('admin-dashboard');
+          if (u.role === 'ADMIN' || u.role === 'SUPERADMIN') setActiveTab('admin-dashboard');
           else setActiveTab('dashboard');
           handleRefreshAll();
         }} />
@@ -133,7 +145,7 @@ const MainApplication: React.FC = () => {
   }
 
   const pendingCount = users.filter((u) => u.status === 'PENDING').length;
-  const isAdmin = currentUser.role === 'ADMIN';
+  const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN' || currentUser.activeMode === 'ADMIN';
 
   return (
     <div className="min-h-screen bg-[#050811] text-slate-100 selection:bg-cyan-500 selection:text-white relative">
@@ -228,6 +240,19 @@ const MainApplication: React.FC = () => {
                   />
                 )}
 
+                {activeTab === 'admin-finance' && financialMetrics && (
+                  <FinancialDashboard
+                    metrics={financialMetrics}
+                    branches={branches}
+                    selectedBranchId={selectedBranchId}
+                    onSelectBranch={(id) => setSelectedBranchId(id)}
+                  />
+                )}
+
+                {activeTab === 'admin-branches' && (
+                  <BranchManagement branches={branches} />
+                )}
+
                 {activeTab === 'admin-users' && (
                   <UserManagement
                     users={users}
@@ -264,4 +289,5 @@ export const App: React.FC = () => {
     </QueryClientProvider>
   );
 };
+
 export default App;

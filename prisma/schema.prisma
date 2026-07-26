@@ -1,5 +1,5 @@
 // ==============================================================================
-// MEAL MANAGEMENT APP - PRISMA ORM SCHEMA (V2 PRODUCTION)
+// MEAL MANAGEMENT APP - PRISMA ORM SCHEMA (V4 ENTERPRISE EDITION)
 // ==============================================================================
 
 datasource db {
@@ -12,9 +12,16 @@ generator client {
 }
 
 enum UserRole {
-  USER
-  ADMIN
   SUPERADMIN
+  OWNER
+  FINANCE_ADMIN
+  MEAL_MANAGER
+  HOSTEL_MANAGER
+  BRANCH_MANAGER
+  AUDITOR
+  SUPPORT_ADMIN
+  READONLY_ADMIN
+  USER
 }
 
 enum UserType {
@@ -59,6 +66,8 @@ enum TransactionType {
   ADMIN_TOPUP
   MEAL_DEDUCTION
   MONTHLY_CHARGE
+  PENALTY
+  DISCOUNT
 }
 
 enum NotificationType {
@@ -69,6 +78,8 @@ enum NotificationType {
   LOW_BALANCE
   MONTHLY_BILL
   SYSTEM
+  AI_ALERT
+  SECURITY
 }
 
 enum NotificationStatus {
@@ -90,21 +101,55 @@ enum OutboxStatus {
   FAILED
 }
 
+model Branch {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique @db.VarChar(20)
+  name        String   @db.VarChar(100)
+  address     String?  @db.VarChar(255)
+  city        String?  @db.VarChar(50)
+  phone       String?  @db.VarChar(20)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  users       User[]
+  settings    BranchSetting[]
+  aiInsights  AiInsightSnapshot[]
+
+  @@map("branches")
+}
+
+model RolePermission {
+  id             String   @id @default(uuid()) @db.Uuid
+  role           UserRole
+  permissionKey  String   @map("permission_key") @db.VarChar(100)
+  isAllowed      Boolean  @default(true) @map("is_allowed")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([role, permissionKey], name: "uq_role_permission")
+  @@map("role_permissions")
+}
+
 model User {
   id              String          @id @default(uuid()) @db.Uuid
   phoneNumber     String          @unique @map("phone_number") @db.VarChar(15)
   passwordHash    String          @map("password_hash") @db.VarChar(255)
   fullName        String          @map("full_name") @db.VarChar(100)
+  email           String?         @db.VarChar(150)
   role            UserRole        @default(USER)
   userType        UserType        @default(PERMANENT) @map("user_type")
   approvalStatus  ApprovalStatus  @default(PENDING) @map("approval_status")
+  branchId        String?         @map("branch_id") @db.Uuid
   approvedBy      String?         @map("approved_by") @db.Uuid
   approvedAt      DateTime?       @map("approved_at") @db.Timestamptz
   isActive        Boolean         @default(true) @map("is_active")
+  isDualMode      Boolean         @default(false) @map("is_dual_mode")
+  activeMode      String          @default("USER") @map("active_mode") @db.VarChar(10) // 'ADMIN' or 'USER'
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
   updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz
 
+  branch          Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
   approver        User?           @relation("UserApprover", fields: [approvedBy], references: [id])
   approvedUsers   User[]          @relation("UserApprover")
   profile         Profile?
@@ -121,22 +166,34 @@ model User {
   mealSettingsChanged MealSetting[]
 
   @@index([approvalStatus, createdAt(sort: Desc)])
+  @@index([branchId, role])
   @@map("users")
 }
 
 model Profile {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @unique @map("user_id") @db.Uuid
-  roomNumber  String?  @map("room_number") @db.VarChar(50)
-  department  String?  @db.VarChar(100)
-  batch       String?  @db.VarChar(50)
-  hostelName  String?  @map("hostel_name") @db.VarChar(100)
-  avatarUrl   String?  @map("avatar_url")
-  notes       String?
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @unique @map("user_id") @db.Uuid
+  avatarUrl        String?   @map("avatar_url")
+  dateOfBirth      DateTime? @map("date_of_birth") @db.Date
+  gender           String?   @db.VarChar(20)
+  bloodGroup       String?   @map("blood_group") @db.VarChar(10)
+  emergencyContact String?   @map("emergency_contact") @db.VarChar(20)
+  nationalId       String?   @map("national_id") @db.VarChar(50)
+  studentId        String?   @map("student_id") @db.VarChar(50)
+  department       String?   @db.VarChar(100)
+  batch            String?   @db.VarChar(50)
+  semester         String?   @db.VarChar(50)
+  rollNumber       String?   @map("roll_number") @db.VarChar(50)
+  hostelName       String?   @map("hostel_name") @db.VarChar(100)
+  building         String?   @db.VarChar(50)
+  floor            String?   @db.VarChar(50)
+  roomNumber       String?   @map("room_number") @db.VarChar(50)
+  seatNumber       String?   @map("seat_number") @db.VarChar(50)
+  notes            String?
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("profiles")
 }
@@ -193,6 +250,21 @@ model MealSetting {
   consumptions    MealConsumption[]
 
   @@map("meal_settings")
+}
+
+model BranchSetting {
+  id            String   @id @default(uuid()) @db.Uuid
+  branchId      String   @map("branch_id") @db.Uuid
+  cutoffTime    String   @default("10:00") @map("cutoff_time") @db.VarChar(5)
+  monthlyCharge Decimal  @default(500.00) @map("monthly_charge") @db.Decimal(12, 2)
+  breakfastCost Decimal  @default(45.00) @map("breakfast_cost") @db.Decimal(12, 2)
+  lunchCost     Decimal  @default(75.00) @map("lunch_cost") @db.Decimal(12, 2)
+  dinnerCost    Decimal  @default(75.00) @map("dinner_cost") @db.Decimal(12, 2)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  branch        Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@map("branch_settings")
 }
 
 model MealPrice {
@@ -329,6 +401,21 @@ model AuditLog {
   actor       User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@map("audit_logs")
+}
+
+model AiInsightSnapshot {
+  id                 String   @id @default(uuid()) @db.Uuid
+  branchId           String?  @map("branch_id") @db.Uuid
+  summaryText        String   @map("summary_text")
+  revenueForecast    Decimal  @map("revenue_forecast") @db.Decimal(12, 2)
+  predictedMealCount Int      @map("predicted_meal_count")
+  riskScore          String   @map("risk_score") @db.VarChar(20) // 'LOW', 'MODERATE', 'HIGH'
+  recommendations    Json     @default("[]")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  branch             Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@map("ai_insight_snapshots")
 }
 
 model SystemJob {

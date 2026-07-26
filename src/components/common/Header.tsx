@@ -33,8 +33,8 @@ export const Header: React.FC<HeaderProps> = ({
               <h1 className="text-lg sm:text-xl font-extrabold font-display bg-gradient-to-r from-cyan-300 via-sky-200 to-white bg-clip-text text-transparent">
                 {BN.appTitle}
               </h1>
-              <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                PRO v2.0
+              <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-amber-500/20 to-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                ENTERPRISE v4.0
               </span>
             </div>
             <p className="text-[11px] text-slate-400 hidden sm:block font-sans">

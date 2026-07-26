@@ -1,18 +1,65 @@
-export type UserRole = 'USER' | 'ADMIN';
+export type UserRole = 
+  | 'SUPERADMIN'
+  | 'OWNER'
+  | 'FINANCE_ADMIN'
+  | 'MEAL_MANAGER'
+  | 'HOSTEL_MANAGER'
+  | 'BRANCH_MANAGER'
+  | 'AUDITOR'
+  | 'SUPPORT_ADMIN'
+  | 'READONLY_ADMIN'
+  | 'USER'
+  | 'ADMIN'; // backwards compatibility
+
 export type UserType = 'PERMANENT' | 'GUEST';
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type MealType = 'breakfast' | 'lunch' | 'dinner';
+
+export interface Branch {
+  id: string;
+  code: string;
+  name: string;
+  address?: string;
+  city?: string;
+  phone?: string;
+  isActive: boolean;
+}
+
+export interface RichProfile {
+  avatarUrl?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  bloodGroup?: string;
+  emergencyContact?: string;
+  nationalId?: string;
+  studentId?: string;
+  department?: string;
+  batch?: string;
+  semester?: string;
+  rollNumber?: string;
+  hostelName?: string;
+  building?: string;
+  floor?: string;
+  roomNumber?: string;
+  seatNumber?: string;
+  notes?: string;
+}
 
 export interface User {
   id: string;
   name: string;
   phone: string;
+  email?: string;
   password?: string;
   role: UserRole;
   userType: UserType;
   status: ApprovalStatus;
   walletBalance: number;
+  branchId?: string;
   roomNo?: string;
+  profile?: RichProfile;
+  isDualMode?: boolean;
+  activeMode?: 'ADMIN' | 'USER';
   createdAt: string;
 }
 
@@ -53,7 +100,13 @@ export interface EmergencyClosure {
   createdAt: string;
 }
 
-export type TransactionType = 'RECHARGE' | 'MEAL_DEDUCTION' | 'MONTHLY_CHARGE' | 'REFUND';
+export type TransactionType = 
+  | 'RECHARGE' 
+  | 'MEAL_DEDUCTION' 
+  | 'MONTHLY_CHARGE' 
+  | 'REFUND' 
+  | 'PENALTY' 
+  | 'DISCOUNT';
 
 export interface WalletTransaction {
   id: string;
@@ -74,4 +127,43 @@ export interface AuditLog {
   targetUserId?: string;
   details: string;
   timestamp: string;
+  ipAddress?: string;
+  device?: string;
+  reason?: string;
+}
+
+export interface FinancialMetrics {
+  todayCollection: number;
+  monthlyCollection: number;
+  yearlyCollection: number;
+  todayExpenses: number;
+  netProfit: number;
+  outstandingBalance: number;
+  totalWalletBalance: number;
+  totalRefunds: number;
+  permanentRevenue: number;
+  guestRevenue: number;
+  topSpenders: { name: string; amount: number; phone: string }[];
+  lowBalanceUsersCount: number;
+}
+
+export interface AiInsight {
+  summary: string;
+  revenueForecast: number;
+  mealDemandForecast: number;
+  riskLevel: 'LOW' | 'MODERATE' | 'HIGH';
+  recommendations: string[];
+  lowBalanceRiskCount: number;
+}
+
+export interface AdvancedUserFilter {
+  searchTerm?: string;
+  userType?: UserType | 'ALL';
+  role?: UserRole | 'ALL';
+  branchId?: string | 'ALL';
+  approvalStatus?: ApprovalStatus | 'ALL';
+  minBalance?: number;
+  maxBalance?: number;
+  department?: string;
+  batch?: string;
 }

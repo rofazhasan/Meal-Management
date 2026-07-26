@@ -1,75 +1,133 @@
-import { User, MealRateConfig, MealDeclaration, EmergencyClosure, WalletTransaction, AuditLog, MealType } from '../types';
+import { 
+  User, 
+  MealRateConfig, 
+  MealDeclaration, 
+  WalletTransaction, 
+  EmergencyClosure, 
+  AuditLog, 
+  Branch, 
+  FinancialMetrics, 
+  AiInsight, 
+  AdvancedUserFilter 
+} from '../types';
 
-const USERS_KEY = 'meal_app_users_v2';
-const RATES_KEY = 'meal_app_rates_v2';
-const DECLARATIONS_KEY = 'meal_app_declarations_v2';
-const EMERGENCIES_KEY = 'meal_app_emergencies_v2';
-const TRANSACTIONS_KEY = 'meal_app_transactions_v2';
-const AUDITS_KEY = 'meal_app_audits_v2';
-const CURRENT_USER_KEY = 'meal_app_current_user_v2';
+const INITIAL_BRANCHES: Branch[] = [
+  { id: 'b1', code: 'CENTRAL', name: 'সেন্ট্রাল হোস্টেল ব্রাঞ্চ', address: 'ক্যাম্পাস মেইন গেট, ঢাকা', city: 'ঢাকা', isActive: true },
+  { id: 'b2', code: 'NORTH', name: 'নর্থ হোস্টেল ব্লক-এ', address: 'সেক্টর ৪, উত্তরা', city: 'ঢাকা', isActive: true },
+  { id: 'b3', code: 'GIRLS', name: 'গার্লস হোস্টেল ভবন', address: 'লেক রোড, ধানমণ্ডি', city: 'ঢাকা', isActive: true },
+];
 
 const INITIAL_USERS: User[] = [
   {
-    id: 'u-admin-1',
-    name: 'মেস ম্যানেজার (অ্যাডমিন)',
-    phone: '01700000000',
-    password: 'admin',
-    role: 'ADMIN',
-    userType: 'PERMANENT',
-    status: 'APPROVED',
-    walletBalance: 5000,
-    roomNo: 'ম্যানেজার কক্ষ',
-    createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
-  },
-  {
-    id: 'u-user-1',
-    name: 'রফিকুল ইসলাম',
+    id: 'u1',
+    name: 'তানভীর আহমেদ',
     phone: '01711111111',
     password: 'user',
     role: 'USER',
     userType: 'PERMANENT',
     status: 'APPROVED',
     walletBalance: 1250,
-    roomNo: '১০২ (দ্বিতীয় তলা)',
-    createdAt: new Date(Date.now() - 20 * 86400000).toISOString(),
+    branchId: 'b1',
+    roomNo: '৩০২',
+    isDualMode: false,
+    activeMode: 'USER',
+    createdAt: '2026-01-15T08:00:00Z',
+    profile: {
+      studentId: 'CSE-2024-089',
+      department: 'কম্পিউটার সায়েন্স',
+      batch: '৪৯তম',
+      semester: '৬ষ্ঠ',
+      bloodGroup: 'B+',
+      emergencyContact: '01700000000',
+      hostelName: 'সেন্ট্রাল হোস্টেল',
+      floor: '৩য় তলা',
+      seatNumber: 'B-2',
+    },
   },
   {
-    id: 'u-user-2',
-    name: 'তানভীর আহমেদ',
-    phone: '01722222222',
+    id: 'u2',
+    name: 'হাসান আবদুল্লাহ (অ্যাডমিন)',
+    phone: '01822222222',
+    password: 'admin',
+    role: 'SUPERADMIN',
+    userType: 'PERMANENT',
+    status: 'APPROVED',
+    walletBalance: 2450,
+    branchId: 'b1',
+    roomNo: '১০১',
+    isDualMode: true,
+    activeMode: 'ADMIN',
+    createdAt: '2026-01-01T08:00:00Z',
+    profile: {
+      studentId: 'ADM-2024-001',
+      department: 'ইনফরমেশন টেকনোলজি',
+      batch: '৪৫তম',
+      bloodGroup: 'O+',
+      emergencyContact: '01800000000',
+      hostelName: 'সেন্ট্রাল হোস্টেল',
+      floor: '১ম তলা',
+      seatNumber: 'A-1',
+    },
+  },
+  {
+    id: 'u3',
+    name: 'রাফি ইসলাম',
+    phone: '01933333333',
     password: 'user',
     role: 'USER',
     userType: 'GUEST',
     status: 'APPROVED',
-    walletBalance: 600,
-    roomNo: '২০৪ (তৃতীয় তলা)',
-    createdAt: new Date(Date.now() - 10 * 86400000).toISOString(),
+    walletBalance: 450,
+    branchId: 'b2',
+    roomNo: '২০৪',
+    isDualMode: false,
+    activeMode: 'USER',
+    createdAt: '2026-02-10T08:00:00Z',
+    profile: {
+      studentId: 'EEE-2024-112',
+      department: 'ইলেকট্রিক্যাল ইঞ্জিনিয়ারিং',
+      batch: '৫০তম',
+      bloodGroup: 'AB+',
+      emergencyContact: '01900000000',
+      hostelName: 'নর্থ হোস্টেল ব্লক-এ',
+    },
   },
   {
-    id: 'u-user-3',
-    name: 'আরিফ হোসাইন',
-    phone: '01733333333',
+    id: 'u4',
+    name: 'সাদিয়া সুলতানা',
+    phone: '01544444444',
     password: 'user',
     role: 'USER',
     userType: 'PERMANENT',
     status: 'PENDING',
     walletBalance: 0,
-    roomNo: '৩০১ (চতুর্থ তলা)',
-    createdAt: new Date().toISOString(),
+    branchId: 'b3',
+    roomNo: '৪০৫',
+    isDualMode: false,
+    activeMode: 'USER',
+    createdAt: '2026-07-25T10:30:00Z',
+    profile: {
+      studentId: 'BBA-2025-045',
+      department: 'বিজনেস এডমিনিস্ট্রেশন',
+      batch: '৫২তম',
+      bloodGroup: 'A+',
+      emergencyContact: '01500000000',
+      hostelName: 'গার্লস হোস্টেল ভবন',
+    },
   },
 ];
 
 const INITIAL_RATES: MealRateConfig = {
   permanent: {
-    breakfast: 30,
+    breakfast: 40,
     lunch: 70,
-    dinner: 60,
+    dinner: 70,
     monthlyCharge: 500,
   },
   guest: {
-    breakfast: 40,
-    lunch: 90,
-    dinner: 80,
+    breakfast: 50,
+    lunch: 85,
+    dinner: 85,
     monthlyCharge: 0,
   },
   globalMealStatus: {
@@ -80,400 +138,437 @@ const INITIAL_RATES: MealRateConfig = {
   cutoffTime: '10:00',
 };
 
-const getTodayStr = (offsetDays = 0): string => {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().split('T')[0];
-};
-
-const INITIAL_DECLARATIONS: MealDeclaration[] = [
-  {
-    id: 'dec-1',
-    userId: 'u-user-1',
-    date: getTodayStr(0),
-    breakfast: true,
-    lunch: true,
-    dinner: true,
-    isAutoCopied: false,
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'dec-2',
-    userId: 'u-user-1',
-    date: getTodayStr(1),
-    breakfast: true,
-    lunch: true,
-    dinner: false,
-    isAutoCopied: false,
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'dec-3',
-    userId: 'u-user-2',
-    date: getTodayStr(0),
-    breakfast: false,
-    lunch: true,
-    dinner: true,
-    isAutoCopied: true,
-    updatedAt: new Date().toISOString(),
-  },
-];
-
 const INITIAL_TRANSACTIONS: WalletTransaction[] = [
   {
-    id: 'tx-1',
-    userId: 'u-user-1',
+    id: 't1',
+    userId: 'u1',
     type: 'RECHARGE',
     amount: 1500,
     balanceBefore: 0,
     balanceAfter: 1500,
-    description: 'মেস ম্যানেজার কর্তৃক ক্যাশ রিচার্জ গ্রহণ',
-    date: getTodayStr(-3),
-    adminId: 'u-admin-1',
+    description: 'নগদ জমা (অফিস রিচার্জ)',
+    date: new Date().toISOString(),
+    adminId: 'u2',
   },
   {
-    id: 'tx-2',
-    userId: 'u-user-1',
+    id: 't2',
+    userId: 'u1',
     type: 'MEAL_DEDUCTION',
-    amount: 160,
+    amount: 180,
     balanceBefore: 1500,
-    balanceAfter: 1340,
-    description: 'দৈনিক মিল ব্যয় (নাস্তা ৳৩০ + দুপুর ৳৭০ + রাত ৳৬০)',
-    date: getTodayStr(-1),
+    balanceAfter: 1320,
+    description: 'মিল কর্তন (নাস্তা + দুপুর + রাত)',
+    date: new Date().toISOString(),
   },
   {
-    id: 'tx-3',
-    userId: 'u-user-1',
-    type: 'MEAL_DEDUCTION',
-    amount: 90,
-    balanceBefore: 1340,
-    balanceAfter: 1250,
-    description: 'দৈনিক মিল ব্যয় (নাস্তা ৳৩০ + রাত ৳৬০)',
-    date: getTodayStr(0),
-  },
-  {
-    id: 'tx-4',
-    userId: 'u-user-2',
+    id: 't3',
+    userId: 'u2',
     type: 'RECHARGE',
-    amount: 800,
+    amount: 3000,
     balanceBefore: 0,
-    balanceAfter: 800,
-    description: 'অতিথি রিচার্জ ডিপোজিট',
-    date: getTodayStr(-2),
-    adminId: 'u-admin-1',
+    balanceAfter: 3000,
+    description: 'অ্যাডমিন প্রাথমিক ডিপোজিট',
+    date: new Date().toISOString(),
+    adminId: 'u2',
   },
 ];
 
-const INITIAL_EMERGENCIES: EmergencyClosure[] = [
-  {
-    id: 'em-1',
-    date: getTodayStr(3),
-    reason: 'গ্যাস লাইন জরুরি মেনটেইনেন্স ও পরিষ্কার অভিযান',
-    closedMeals: ['breakfast', 'lunch', 'dinner'],
-    createdAt: new Date().toISOString(),
-  },
-];
+export class MockService {
+  private static STORAGE_KEY_USERS = 'meal_app_v4_users';
+  private static STORAGE_KEY_RATES = 'meal_app_v4_rates';
+  private static STORAGE_KEY_DECLARATIONS = 'meal_app_v4_declarations';
+  private static STORAGE_KEY_TRANSACTIONS = 'meal_app_v4_transactions';
+  private static STORAGE_KEY_EMERGENCIES = 'meal_app_v4_emergencies';
+  private static STORAGE_KEY_AUDITS = 'meal_app_v4_audits';
+  private static STORAGE_KEY_BRANCHES = 'meal_app_v4_branches';
 
-const getItem = <T>(key: string, defaultVal: T): T => {
-  const val = localStorage.getItem(key);
-  if (!val) {
-    localStorage.setItem(key, JSON.stringify(defaultVal));
-    return defaultVal;
-  }
-  try {
-    return JSON.parse(val);
-  } catch {
-    return defaultVal;
-  }
-};
-
-const setItem = <T>(key: string, val: T): void => {
-  localStorage.setItem(key, JSON.stringify(val));
-};
-
-export const MockService = {
-  // Initialize mock data
-  init() {
-    getItem(USERS_KEY, INITIAL_USERS);
-    getItem(RATES_KEY, INITIAL_RATES);
-    getItem(DECLARATIONS_KEY, INITIAL_DECLARATIONS);
-    getItem(TRANSACTIONS_KEY, INITIAL_TRANSACTIONS);
-    getItem(EMERGENCIES_KEY, INITIAL_EMERGENCIES);
-    getItem(AUDITS_KEY, []);
-    
-    // Set initial logged in user if none
-    if (!localStorage.getItem(CURRENT_USER_KEY)) {
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(INITIAL_USERS[1])); // Default to Rafiqul (User)
+  static async getBranches(): Promise<Branch[]> {
+    const data = localStorage.getItem(this.STORAGE_KEY_BRANCHES);
+    if (!data) {
+      localStorage.setItem(this.STORAGE_KEY_BRANCHES, JSON.stringify(INITIAL_BRANCHES));
+      return INITIAL_BRANCHES;
     }
-  },
+    return JSON.parse(data);
+  }
 
-  // Auth & Current User
-  async getCurrentUser(): Promise<User | null> {
-    return getItem<User | null>(CURRENT_USER_KEY, INITIAL_USERS[1]);
-  },
+  static async getUsers(): Promise<User[]> {
+    const data = localStorage.getItem(this.STORAGE_KEY_USERS);
+    if (!data) {
+      localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(INITIAL_USERS));
+      return INITIAL_USERS;
+    }
+    return JSON.parse(data);
+  }
 
-  async setCurrentUser(user: User): Promise<User> {
-    setItem(CURRENT_USER_KEY, user);
+  static async getCurrentUser(): Promise<User | null> {
+    const activeId = localStorage.getItem('meal_app_active_user_id');
+    const users = await this.getUsers();
+    if (activeId) {
+      const found = users.find((u) => u.id === activeId);
+      if (found) return found;
+    }
+    return users[1] || users[0] || null; // Default to admin
+  }
+
+  static async setCurrentUser(user: User): Promise<void> {
+    localStorage.setItem('meal_app_active_user_id', user.id);
+    const users = await this.getUsers();
+    const idx = users.findIndex((u) => u.id === user.id);
+    if (idx !== -1) {
+      users[idx] = user;
+      localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+    }
+  }
+
+  static async toggleAdminUserMode(userId: string): Promise<User | null> {
+    const users = await this.getUsers();
+    const user = users.find((u) => u.id === userId);
+    if (!user) return null;
+
+    const nextMode = user.activeMode === 'ADMIN' ? 'USER' : 'ADMIN';
+    user.activeMode = nextMode;
+
+    await this.setCurrentUser(user);
     return user;
-  },
+  }
 
-  async login(phone: string, pass: string): Promise<User> {
-    const users = getItem<User[]>(USERS_KEY, INITIAL_USERS);
-    const matched = users.find(u => u.phone.trim() === phone.trim() && u.password === pass);
-    if (!matched) {
-      throw new Error('ফোন নম্বর অথবা পাসওয়ার্ড সঠিক নয়!');
-    }
-    setItem(CURRENT_USER_KEY, matched);
-    return matched;
-  },
-
-  async register(data: Omit<User, 'id' | 'createdAt' | 'status' | 'walletBalance'>): Promise<User> {
-    const users = getItem<User[]>(USERS_KEY, INITIAL_USERS);
-    if (users.some(u => u.phone.trim() === data.phone.trim())) {
-      throw new Error('এই ফোন নম্বরটি ইতোমধ্যে রেজিস্টার্ড!');
-    }
-    const newUser: User = {
-      ...data,
-      id: `u-${Date.now()}`,
-      status: 'PENDING',
-      walletBalance: 0,
-      createdAt: new Date().toISOString(),
-    };
-    users.push(newUser);
-    setItem(USERS_KEY, users);
-    setItem(CURRENT_USER_KEY, newUser);
-    return newUser;
-  },
-
-  // Users Management
-  async getUsers(): Promise<User[]> {
-    return getItem<User[]>(USERS_KEY, INITIAL_USERS);
-  },
-
-  async updateUserStatus(userId: string, status: 'APPROVED' | 'REJECTED', adminId: string): Promise<User[]> {
-    const users = getItem<User[]>(USERS_KEY, INITIAL_USERS);
-    const updated = users.map(u => u.id === userId ? { ...u, status } : u);
-    setItem(USERS_KEY, updated);
-    
-    // Log audit
-    const audits = getItem<AuditLog[]>(AUDITS_KEY, []);
-    audits.push({
-      id: `audit-${Date.now()}`,
-      adminId,
-      action: status === 'APPROVED' ? 'USER_APPROVED' : 'USER_REJECTED',
-      targetUserId: userId,
-      details: `ইউজার স্ট্যাটাস পরিবর্তন: ${status}`,
-      timestamp: new Date().toISOString(),
-    });
-    setItem(AUDITS_KEY, audits);
-    return updated;
-  },
-
-  async getAudits(): Promise<AuditLog[]> {
-    return getItem<AuditLog[]>(AUDITS_KEY, []);
-  },
-
-  async bulkApproveUsers(userIds: string[], adminId: string): Promise<User[]> {
-    const users = getItem<User[]>(USERS_KEY, INITIAL_USERS);
-    const updated = users.map(u => userIds.includes(u.id) ? { ...u, status: 'APPROVED' as const } : u);
-    setItem(USERS_KEY, updated);
-
-    const audits = getItem<AuditLog[]>(AUDITS_KEY, []);
-    userIds.forEach(id => {
-      audits.push({
-        id: `audit-${Date.now()}-${id}`,
-        adminId,
-        action: 'USER_APPROVED',
-        targetUserId: id,
-        details: 'বাল্ক এপ্রুভাল সম্পন্ন',
-        timestamp: new Date().toISOString(),
-      });
-    });
-    setItem(AUDITS_KEY, audits);
-    return updated;
-  },
-
-  async bulkAddWalletBalance(userIds: string[], amount: number, adminId: string, remarks?: string): Promise<void> {
-    const users = getItem<User[]>(USERS_KEY, INITIAL_USERS);
-    const txs = getItem<WalletTransaction[]>(TRANSACTIONS_KEY, INITIAL_TRANSACTIONS);
-
-    users.forEach(u => {
-      if (userIds.includes(u.id)) {
-        const before = u.walletBalance;
-        const after = before + amount;
-        u.walletBalance = after;
-
-        txs.unshift({
-          id: `tx-${Date.now()}-${u.id}`,
-          userId: u.id,
-          type: 'RECHARGE',
-          amount,
-          balanceBefore: before,
-          balanceAfter: after,
-          description: remarks || `অ্যাডমিন কর্তৃক বাল্ক পার্স রিচার্জ`,
-          date: new Date().toISOString(),
-          adminId,
-        });
+  static async searchUsersAdvanced(filter: AdvancedUserFilter): Promise<User[]> {
+    const users = await this.getUsers();
+    return users.filter((u) => {
+      if (filter.searchTerm) {
+        const term = filter.searchTerm.toLowerCase();
+        const matchName = u.name.toLowerCase().includes(term);
+        const matchPhone = u.phone.includes(term);
+        const matchRoom = u.roomNo?.toLowerCase().includes(term);
+        const matchStudentId = u.profile?.studentId?.toLowerCase().includes(term);
+        const matchDept = u.profile?.department?.toLowerCase().includes(term);
+        if (!matchName && !matchPhone && !matchRoom && !matchStudentId && !matchDept) return false;
       }
+      if (filter.userType && filter.userType !== 'ALL' && u.userType !== filter.userType) return false;
+      if (filter.role && filter.role !== 'ALL' && u.role !== filter.role) return false;
+      if (filter.branchId && filter.branchId !== 'ALL' && u.branchId !== filter.branchId) return false;
+      if (filter.approvalStatus && filter.approvalStatus !== 'ALL' && u.status !== filter.approvalStatus) return false;
+      if (filter.minBalance !== undefined && u.walletBalance < filter.minBalance) return false;
+      if (filter.maxBalance !== undefined && u.walletBalance > filter.maxBalance) return false;
+      return true;
     });
+  }
 
-    setItem(USERS_KEY, users);
-    setItem(TRANSACTIONS_KEY, txs);
-  },
-
-  async updateUserType(userId: string, userType: 'PERMANENT' | 'GUEST'): Promise<User[]> {
-    const users = getItem<User[]>(USERS_KEY, INITIAL_USERS);
-    const updated = users.map(u => u.id === userId ? { ...u, userType } : u);
-    setItem(USERS_KEY, updated);
-    return updated;
-  },
-
-  // Wallet
-  async addWalletBalance(userId: string, amount: number, adminId: string, remarks?: string): Promise<WalletTransaction> {
-    const users = getItem<User[]>(USERS_KEY, INITIAL_USERS);
-    const targetIndex = users.findIndex(u => u.id === userId);
-    if (targetIndex === -1) throw new Error('ইউজার পাওয়া যায়নি');
-
-    const targetUser = users[targetIndex];
-    const before = targetUser.walletBalance;
-    const after = before + amount;
-
-    users[targetIndex].walletBalance = after;
-    setItem(USERS_KEY, users);
-
-    // Update active currentUser if same
-    const cur = getItem<User | null>(CURRENT_USER_KEY, null);
-    if (cur && cur.id === userId) {
-      cur.walletBalance = after;
-      setItem(CURRENT_USER_KEY, cur);
+  static async getMealRates(): Promise<MealRateConfig> {
+    const data = localStorage.getItem(this.STORAGE_KEY_RATES);
+    if (!data) {
+      localStorage.setItem(this.STORAGE_KEY_RATES, JSON.stringify(INITIAL_RATES));
+      return INITIAL_RATES;
     }
+    return JSON.parse(data);
+  }
 
-    const tx: WalletTransaction = {
-      id: `tx-${Date.now()}`,
-      userId,
+  static async updateMealRates(newRates: MealRateConfig, adminId?: string, reason?: string): Promise<MealRateConfig> {
+    localStorage.setItem(this.STORAGE_KEY_RATES, JSON.stringify(newRates));
+    await this.logAudit(adminId || 'admin', 'UPDATE_MEAL_RATES', undefined, `Updated meal pricing & cutoff time: ${reason || ''}`);
+    return newRates;
+  }
+
+  static async getTransactions(): Promise<WalletTransaction[]> {
+    const data = localStorage.getItem(this.STORAGE_KEY_TRANSACTIONS);
+    if (!data) {
+      localStorage.setItem(this.STORAGE_KEY_TRANSACTIONS, JSON.stringify(INITIAL_TRANSACTIONS));
+      return INITIAL_TRANSACTIONS;
+    }
+    return JSON.parse(data);
+  }
+
+  static async topUpWallet(adminId: string, targetUserId: string, amount: number, note: string, reason: string): Promise<WalletTransaction> {
+    const users = await this.getUsers();
+    const user = users.find((u) => u.id === targetUserId);
+    if (!user) throw new Error('মেম্বার খুঁজে পাওয়া যায়নি');
+
+    const balanceBefore = user.walletBalance;
+    const balanceAfter = balanceBefore + amount;
+    user.walletBalance = balanceAfter;
+
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+
+    const transactions = await this.getTransactions();
+    const newTx: WalletTransaction = {
+      id: 'tx_' + Date.now(),
+      userId: targetUserId,
       type: 'RECHARGE',
       amount,
-      balanceBefore: before,
-      balanceAfter: after,
-      description: remarks || `অ্যাডমিন কর্তৃক পার্স রিচার্জ`,
+      balanceBefore,
+      balanceAfter,
+      description: note || 'অ্যাডমিন রিচার্জ',
       date: new Date().toISOString(),
       adminId,
     };
+    transactions.unshift(newTx);
+    localStorage.setItem(this.STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
 
-    const txs = getItem<WalletTransaction[]>(TRANSACTIONS_KEY, INITIAL_TRANSACTIONS);
-    txs.unshift(tx);
-    setItem(TRANSACTIONS_KEY, txs);
-    return tx;
-  },
+    await this.logAudit(adminId, 'WALLET_TOPUP', targetUserId, `Topup ৳${amount}. Reason: ${reason}`);
+    return newTx;
+  }
 
-  async getTransactions(userId?: string): Promise<WalletTransaction[]> {
-    const txs = getItem<WalletTransaction[]>(TRANSACTIONS_KEY, INITIAL_TRANSACTIONS);
-    if (userId) {
-      return txs.filter(t => t.userId === userId);
-    }
-    return txs;
-  },
-
-  // Rates & Config
-  async getMealRates(): Promise<MealRateConfig> {
-    return getItem<MealRateConfig>(RATES_KEY, INITIAL_RATES);
-  },
-
-  async updateMealRates(config: Partial<MealRateConfig>): Promise<MealRateConfig> {
-    const current = getItem<MealRateConfig>(RATES_KEY, INITIAL_RATES);
-    const updated = { ...current, ...config };
-    setItem(RATES_KEY, updated);
-    return updated;
-  },
-
-  // Meal Declarations & Cutoff logic
-  async getDeclarations(userId?: string): Promise<MealDeclaration[]> {
-    const decs = getItem<MealDeclaration[]>(DECLARATIONS_KEY, INITIAL_DECLARATIONS);
-    if (userId) {
-      return decs.filter(d => d.userId === userId);
-    }
-    return decs;
-  },
-
-  async updateDeclaration(userId: string, date: string, meals: { breakfast: boolean; lunch: boolean; dinner: boolean }): Promise<MealDeclaration> {
-    const decs = getItem<MealDeclaration[]>(DECLARATIONS_KEY, INITIAL_DECLARATIONS);
-    const index = decs.findIndex(d => d.userId === userId && d.date === date);
-
-    let updatedDec: MealDeclaration;
-    if (index >= 0) {
-      updatedDec = {
-        ...decs[index],
-        ...meals,
-        isAutoCopied: false,
-        updatedAt: new Date().toISOString(),
-      };
-      decs[index] = updatedDec;
-    } else {
-      updatedDec = {
-        id: `dec-${Date.now()}`,
-        userId,
-        date,
-        ...meals,
-        isAutoCopied: false,
-        updatedAt: new Date().toISOString(),
-      };
-      decs.push(updatedDec);
-    }
-
-    setItem(DECLARATIONS_KEY, decs);
-    return updatedDec;
-  },
-
-  // Copy Previous Day Declaration Logic
-  async copyPreviousDayDeclaration(userId: string, targetDate: string): Promise<MealDeclaration> {
-    const decs = getItem<MealDeclaration[]>(DECLARATIONS_KEY, INITIAL_DECLARATIONS);
+  static async getFinancialMetrics(branchId?: string): Promise<FinancialMetrics> {
+    const users = await this.getUsers();
+    const txs = await this.getTransactions();
     
-    // Calculate previous date string
-    const d = new Date(targetDate);
-    d.setDate(d.getDate() - 1);
-    const prevDateStr = d.toISOString().split('T')[0];
+    const filteredUsers = branchId && branchId !== 'ALL' ? users.filter(u => u.branchId === branchId) : users;
+    const filteredUserIds = new Set(filteredUsers.map(u => u.id));
 
-    const prevDec = decs.find(d => d.userId === userId && d.date === prevDateStr);
-    const meals = prevDec ? { breakfast: prevDec.breakfast, lunch: prevDec.lunch, dinner: prevDec.dinner } : { breakfast: true, lunch: true, dinner: true };
+    const filteredTxs = txs.filter(t => filteredUserIds.has(t.userId));
 
-    const newDec: MealDeclaration = {
-      id: `dec-${Date.now()}`,
+    const totalWalletBalance = filteredUsers.reduce((sum, u) => sum + u.walletBalance, 0);
+    const lowBalanceUsersCount = filteredUsers.filter((u) => u.walletBalance < 150).length;
+
+    const todayCollection = filteredTxs
+      .filter((t) => t.type === 'RECHARGE')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const monthlyCollection = todayCollection * 18;
+    const yearlyCollection = monthlyCollection * 11;
+    const todayExpenses = todayCollection * 0.45;
+    const netProfit = todayCollection - todayExpenses;
+    const outstandingBalance = lowBalanceUsersCount * 250;
+
+    const permanentRevenue = filteredTxs.filter(t => t.type === 'MEAL_DEDUCTION').reduce((s, t) => s + t.amount, 0);
+    const guestRevenue = permanentRevenue * 0.25;
+
+    const topSpenders = filteredUsers
+      .map((u) => ({
+        name: u.name,
+        amount: txs.filter((t) => t.userId === u.id && t.type === 'MEAL_DEDUCTION').reduce((s, t) => s + t.amount, 0) || 450,
+        phone: u.phone,
+      }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
+
+    return {
+      todayCollection,
+      monthlyCollection,
+      yearlyCollection,
+      todayExpenses,
+      netProfit,
+      outstandingBalance,
+      totalWalletBalance,
+      totalRefunds: 850,
+      permanentRevenue,
+      guestRevenue,
+      topSpenders,
+      lowBalanceUsersCount,
+    };
+  }
+
+  static async generateAiBusinessInsights(): Promise<AiInsight> {
+    const users = await this.getUsers();
+    const lowCount = users.filter((u) => u.walletBalance < 150).length;
+
+    return {
+      summary: `চলতি মাসে মোট মিল গ্রহণযোগ্যতা ৮৭.৪%। আগামী সপ্তাহে শুক্রবারের স্পেশাল মিলে ১৫% বাড়তি মিল চাহিদা তৈরি হতে পারে।`,
+      revenueForecast: 148500,
+      mealDemandForecast: 1420,
+      riskLevel: lowCount > 2 ? 'MODERATE' : 'LOW',
+      recommendations: [
+        'লো ব্যালেন্স ইউজারদের স্বয়ংক্রিয় SMS রিমাইন্ডার পাঠাতে পারেন।',
+        'আগামী ৩ দিনের মধ্যে মুরগির মাংসের পাইকারি অর্ডারে ৫% খরচ কমানো সম্ভব।',
+        'শুক্রবার দুপুরের মিল বুকিং সকাল ৯:৩০ এর মধ্যে চূড়ান্ত করার নোটিশ দেওয়া দরকার।',
+      ],
+      lowBalanceRiskCount: lowCount,
+    };
+  }
+
+  static async logAudit(adminId: string, action: string, targetUserId?: string, details?: string): Promise<AuditLog> {
+    const audits = await this.getAudits();
+    const newLog: AuditLog = {
+      id: 'aud_' + Date.now(),
+      adminId,
+      action,
+      targetUserId,
+      details: details || '',
+      timestamp: new Date().toISOString(),
+      ipAddress: '192.168.1.102',
+      device: 'MacBook Pro / Chrome V124',
+    };
+    audits.unshift(newLog);
+    localStorage.setItem(this.STORAGE_KEY_AUDITS, JSON.stringify(audits));
+    return newLog;
+  }
+
+  static async getAudits(): Promise<AuditLog[]> {
+    const data = localStorage.getItem(this.STORAGE_KEY_AUDITS);
+    if (!data) return [];
+    return JSON.parse(data);
+  }
+
+  static async getDeclarations(): Promise<MealDeclaration[]> {
+    const data = localStorage.getItem(this.STORAGE_KEY_DECLARATIONS);
+    if (!data) return [];
+    return JSON.parse(data);
+  }
+
+  static async copyPreviousDayDeclaration(userId: string, targetDate: string): Promise<MealDeclaration> {
+    const decs = await this.getDeclarations();
+    const targetDt = new Date(targetDate);
+    targetDt.setDate(targetDt.getDate() - 1);
+    const prevDateStr = targetDt.toISOString().split('T')[0];
+
+    const prevDec = decs.find((d) => d.userId === userId && d.date === prevDateStr);
+    const meals = prevDec
+      ? { breakfast: prevDec.breakfast, lunch: prevDec.lunch, dinner: prevDec.dinner }
+      : { breakfast: true, lunch: true, dinner: true };
+
+    const updated = await this.updateDeclaration(userId, targetDate, meals);
+    updated.isAutoCopied = true;
+    return updated;
+  }
+
+  static async updateDeclaration(userId: string, date: string, meals: { breakfast: boolean; lunch: boolean; dinner: boolean }): Promise<MealDeclaration> {
+    const decs = await this.getDeclarations();
+    const idx = decs.findIndex((d) => d.userId === userId && d.date === date);
+    const updated: MealDeclaration = {
+      id: idx !== -1 ? decs[idx].id : 'dec_' + Date.now(),
       userId,
-      date: targetDate,
-      ...meals,
-      isAutoCopied: true,
+      date,
+      breakfast: meals.breakfast,
+      lunch: meals.lunch,
+      dinner: meals.dinner,
+      isAutoCopied: false,
       updatedAt: new Date().toISOString(),
     };
+    if (idx !== -1) decs[idx] = updated;
+    else decs.push(updated);
 
-    const existingIdx = decs.findIndex(d => d.userId === userId && d.date === targetDate);
-    if (existingIdx >= 0) {
-      decs[existingIdx] = newDec;
-    } else {
-      decs.push(newDec);
+    localStorage.setItem(this.STORAGE_KEY_DECLARATIONS, JSON.stringify(decs));
+    return updated;
+  }
+
+  static async getEmergencies(): Promise<EmergencyClosure[]> {
+    const data = localStorage.getItem(this.STORAGE_KEY_EMERGENCIES);
+    if (!data) return [];
+    return JSON.parse(data);
+  }
+
+  static async addEmergency(adminIdOrDate: string, dateOrReason: string, reasonOrClosedMeals?: any, closedMeals?: any): Promise<EmergencyClosure> {
+    let adminId = 'admin';
+    let date = adminIdOrDate;
+    let reason = dateOrReason;
+    let meals: ('breakfast' | 'lunch' | 'dinner')[] = ['breakfast', 'lunch', 'dinner'];
+
+    if (Array.isArray(reasonOrClosedMeals)) {
+      date = adminIdOrDate;
+      reason = dateOrReason;
+      meals = reasonOrClosedMeals;
+    } else if (typeof reasonOrClosedMeals === 'string') {
+      adminId = adminIdOrDate;
+      date = dateOrReason;
+      reason = reasonOrClosedMeals;
+      if (Array.isArray(closedMeals)) meals = closedMeals;
     }
 
-    setItem(DECLARATIONS_KEY, decs);
-    return newDec;
-  },
-
-  // Emergency Closures
-  async getEmergencies(): Promise<EmergencyClosure[]> {
-    return getItem<EmergencyClosure[]>(EMERGENCIES_KEY, INITIAL_EMERGENCIES);
-  },
-
-  async addEmergency(date: string, reason: string, closedMeals: MealType[]): Promise<EmergencyClosure> {
-    const ems = getItem<EmergencyClosure[]>(EMERGENCIES_KEY, INITIAL_EMERGENCIES);
+    const emergencies = await this.getEmergencies();
     const newEm: EmergencyClosure = {
-      id: `em-${Date.now()}`,
+      id: 'em_' + Date.now(),
       date,
       reason,
-      closedMeals,
+      closedMeals: meals,
       createdAt: new Date().toISOString(),
     };
-    ems.unshift(newEm);
-    setItem(EMERGENCIES_KEY, ems);
+    emergencies.unshift(newEm);
+    localStorage.setItem(this.STORAGE_KEY_EMERGENCIES, JSON.stringify(emergencies));
+    await this.logAudit(adminId, 'EMERGENCY_OFF', undefined, `Emergency off for ${date}: ${reason}`);
     return newEm;
-  },
-};
+  }
 
-MockService.init();
+  static async approveUser(adminId: string, userId: string, userType: 'PERMANENT' | 'GUEST', role: string, remark: string): Promise<User> {
+    const users = await this.getUsers();
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error('মেম্বার পাওয়া যায়নি');
+
+    user.status = 'APPROVED';
+    user.userType = userType;
+    if (role) user.role = role as any;
+
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+    await this.logAudit(adminId, 'APPROVE_USER', userId, `Approved user as ${userType}. Remark: ${remark}`);
+    return user;
+  }
+
+  static async updateUserStatus(arg1: string, arg2: string, arg3?: string): Promise<User> {
+    const users = await this.getUsers();
+    const targetId = arg3 ? arg2 : arg1;
+    const newStatus = arg3 || arg2;
+    const adminId = arg3 ? arg1 : 'admin';
+
+    const user = users.find((u) => u.id === targetId);
+    if (!user) throw new Error('মেম্বার পাওয়া যায়নি');
+
+    user.status = newStatus as any;
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+    await this.logAudit(adminId, 'UPDATE_USER_STATUS', targetId, `Status updated to ${newStatus}`);
+    return user;
+  }
+
+  static async addWalletBalance(arg1: any, arg2: any, arg3?: any, arg4?: any): Promise<WalletTransaction> {
+    let targetUserId = String(arg1);
+    let amount = typeof arg2 === 'number' ? arg2 : parseFloat(arg2);
+    let note = 'অ্যাডমিন রিচার্জ';
+    let adminId = 'admin';
+
+    if (typeof arg3 === 'number' || (typeof arg3 === 'string' && !isNaN(parseFloat(arg3)))) {
+      targetUserId = String(arg1);
+      amount = typeof arg3 === 'number' ? arg3 : parseFloat(arg3);
+      adminId = String(arg2);
+      if (arg4) note = String(arg4);
+    }
+
+    return this.topUpWallet(adminId, targetUserId, amount, note, 'Manual balance add');
+  }
+
+  static async updateUserType(arg1: string, arg2: string, arg3?: string): Promise<User> {
+    const users = await this.getUsers();
+    const targetId = arg3 ? arg2 : arg1;
+    const newType = arg3 || arg2;
+    const adminId = arg3 ? arg1 : 'admin';
+
+    const user = users.find((u) => u.id === targetId);
+    if (!user) throw new Error('মেম্বার পাওয়া যায়নি');
+
+    user.userType = newType as any;
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+    await this.logAudit(adminId, 'UPDATE_USER_TYPE', targetId, `User type updated to ${newType}`);
+    return user;
+  }
+
+  static async login(phone: string, pass: string): Promise<User> {
+    const users = await this.getUsers();
+    const found = users.find((u) => u.phone === phone);
+    if (!found) throw new Error('ফোন নম্বরটি সঠিক নয়');
+    if (found.password && found.password !== pass) throw new Error('পাসওয়ার্ড সঠিক নয়');
+    await this.setCurrentUser(found);
+    return found;
+  }
+
+  static async register(data: Partial<User>): Promise<User> {
+    const users = await this.getUsers();
+    const exists = users.find((u) => u.phone === data.phone);
+    if (exists) throw new Error('এই ফোন নম্বর দিয়ে ইতিমধ্যে অ্যাকাউন্ট তৈরি করা আছে');
+
+    const newUser: User = {
+      id: 'u_' + Date.now(),
+      name: data.name || 'নতুন মেম্বার',
+      phone: data.phone || '',
+      password: data.password || '123456',
+      role: 'USER',
+      userType: data.userType || 'PERMANENT',
+      status: 'PENDING',
+      walletBalance: 0,
+      roomNo: data.roomNo,
+      branchId: 'b1',
+      isDualMode: false,
+      activeMode: 'USER',
+      createdAt: new Date().toISOString(),
+    };
+    users.push(newUser);
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+    return newUser;
+  }
+}
