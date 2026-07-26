@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: #050811;
+    --bg-surface: rgba(13, 21, 38, 0.7);
+    --bg-card: rgba(18, 28, 50, 0.55);
+    --border-card: rgba(255, 255, 255, 0.08);
+    --border-card-hover: rgba(56, 189, 248, 0.3);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent-glow: rgba(6, 182, 212, 0.25);
+  }
+
+  .light {
+    --bg-primary: #f1f5f9;
+    --bg-surface: rgba(255, 255, 255, 0.85);
+    --bg-card: rgba(255, 255, 255, 0.9);
+    --border-card: rgba(0, 0, 0, 0.07);
+    --border-card-hover: rgba(2, 132, 199, 0.3);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --accent-glow: rgba(2, 132, 199, 0.15);
+  }
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Hind Siliguri', 'Plus Jakarta Sans', sans-serif;
+  overflow-x: hidden;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+/* Typography Utility Classes */
+h1, h2, h3, .font-display {
+  font-family: 'Anek Bangla', 'Hind Siliguri', sans-serif;
+}
+
+/* Glassmorphism Styles */
+.glass-panel {
+  background: var(--bg-surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-card);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-card);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-hover {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-card);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-hover:hover {
+  border-color: var(--border-card-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px -10px var(--accent-glow);
+}
+
+/* Metallic & Holographic Card Gradients */
+.wallet-card-holographic {
+  background: linear-gradient(135deg, #091328 0%, #0f1f42 45%, #034b75 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.wallet-card-holographic::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.wallet-card-gold {
+  background: linear-gradient(135deg, #451a03 0%, #78350f 40%, #b45309 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.4);
+}
+
+/* Selection Color */
+::selection {
+  background-color: rgba(6, 182, 212, 0.3);
+  color: #ffffff;
+}

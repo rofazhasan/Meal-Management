@@ -1,156 +1,161 @@
+# 🍚 মিল ম্যানেজার (Meal Manager V2) — Premium Hostel & Mess Management System
 
-# **Meal Management System**
+![License](https://img.shields.io/badge/License-MIT-blue.svg)
+![React](https://img.shields.io/badge/Frontend-React%2018%20%7C%20TypeScript-cyan)
+![TailwindCSS](https://img.shields.io/badge/Styling-TailwindCSS%20%7C%20Glassmorphism-sky)
+![Prisma](https://img.shields.io/badge/ORM-Prisma%20v5-indigo)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%20%7C%20Supabase-blue)
+![Vite](https://img.shields.io/badge/Build-Vite%206-purple)
+![Language](https://img.shields.io/badge/Language-Bangla--First%20%7C%20English-green)
 
-This is a **Flask-based web application** for managing meals, users, and transactions efficiently. It includes powerful features like meal preference submission, balance management, meal price updates, and detailed analysis reports.
-
----
-
-## **Features**
-
-- **User Authentication**  
-   - Secure login and registration with **role-based access control** (User/Admin).  
-
-- **Meal Submission**  
-   - Users can submit their **meal preferences** (Lunch/Dinner) for upcoming days.
-
-- **Meal Management**  
-   - Admins can **update meal prices** for lunch and dinner.  
-   - Admins can **stop meals** for a day and refund users.  
-   - Users can stop their own meals for upcoming days and get refunds.  
-
-- **Balance Management**  
-   - Admins can **add money** to user balances.  
-   - Balances are **automatically deducted** based on meal prices.  
-
-- **Analysis and Reporting**  
-   - Users can view **meal and transaction history** with a running balance.  
-   - Admins can filter and view user analysis by **date range**.  
-   - Generate and download **PDF reports** for detailed insights.
-
-- **Automated Meal Copying**  
-   - If a user doesn’t submit a meal preference, the **previous day’s preference** is copied automatically.
+A **production-grade, Bangla-first meal management platform** built for hostels, mess facilities, and residential dining facilities. Designed with a luxury dark mode glassmorphic UI, real-time 10:00 AM deadline countdown, automated wallet ledger, emergency off auto-refunds, and complete admin audit trails.
 
 ---
 
-## **Technologies Used**
+## 🌟 Key Features
 
-- **Flask**: Web framework for building the backend.  
-- **SQLAlchemy**: ORM for database interaction.  
-- **Flask-WTF**: Simplifies web form creation.  
-- **Flask-Bcrypt**: Ensures secure password hashing.  
-- **Pytz**: Timezone management.  
-- **ReportLab**: PDF generation for reports.  
-- **Gunicorn/uWSGI**: WSGI servers for production deployment.
+### 👤 User Features
+* **Phone + Password Authentication**: Secure registration with mandatory physical/in-person Admin approval (`PENDING` state).
+* **Resident Segmentation**: Separate rule sets & pricing for **Permanent Residents** vs **Guest Members**.
+* **Daily Meal Switchboard**: Interactive Breakfast, Lunch, and Dinner toggle controls.
+* **10:00 AM Cutoff Engine**: Same-day meal preferences lock automatically at 10:00 AM.
+* **Auto-Copy Engine**: Automatically copies previous day declaration if user misses deadline.
+* **Prepaid Wallet & Ledger**: Real-time balance tracking, deduction history, and downloadable PDF receipts.
+* **Calendar Heatmap & Analytics**: Visual monthly consumption trends and cost breakdowns.
+* **Emergency Closure Alerts**: Instant notice display with automated wallet refund processing.
+
+### 🛡️ Admin Power Tools
+* **In-Person Approval Queue**: Approve or reject pending member registrations with room assignment.
+* **Wallet Top-Up Engine**: Add money to user accounts with mandatory reason logging.
+* **Emergency Meal Off**: Toggle emergency off for any date with automated user refunds.
+* **Pricing & Monthly Charges**: Configure tiered meal rates and monthly maintenance charges.
+* **Immutable Audit Trail**: Comprehensive activity log tracking every administrative mutation.
+* **User Detail Inspector**: Comprehensive profile, transaction history, and declaration manager.
 
 ---
 
-## **Project Structure**
+## 🏗️ Technology Stack
 
-```plaintext
-meal-management-system/
-├── app/
-│   ├── __init__.py       # App factory and initialization
-│   ├── models.py         # Database models
-│   ├── forms.py          # Web forms
-│   ├── routes.py         # Route definitions
-│   ├── utils.py          # Helper functions (PDF generation, etc.)
-│   ├── templates/        # HTML templates
-│   └── static/           # Static files (CSS, JavaScript)
-├── wsgi.py              # WSGI entry point for deployment
-├── config.py            # Configuration settings
-├── requirements.txt     # Project dependencies
-└── README.md            # This file
+| Layer | Technology |
+|---|---|
+| **Frontend UI** | React 18, TypeScript, TailwindCSS 3.4, Lucide React Icons |
+| **State & Cache** | TanStack Query v5 (React Query), LocalStorage Mock Service fallback |
+| **Typography & Theme** | Bangla-First (Hind Siliguri / Noto Serif Bengali), Dynamic Dark/Light Mode |
+| **ORM / Data Access** | **Prisma ORM v5** (Fully type-safe schemas, composite keys, indexes) |
+| **Database DDL** | PostgreSQL (Neon Tech / Supabase / Render Postgres compatible) |
+| **Build Tooling** | Vite 6, PostCSS, TypeScript 5.8 |
+
+---
+
+## 📁 Repository Structure
+
+```
+Meal-Management/
+├── prisma/
+│   └── schema.prisma         # Production Prisma ORM Schema (16 models, 11 ENUMs)
+├── src/
+│   ├── components/
+│   │   ├── admin/            # Admin Dashboard, Approvals, Settings, Audit Logs
+│   │   ├── auth/             # Login, Registration & Pending Approval UI
+│   │   ├── common/           # Custom AppLogo, Navigation, Header, ReceiptModal
+│   │   └── user/             # User Dashboard, Meal Declaration, Wallet, Reports
+│   ├── constants/            # Bangla Copy & Text Dictionary
+│   ├── services/             # Mock Storage & Data Synchronization Service
+│   ├── types/                # TypeScript Model Interfaces
+│   ├── App.tsx               # Primary Application Container & QueryClient Provider
+│   └── index.css             # Glassmorphism Design Tokens & Custom Motion Animations
+├── schema.sql                # Production PostgreSQL DDL Backup
+├── seed.sql                  # Initial Database Seed Script
+├── vite.config.ts            # Vite Configuration
+└── package.json              # Project Dependencies
 ```
 
 ---
 
-## **Installation**
+## 🚀 Quick Start Guide
 
-1. **Clone the repository:**
+### Prerequisites
+* **Node.js**: `v18.0.0` or higher
+* **npm**: `v9.0.0` or higher
+* **PostgreSQL** (optional for local DB connection)
 
+### Installation Steps
+
+1. **Clone the Repository**
    ```bash
-   git clone https://github.com/your-username/meal-management-system.git
-   cd meal-management-system
+   git clone https://github.com/rofazhasan/Meal-Management.git
+   cd Meal-Management
    ```
 
-2. **Create and activate a virtual environment:**
-
+2. **Install Dependencies**
    ```bash
-   python3 -m venv venv
-   source venv/bin/activate
+   npm install
    ```
 
-3. **Install dependencies:**
-
-   ```bash
-   pip install -r requirements.txt
+3. **Configure Environment Variables**
+   Create a `.env` file in the root directory:
+   ```env
+   DATABASE_URL="postgresql://user:password@localhost:5432/meal_db?schema=public"
    ```
 
-4. **Configure the application:**
-   - Create a `config.py` file with the following keys:  
-     - `SECRET_KEY`: For session security.  
-     - `SQLALCHEMY_DATABASE_URI`: Your database connection string.  
-
-5. **Setup the database:**
-
-   - Use Flask Shell or Migrations to initialize and create tables.
-
-6. **Run the application:**
-
+4. **Initialize Prisma ORM** (Optional)
    ```bash
-   python app.py
+   npx prisma generate
+   npx prisma db push
    ```
 
-7. **Access the app:**
-
-   Open [http://localhost:5000](http://localhost:5000) in your browser.
-
----
-
-## **Deployment**
-
-1. Use a **WSGI server** like **Gunicorn** or **uWSGI** for production:
-
+5. **Start Development Server**
    ```bash
-   gunicorn -w 4 wsgi:app
+   npm run dev
    ```
-
-2. Configure **Nginx** or any web server to:  
-   - Serve static files.  
-   - Proxy requests to the WSGI server.  
+   Open your browser at `http://localhost:3000`.
 
 ---
 
-## **Contributing**
+## 📄 Database Schema Overview (Prisma ORM)
 
-Contributions are welcome! Feel free to:
-
-- Open an issue for bugs or feature requests.  
-- Submit pull requests for improvements.  
-
-For major changes, please discuss them with me first via an issue.
-
----
-
-## **License**
-
-This project is licensed under the [MIT License](LICENSE).
+The database schema includes 16 tables:
+* `users` — Base user credentials, role (`USER`, `ADMIN`), approval status.
+* `profiles` — Resident room numbers, departments, batch.
+* `wallets` — User prepaid balance with optimistic concurrency locking (`version`).
+* `wallet_transactions` — Append-only ledger entries for deductions and top-ups.
+* `meal_declarations` — Daily meal choices with source tracking (`MANUAL`, `COPIED`).
+* `meal_consumptions` — Executed meal charges and payment statuses.
+* `meal_settings` — Date-wise meal toggles and emergency off state.
+* `admin_actions` & `audit_logs` — Audit trail for administrative operations.
 
 ---
 
-## **Credits**
+## 🎨 Bangla UI Localization (বাংলা ইন্টারফেস)
 
-- **Developed by:** [Md. Rofaz Hasan Rafiu](https://github.com/rofazhasan)  
-- **AI Contribution:** Documentation generated with the help of **ChatGPT** to ensure clarity and structure.
+All user-facing workflows feature native Bengali UI copy:
+
+| UI Key | Bangla Copy |
+|---|---|
+| **App Name** | **মিল ম্যানেজার** |
+| **Balance** | **বর্তমান ওয়ালেট ব্যালেন্স** |
+| **Cutoff Warning** | **সকাল ১০:০০ টার পর আজকের মিল পরিবর্তন লক হয়ে যাবে** |
+| **Auto Copied** | **গতকালকের মিল অনুযায়ী স্বয়ংক্রিয় যুক্ত হয়েছে** |
+| **Emergency Off** | **জরুরি কারণে আজ হোস্টেল মিল বন্ধ রয়েছে** |
+
+---
+
+## 🛠️ Verification & Build
+
+```bash
+# Type check and production build
+npm run build
+```
 
 ---
 
-## **Contact**
+## 📜 License
 
-For any queries or suggestions, feel free to connect:
-
-- **Email:** mdrofazhasanrafiu@gmail.com  
-- **GitHub:** [rofazhasan](https://github.com/rofazhasan)  
-- **LinkedIn:** [Md. Rofaz Hasan Rafiu](https://www.linkedin.com/in/md-rofaz-hasan-rafiu)
+Distributed under the MIT License. See `LICENSE` for more details.
 
 ---
+
+## 👨‍💻 Author
+
+Developed by **MD. Rofaz Hasan Rafiu**  
+[GitHub Profile](https://github.com/rofazhasan)
