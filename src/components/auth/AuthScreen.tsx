@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Phone, Lock, User as UserIcon, Home, ArrowRight, ShieldAlert, Utensils, KeyRound, Sparkles } from 'lucide-react';
+import { Phone, Lock, User as UserIcon, Home, ArrowRight, ShieldAlert, Utensils, KeyRound, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { User, UserType } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { MockService } from '../../services/mockStorage';
 import { StatusBadge } from '../common/StatusBadge';
-
 import { AppLogo } from '../common/AppLogo';
 
 interface AuthScreenProps {
@@ -13,8 +12,9 @@ interface AuthScreenProps {
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [phone, setPhone] = useState('01711111111');
-  const [password, setPassword] = useState('user');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [roomNo, setRoomNo] = useState('');
   const [userType, setUserType] = useState<UserType>('PERMANENT');
@@ -192,13 +192,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                 <div className="relative">
                   <Lock className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl py-3 pl-11 pr-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                    className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl py-3 pl-11 pr-11 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 font-mono"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition"
+                    title={showPassword ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 
@@ -261,44 +269,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
               </button>
 
             </form>
-
-            {/* Quick Demo Accounts Selector Bar */}
-            <div className="pt-4 border-t border-slate-800/80">
-              <div className="flex items-center gap-1.5 mb-2.5 text-xs font-semibold text-slate-400 font-display">
-                <KeyRound className="w-3.5 h-3.5 text-cyan-400" />
-                <span>দ্রুত ডেমো অ্যাকাউন্টে প্রবশে করুন:</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('01700000000', 'admin')}
-                  className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 font-semibold text-left transition-all active:scale-95"
-                >
-                  🛡️ অ্যাডমিন মোড
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('01711111111', 'user')}
-                  className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 font-semibold text-left transition-all active:scale-95"
-                >
-                  👤 স্থায়ী সদস্য
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('01722222222', 'user')}
-                  className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20 font-semibold text-left transition-all active:scale-95"
-                >
-                  🏃 অতিথি সদস্য
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('01733333333', 'user')}
-                  className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300 hover:bg-slate-700 font-semibold text-left transition-all active:scale-95"
-                >
-                  ⏳ অপেক্ষমাণ ইউজার
-                </button>
-              </div>
-            </div>
 
           </div>
         )}

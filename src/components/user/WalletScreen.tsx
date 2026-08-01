@@ -17,16 +17,18 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
 
   const isLowBalance = currentUser.walletBalance < 200;
 
-  const filteredTx = transactions.filter(tx => {
+  const userTxs = transactions.filter(t => t.userId === currentUser.id);
+
+  const filteredTx = userTxs.filter(tx => {
     if (filterType === 'ALL') return true;
     return tx.type === filterType;
   });
 
-  const totalRecharge = transactions
+  const totalRecharge = userTxs
     .filter(t => t.type === 'RECHARGE')
     .reduce((acc, t) => acc + t.amount, 0);
 
-  const totalDeduction = transactions
+  const totalDeduction = userTxs
     .filter(t => t.type === 'MEAL_DEDUCTION' || t.type === 'MONTHLY_CHARGE')
     .reduce((acc, t) => acc + t.amount, 0);
 
@@ -102,32 +104,42 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
             </div>
           </div>
 
-          {/* Filter Pills */}
-          <div className="flex items-center gap-1 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => setFilterType('ALL')}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition-all active:scale-95 ${
-                filterType === 'ALL' ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20' : 'text-slate-400 hover:text-slate-200'
-              }`}
+              onClick={() => window.print()}
+              className="px-3.5 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 shadow-sm print:hidden"
             >
-              সবগুলো
+              <Printer className="w-3.5 h-3.5 text-cyan-400" />
+              <span>প্রিন্ট স্টেটমেন্ট</span>
             </button>
-            <button
-              onClick={() => setFilterType('RECHARGE')}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition-all active:scale-95 ${
-                filterType === 'RECHARGE' ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              রিচার্জ
-            </button>
-            <button
-              onClick={() => setFilterType('MEAL_DEDUCTION')}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition-all active:scale-95 ${
-                filterType === 'MEAL_DEDUCTION' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              কাটা
-            </button>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 text-xs print:hidden">
+              <button
+                onClick={() => setFilterType('ALL')}
+                className={`px-3 py-1 rounded-xl font-bold transition-all active:scale-95 ${
+                  filterType === 'ALL' ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                সবগুলো
+              </button>
+              <button
+                onClick={() => setFilterType('RECHARGE')}
+                className={`px-3.5 py-1.5 rounded-xl font-bold transition-all active:scale-95 ${
+                  filterType === 'RECHARGE' ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                রিচার্জ
+              </button>
+              <button
+                onClick={() => setFilterType('MEAL_DEDUCTION')}
+                className={`px-3.5 py-1.5 rounded-xl font-bold transition-all active:scale-95 ${
+                  filterType === 'MEAL_DEDUCTION' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                কাটা
+              </button>
+            </div>
           </div>
         </div>
 

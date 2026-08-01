@@ -118,6 +118,25 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
         </div>
       </div>
 
+      {/* Indefinite Pause Banner */}
+      {currentUser.isIndefinitelyPaused && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-950/80 via-slate-900 to-slate-900 border border-amber-500/40 text-amber-200 flex items-center justify-between gap-4 shadow-lg">
+          <div className="flex items-center gap-3">
+            <UtensilsCrossed className="w-5 h-5 text-amber-400 shrink-0" />
+            <div>
+              <h4 className="font-bold text-sm font-display text-amber-300">মিল সুবিধা অনির্দিষ্টকালের জন্য স্থগিত রাখা আছে</h4>
+              <p className="text-xs text-amber-200/80">মিল আবার চালু করতে "মিল প্ল্যান পরিবর্তন" ট্যাবে গিয়ে "মিল চালু করুন" সিলেক্ট করুন।</p>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigateTab('meals')}
+            className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 text-amber-200 border border-amber-500/40 hover:bg-amber-500/30 text-xs font-bold shrink-0"
+          >
+            অন করুন
+          </button>
+        </div>
+      )}
+
       {/* Emergency Notice Alert */}
       {todayEmergency && (
         <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-200 flex items-center gap-3 shadow-lg shadow-rose-950/20 backdrop-blur-md animate-slide-up">

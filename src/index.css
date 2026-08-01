@@ -118,3 +118,24 @@ h1, h2, h3, .font-display {
   background-color: rgba(6, 182, 212, 0.3);
   color: #ffffff;
 }
+
+/* Print Styles */
+@media print {
+  header, nav, button.print\:hidden, div.print\:hidden {
+    display: none !important;
+  }
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  .glass-panel, .glass-card {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+  .text-white, .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 {
+    color: #000000 !important;
+  }
+}
+

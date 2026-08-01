@@ -1,21 +1,19 @@
 import React, { useState } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight, Users, AlertCircle, Download, FileText, Printer, Building2, Sparkles } from 'lucide-react';
-import { FinancialMetrics, Branch } from '../../types';
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight, Users, AlertCircle, Download, FileText, Printer, Sparkles } from 'lucide-react';
+import { FinancialMetrics, WalletTransaction, User } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 
 interface FinancialDashboardProps {
   metrics: FinancialMetrics;
-  branches: Branch[];
-  selectedBranchId: string;
-  onSelectBranch: (branchId: string) => void;
+  transactions?: WalletTransaction[];
+  users?: User[];
 }
 
 export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   metrics,
-  branches,
-  selectedBranchId,
-  onSelectBranch,
+  transactions,
+  users,
 }) => {
   const [filterPeriod, setFilterPeriod] = useState<'today' | 'monthly' | 'yearly'>('monthly');
 
@@ -43,23 +41,8 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
           </p>
         </div>
 
-        {/* Branch & Time Filters & Export Actions */}
+        {/* Time Filters & Export Actions */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Branch Selector */}
-          <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-300">
-            <Building2 className="w-4 h-4 text-cyan-400" />
-            <select
-              value={selectedBranchId}
-              onChange={(e) => onSelectBranch(e.target.value)}
-              className="bg-transparent font-semibold text-white focus:outline-none cursor-pointer"
-            >
-              <option value="ALL" className="bg-slate-900">{BN.allBranches}</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id} className="bg-slate-900">{b.name}</option>
-              ))}
-            </select>
-          </div>
-
           {/* Timeframe Selector */}
           <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs">
             <button
@@ -248,6 +231,81 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* All System Transactions Master Ledger Table */}
+      <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-slate-800 space-y-4 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-base font-extrabold text-white font-display flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-cyan-400" />
+              সকল সদস্যের সার্বিক লেনদেন রেজিস্টার (All Transactions Ledger)
+            </h3>
+            <p className="text-xs text-slate-400 font-sans">সিস্টেমের সমস্ত মেম্বার রিচার্জ, মিল কর্তন এবং রিফান্ড রেকর্ড</p>
+          </div>
+
+          <button
+            onClick={() => window.print()}
+            className="px-3.5 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold flex items-center gap-1.5 transition print:hidden"
+          >
+            <Printer className="w-4 h-4" />
+            <span>প্রিন্ট মাস্টার লেনদেন লেজার</span>
+          </button>
+        </div>
+
+        <div className="overflow-x-auto rounded-2xl border border-slate-800">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-900 uppercase text-[10px] text-slate-400 border-b border-slate-800 font-mono">
+              <tr>
+                <th className="p-3.5 font-bold">তারিখ ও সময়</th>
+                <th className="p-3.5 font-bold">মেম্বার</th>
+                <th className="p-3.5 font-bold">লেনদেনের ধরণ</th>
+                <th className="p-3.5 font-bold">বিবরণ</th>
+                <th className="p-3.5 font-bold text-right">পরিমাণ (৳)</th>
+                <th className="p-3.5 font-bold text-right">নতুন ব্যালেন্স (৳)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/80 bg-slate-950/40">
+              {transactions && transactions.length > 0 ? (
+                transactions.map((tx) => {
+                  const txUser = users?.find(u => u.id === tx.userId);
+                  const isRecharge = tx.type === 'RECHARGE';
+                  return (
+                    <tr key={tx.id} className="hover:bg-slate-900/60 transition">
+                      <td className="p-3.5 font-mono text-slate-400">
+                        {new Date(tx.date).toLocaleDateString('bn-BD', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="p-3.5 font-bold text-white">
+                        {txUser ? txUser.name : 'অজানা মেম্বার'}
+                        <span className="block text-[10px] text-slate-400 font-mono font-normal">{txUser?.phone || tx.userId}</span>
+                      </td>
+                      <td className="p-3.5">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold font-mono ${
+                          isRecharge ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                        }`}>
+                          {isRecharge ? '➕ ওয়ালেট রিচার্জ' : '➖ মিল কর্তন'}
+                        </span>
+                      </td>
+                      <td className="p-3.5 text-slate-300">{tx.description || '-'}</td>
+                      <td className={`p-3.5 text-right font-mono font-bold ${isRecharge ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {isRecharge ? `+ ৳${tx.amount}` : `- ৳${tx.amount}`}
+                      </td>
+                      <td className="p-3.5 text-right font-mono font-bold text-slate-200">
+                        ৳{tx.balanceAfter}
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={6} className="p-6 text-center text-slate-500">
+                    কোনো লেনদেন রেকর্ড পাওয়া যায়নি
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

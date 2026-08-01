@@ -1,8 +1,6 @@
 import React from 'react';
-import { LayoutDashboard, CalendarCheck, Wallet, BarChart3, ShieldCheck, Users, Settings, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck, Wallet, BarChart3, ShieldCheck, Users, Settings, ShieldAlert, DollarSign, Building2, ChefHat } from 'lucide-react';
 import { BN } from '../../constants/banglaText';
-
-import { DollarSign, Building2 } from 'lucide-react';
 
 export type TabType = 
   | 'dashboard' 
@@ -10,8 +8,8 @@ export type TabType =
   | 'wallet' 
   | 'reports' 
   | 'admin-dashboard' 
+  | 'admin-cook-report'
   | 'admin-finance' 
-  | 'admin-branches' 
   | 'admin-users' 
   | 'admin-settings' 
   | 'admin-audit';
@@ -50,6 +48,18 @@ export const Navigation: React.FC<NavigationProps> = ({
         </button>
 
         <button
+          onClick={() => onTabChange('admin-cook-report')}
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
+            activeTab === 'admin-cook-report'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+          }`}
+        >
+          <ChefHat className="w-4 h-4" />
+          বাবুর্চির হিসাব
+        </button>
+
+        <button
           onClick={() => onTabChange('admin-finance')}
           className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
             activeTab === 'admin-finance'
@@ -59,18 +69,6 @@ export const Navigation: React.FC<NavigationProps> = ({
         >
           <DollarSign className="w-4 h-4" />
           ফাইন্যান্সিয়াল হাব
-        </button>
-
-        <button
-          onClick={() => onTabChange('admin-branches')}
-          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
-            activeTab === 'admin-branches'
-              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
-          }`}
-        >
-          <Building2 className="w-4 h-4" />
-          ব্রাঞ্চ ম্যানেজার
         </button>
 
         <button

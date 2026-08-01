@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ShieldAlert } from 'lucide-react';
 import { Header } from './components/common/Header';
 import { Navigation, TabType } from './components/common/Navigation';
 import { AmbientBackground } from './components/common/AmbientBackground';
@@ -9,12 +10,12 @@ import { MealDeclaration } from './components/user/MealDeclaration';
 import { WalletScreen } from './components/user/WalletScreen';
 import { UserReports } from './components/user/UserReports';
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { CookReport } from './components/admin/CookReport';
 import { UserManagement } from './components/admin/UserManagement';
 import { AdminUserDetail } from './components/admin/AdminUserDetail';
 import { SettingsPanel } from './components/admin/SettingsPanel';
 import { AuditLogScreen } from './components/admin/AuditLogScreen';
 import { FinancialDashboard } from './components/admin/FinancialDashboard';
-import { BranchManagement } from './components/admin/BranchManagement';
 import { MockService } from './services/mockStorage';
 import { User } from './types';
 
@@ -33,7 +34,6 @@ const MainApplication: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [selectedUserForDetail, setSelectedUserForDetail] = useState<User | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('ALL');
 
   // Load active user on mount
   useEffect(() => {
@@ -47,14 +47,9 @@ const MainApplication: React.FC = () => {
     });
   }, []);
 
-  const { data: branches = [] } = useQuery({
-    queryKey: ['branches'],
-    queryFn: () => MockService.getBranches(),
-  });
-
   const { data: financialMetrics } = useQuery({
-    queryKey: ['financialMetrics', selectedBranchId],
-    queryFn: () => MockService.getFinancialMetrics(selectedBranchId),
+    queryKey: ['financialMetrics'],
+    queryFn: () => MockService.getFinancialMetrics(),
   });
 
   // TanStack Queries for caching & state synchronization
@@ -83,6 +78,11 @@ const MainApplication: React.FC = () => {
     queryFn: () => MockService.getEmergencies(),
   });
 
+  const { data: specialMeals = [], refetch: refetchSpecialMeals } = useQuery({
+    queryKey: ['specialMeals'],
+    queryFn: () => MockService.getSpecialMeals(),
+  });
+
   const handleRefreshAll = () => {
     qc.invalidateQueries();
     refetchUsers();
@@ -90,6 +90,7 @@ const MainApplication: React.FC = () => {
     refetchDeclarations();
     refetchTransactions();
     refetchEmergencies();
+    refetchSpecialMeals();
 
     if (currentUser) {
       MockService.getUsers().then((usrs) => {
@@ -101,14 +102,20 @@ const MainApplication: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('meal_app_current_user_v2');
+  const handleLogout = async () => {
+    await MockService.logout();
     setCurrentUser(null);
+    setSelectedUserForDetail(null);
+    setActiveTab('dashboard');
   };
 
   const handleSwitchRole = (newRole: 'USER' | 'ADMIN') => {
     if (!currentUser) return;
-    const updated: User = { ...currentUser, role: newRole as any };
+    const updated: User = { 
+      ...currentUser, 
+      activeMode: newRole,
+      isDualMode: true,
+    };
     MockService.setCurrentUser(updated);
     setCurrentUser(updated);
     if (newRole === 'ADMIN') {
@@ -130,6 +137,19 @@ const MainApplication: React.FC = () => {
     }
   };
 
+  const pendingCount = users.filter((u) => u.status === 'PENDING').length;
+  const isAdmin = !!currentUser && (
+    currentUser.activeMode === 'ADMIN' || 
+    (currentUser.activeMode !== 'USER' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN'))
+  );
+
+  // Strict route protection guard for non-admin users (Must be called before any early returns to obey React Rules of Hooks)
+  useEffect(() => {
+    if (currentUser && !isAdmin && activeTab.startsWith('admin-')) {
+      setActiveTab('dashboard');
+    }
+  }, [isAdmin, activeTab, currentUser]);
+
   if (!currentUser || currentUser.status === 'PENDING') {
     return (
       <>
@@ -143,9 +163,6 @@ const MainApplication: React.FC = () => {
       </>
     );
   }
-
-  const pendingCount = users.filter((u) => u.status === 'PENDING').length;
-  const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN' || currentUser.activeMode === 'ADMIN';
 
   return (
     <div className="min-h-screen bg-[#050811] text-slate-100 selection:bg-cyan-500 selection:text-white relative">
@@ -165,6 +182,11 @@ const MainApplication: React.FC = () => {
       <Navigation
         activeTab={activeTab}
         onTabChange={(tab) => {
+          if (!isAdmin && tab.startsWith('admin-')) {
+            alert('অ্যাক্সেস সংরক্ষিত: শুধুমাত্র মেস ম্যানেজার/এডমিন এই পেজে প্রবেশ করতে পারবেন।');
+            setActiveTab('dashboard');
+            return;
+          }
           setSelectedUserForDetail(null);
           setActiveTab(tab);
         }}
@@ -190,6 +212,23 @@ const MainApplication: React.FC = () => {
             {/* User Navigation Screens */}
             {!isAdmin && (
               <>
+                {activeTab.startsWith('admin-') && (
+                  <div className="max-w-md mx-auto my-12 p-8 glass-panel border border-rose-500/40 rounded-3xl text-center space-y-4 shadow-2xl animate-scale-in">
+                    <div className="p-3 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-400 w-fit mx-auto">
+                      <ShieldAlert className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-xl font-extrabold text-white font-display">অ্যাক্সেস ডিনাইড (Access Restricted)</h3>
+                    <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                      শুধুমাত্র অনুমোদিত মেস অ্যাডমিন/ম্যানেজারগণ অ্যাডমিন প্যানেলে প্রবেশ করতে পারবেন।
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('dashboard')}
+                      className="px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-all shadow-lg shadow-cyan-500/25 active:scale-95 font-display"
+                    >
+                      মাই ড্যাশবোর্ডে ফিরে যান
+                    </button>
+                  </div>
+                )}
                 {activeTab === 'dashboard' && rates && (
                   <UserDashboard
                     currentUser={currentUser}
@@ -208,6 +247,7 @@ const MainApplication: React.FC = () => {
                     rates={rates}
                     declarations={declarations}
                     emergencies={emergencies}
+                    specialMeals={specialMeals}
                     onRefreshData={handleRefreshAll}
                   />
                 )}
@@ -220,7 +260,7 @@ const MainApplication: React.FC = () => {
                 )}
 
                 {activeTab === 'reports' && (
-                  <UserReports currentUser={currentUser} declarations={declarations} />
+                  <UserReports currentUser={currentUser} declarations={declarations} rates={rates} specialMeals={specialMeals} />
                 )}
               </>
             )}
@@ -240,29 +280,34 @@ const MainApplication: React.FC = () => {
                   />
                 )}
 
-                {activeTab === 'admin-finance' && financialMetrics && (
-                  <FinancialDashboard
-                    metrics={financialMetrics}
-                    branches={branches}
-                    selectedBranchId={selectedBranchId}
-                    onSelectBranch={(id) => setSelectedBranchId(id)}
+                {activeTab === 'admin-cook-report' && (
+                  <CookReport
+                    users={users}
+                    declarations={declarations}
+                    rates={rates}
+                    specialMeals={specialMeals}
                   />
                 )}
 
-                {activeTab === 'admin-branches' && (
-                  <BranchManagement branches={branches} />
+                {activeTab === 'admin-finance' && financialMetrics && (
+                  <FinancialDashboard
+                    metrics={financialMetrics}
+                    transactions={transactions}
+                    users={users}
+                  />
                 )}
 
                 {activeTab === 'admin-users' && (
                   <UserManagement
                     users={users}
+                    currentAdmin={currentUser}
                     onSelectUser={(u) => setSelectedUserForDetail(u)}
                     onRefreshData={handleRefreshAll}
                   />
                 )}
 
                 {activeTab === 'admin-settings' && (
-                  <SettingsPanel rates={rates} onRefreshData={handleRefreshAll} />
+                  <SettingsPanel rates={rates} specialMeals={specialMeals} onRefreshData={handleRefreshAll} />
                 )}
 
                 {activeTab === 'admin-audit' && (
@@ -270,7 +315,7 @@ const MainApplication: React.FC = () => {
                 )}
 
                 {activeTab === 'reports' && (
-                  <UserReports currentUser={currentUser} declarations={declarations} />
+                  <UserReports currentUser={currentUser} declarations={declarations} rates={rates} />
                 )}
               </>
             )}

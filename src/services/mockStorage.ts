@@ -1,21 +1,19 @@
 import { 
   User, 
+  UserType,
   MealRateConfig, 
   MealDeclaration, 
   WalletTransaction, 
   EmergencyClosure, 
   AuditLog, 
-  Branch, 
   FinancialMetrics, 
   AiInsight, 
-  AdvancedUserFilter 
+  AdvancedUserFilter,
+  SpecialMeal,
+  ArchivedUserReplica
 } from '../types';
 
-const INITIAL_BRANCHES: Branch[] = [
-  { id: 'b1', code: 'CENTRAL', name: 'সেন্ট্রাল হোস্টেল ব্রাঞ্চ', address: 'ক্যাম্পাস মেইন গেট, ঢাকা', city: 'ঢাকা', isActive: true },
-  { id: 'b2', code: 'NORTH', name: 'নর্থ হোস্টেল ব্লক-এ', address: 'সেক্টর ৪, উত্তরা', city: 'ঢাকা', isActive: true },
-  { id: 'b3', code: 'GIRLS', name: 'গার্লস হোস্টেল ভবন', address: 'লেক রোড, ধানমণ্ডি', city: 'ঢাকা', isActive: true },
-];
+const INITIAL_SPECIAL_MEALS: SpecialMeal[] = [];
 
 const INITIAL_USERS: User[] = [
   {
@@ -26,22 +24,17 @@ const INITIAL_USERS: User[] = [
     role: 'USER',
     userType: 'PERMANENT',
     status: 'APPROVED',
-    walletBalance: 1250,
-    branchId: 'b1',
+    walletBalance: 1000,
     roomNo: '৩০২',
     isDualMode: false,
     activeMode: 'USER',
-    createdAt: '2026-01-15T08:00:00Z',
+    createdAt: new Date().toISOString(),
     profile: {
-      studentId: 'CSE-2024-089',
+      studentId: 'STU-2026-001',
       department: 'কম্পিউটার সায়েন্স',
-      batch: '৪৯তম',
-      semester: '৬ষ্ঠ',
       bloodGroup: 'B+',
       emergencyContact: '01700000000',
-      hostelName: 'সেন্ট্রাল হোস্টেল',
-      floor: '৩য় তলা',
-      seatNumber: 'B-2',
+      hostelName: 'মেস ভবন',
     },
   },
   {
@@ -52,67 +45,17 @@ const INITIAL_USERS: User[] = [
     role: 'SUPERADMIN',
     userType: 'PERMANENT',
     status: 'APPROVED',
-    walletBalance: 2450,
-    branchId: 'b1',
+    walletBalance: 2000,
     roomNo: '১০১',
     isDualMode: true,
     activeMode: 'ADMIN',
-    createdAt: '2026-01-01T08:00:00Z',
+    createdAt: new Date().toISOString(),
     profile: {
-      studentId: 'ADM-2024-001',
+      studentId: 'ADM-2026-001',
       department: 'ইনফরমেশন টেকনোলজি',
-      batch: '৪৫তম',
       bloodGroup: 'O+',
       emergencyContact: '01800000000',
-      hostelName: 'সেন্ট্রাল হোস্টেল',
-      floor: '১ম তলা',
-      seatNumber: 'A-1',
-    },
-  },
-  {
-    id: 'u3',
-    name: 'রাফি ইসলাম',
-    phone: '01933333333',
-    password: 'user',
-    role: 'USER',
-    userType: 'GUEST',
-    status: 'APPROVED',
-    walletBalance: 450,
-    branchId: 'b2',
-    roomNo: '২০৪',
-    isDualMode: false,
-    activeMode: 'USER',
-    createdAt: '2026-02-10T08:00:00Z',
-    profile: {
-      studentId: 'EEE-2024-112',
-      department: 'ইলেকট্রিক্যাল ইঞ্জিনিয়ারিং',
-      batch: '৫০তম',
-      bloodGroup: 'AB+',
-      emergencyContact: '01900000000',
-      hostelName: 'নর্থ হোস্টেল ব্লক-এ',
-    },
-  },
-  {
-    id: 'u4',
-    name: 'সাদিয়া সুলতানা',
-    phone: '01544444444',
-    password: 'user',
-    role: 'USER',
-    userType: 'PERMANENT',
-    status: 'PENDING',
-    walletBalance: 0,
-    branchId: 'b3',
-    roomNo: '৪০৫',
-    isDualMode: false,
-    activeMode: 'USER',
-    createdAt: '2026-07-25T10:30:00Z',
-    profile: {
-      studentId: 'BBA-2025-045',
-      department: 'বিজনেস এডমিনিস্ট্রেশন',
-      batch: '৫২তম',
-      bloodGroup: 'A+',
-      emergencyContact: '01500000000',
-      hostelName: 'গার্লস হোস্টেল ভবন',
+      hostelName: 'মেস ভবন',
     },
   },
 ];
@@ -138,57 +81,93 @@ const INITIAL_RATES: MealRateConfig = {
   cutoffTime: '10:00',
 };
 
-const INITIAL_TRANSACTIONS: WalletTransaction[] = [
-  {
-    id: 't1',
-    userId: 'u1',
-    type: 'RECHARGE',
-    amount: 1500,
-    balanceBefore: 0,
-    balanceAfter: 1500,
-    description: 'নগদ জমা (অফিস রিচার্জ)',
-    date: new Date().toISOString(),
-    adminId: 'u2',
-  },
-  {
-    id: 't2',
-    userId: 'u1',
-    type: 'MEAL_DEDUCTION',
-    amount: 180,
-    balanceBefore: 1500,
-    balanceAfter: 1320,
-    description: 'মিল কর্তন (নাস্তা + দুপুর + রাত)',
-    date: new Date().toISOString(),
-  },
-  {
-    id: 't3',
-    userId: 'u2',
-    type: 'RECHARGE',
-    amount: 3000,
-    balanceBefore: 0,
-    balanceAfter: 3000,
-    description: 'অ্যাডমিন প্রাথমিক ডিপোজিট',
-    date: new Date().toISOString(),
-    adminId: 'u2',
-  },
-];
+const INITIAL_TRANSACTIONS: WalletTransaction[] = [];
 
 export class MockService {
-  private static STORAGE_KEY_USERS = 'meal_app_v4_users';
-  private static STORAGE_KEY_RATES = 'meal_app_v4_rates';
-  private static STORAGE_KEY_DECLARATIONS = 'meal_app_v4_declarations';
-  private static STORAGE_KEY_TRANSACTIONS = 'meal_app_v4_transactions';
-  private static STORAGE_KEY_EMERGENCIES = 'meal_app_v4_emergencies';
-  private static STORAGE_KEY_AUDITS = 'meal_app_v4_audits';
-  private static STORAGE_KEY_BRANCHES = 'meal_app_v4_branches';
+  private static STORAGE_KEY_USERS = 'meal_app_v5_prod_users';
+  private static STORAGE_KEY_RATES = 'meal_app_v5_prod_rates';
+  private static STORAGE_KEY_DECLARATIONS = 'meal_app_v5_prod_declarations';
+  private static STORAGE_KEY_TRANSACTIONS = 'meal_app_v5_prod_transactions';
+  private static STORAGE_KEY_EMERGENCIES = 'meal_app_v5_prod_emergencies';
+  private static STORAGE_KEY_AUDITS = 'meal_app_v5_prod_audits';
+  private static STORAGE_KEY_SPECIAL_MEALS = 'meal_app_v5_prod_specials';
+  private static STORAGE_KEY_ARCHIVES = 'meal_app_v5_prod_archives';
 
-  static async getBranches(): Promise<Branch[]> {
-    const data = localStorage.getItem(this.STORAGE_KEY_BRANCHES);
-    if (!data) {
-      localStorage.setItem(this.STORAGE_KEY_BRANCHES, JSON.stringify(INITIAL_BRANCHES));
-      return INITIAL_BRANCHES;
-    }
+  static async getArchivedReplicas(): Promise<ArchivedUserReplica[]> {
+    const data = localStorage.getItem(this.STORAGE_KEY_ARCHIVES);
+    if (!data) return [];
     return JSON.parse(data);
+  }
+
+  static async deleteUserWithArchive(adminId: string, userId: string): Promise<ArchivedUserReplica> {
+    const users = await this.getUsers();
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error('ইউজার পাওয়া যায়নি!');
+
+    const declarations = await this.getDeclarations();
+    const userDecs = declarations.filter((d) => d.userId === userId);
+
+    const transactions = await this.getTransactions();
+    const userTxs = transactions.filter((t) => t.userId === userId);
+
+    const totalMeals = userDecs.reduce(
+      (count, d) => count + (d.breakfast ? 1 : 0) + (d.lunch ? 1 : 0) + (d.dinner ? 1 : 0),
+      0
+    );
+    const totalSpent = userTxs
+      .filter((t) => t.type === 'MEAL_DEDUCTION')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const monthYear = new Date().toLocaleDateString('bn-BD', { month: 'long', year: 'numeric' });
+
+    const archive: ArchivedUserReplica = {
+      id: 'arch_' + Date.now(),
+      originalUserId: user.id,
+      userName: user.name,
+      userMobile: user.phone,
+      userRoom: user.roomNo,
+      userType: user.userType,
+      walletBalanceAtDeletion: user.walletBalance,
+      deletedAt: new Date().toISOString(),
+      deletedByAdminId: adminId,
+      monthYear,
+      totalMealsCount: totalMeals,
+      totalMoneySpent: totalSpent,
+      declarations: userDecs,
+      transactions: userTxs,
+      replicaDataJson: JSON.stringify({ user, userDecs, userTxs, archivedAt: new Date().toISOString() }, null, 2),
+    };
+
+    const archives = await this.getArchivedReplicas();
+    archives.unshift(archive);
+    localStorage.setItem(this.STORAGE_KEY_ARCHIVES, JSON.stringify(archives));
+
+    // Remove user from database storage ("cloud")
+    const remainingUsers = users.filter((u) => u.id !== userId);
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(remainingUsers));
+
+    // Remove user declarations & transactions from live database
+    const remainingDecs = declarations.filter((d) => d.userId !== userId);
+    localStorage.setItem(this.STORAGE_KEY_DECLARATIONS, JSON.stringify(remainingDecs));
+
+    const remainingTxs = transactions.filter((t) => t.userId !== userId);
+    localStorage.setItem(this.STORAGE_KEY_TRANSACTIONS, JSON.stringify(remainingTxs));
+
+    await this.logAudit(
+      adminId,
+      'DELETE_USER_WITH_ARCHIVE',
+      userId,
+      `মেম্বার ${user.name} (${user.phone}) ক্লাউড থেকে ডিলিট করা হয়েছে এবং ফাইল আর্কাইভ সংরক্ষণ করা হয়েছে।`
+    );
+
+    return archive;
+  }
+
+  static async deleteArchivedReplica(adminId: string, replicaId: string): Promise<void> {
+    const archives = await this.getArchivedReplicas();
+    const filtered = archives.filter((a) => a.id !== replicaId);
+    localStorage.setItem(this.STORAGE_KEY_ARCHIVES, JSON.stringify(filtered));
+    await this.logAudit(adminId, 'DELETE_ARCHIVED_REPLICA', undefined, `Deleted archive replica ID: ${replicaId}`);
   }
 
   static async getUsers(): Promise<User[]> {
@@ -207,7 +186,7 @@ export class MockService {
       const found = users.find((u) => u.id === activeId);
       if (found) return found;
     }
-    return users[1] || users[0] || null; // Default to admin
+    return null; // Require explicit login
   }
 
   static async setCurrentUser(user: User): Promise<void> {
@@ -218,6 +197,12 @@ export class MockService {
       users[idx] = user;
       localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
     }
+  }
+
+  static async logout(): Promise<void> {
+    localStorage.removeItem('meal_app_active_user_id');
+    localStorage.removeItem('meal_app_current_user_v2');
+    sessionStorage.clear();
   }
 
   static async toggleAdminUserMode(userId: string): Promise<User | null> {
@@ -246,7 +231,6 @@ export class MockService {
       }
       if (filter.userType && filter.userType !== 'ALL' && u.userType !== filter.userType) return false;
       if (filter.role && filter.role !== 'ALL' && u.role !== filter.role) return false;
-      if (filter.branchId && filter.branchId !== 'ALL' && u.branchId !== filter.branchId) return false;
       if (filter.approvalStatus && filter.approvalStatus !== 'ALL' && u.status !== filter.approvalStatus) return false;
       if (filter.minBalance !== undefined && u.walletBalance < filter.minBalance) return false;
       if (filter.maxBalance !== undefined && u.walletBalance > filter.maxBalance) return false;
@@ -308,51 +292,63 @@ export class MockService {
     return newTx;
   }
 
-  static async getFinancialMetrics(branchId?: string): Promise<FinancialMetrics> {
+  static async getFinancialMetrics(): Promise<FinancialMetrics> {
     const users = await this.getUsers();
     const txs = await this.getTransactions();
-    
-    const filteredUsers = branchId && branchId !== 'ALL' ? users.filter(u => u.branchId === branchId) : users;
-    const filteredUserIds = new Set(filteredUsers.map(u => u.id));
 
-    const filteredTxs = txs.filter(t => filteredUserIds.has(t.userId));
+    const totalWalletBalance = users.reduce((sum, u) => sum + u.walletBalance, 0);
+    const lowBalanceUsersCount = users.filter((u) => u.walletBalance < 150).length;
 
-    const totalWalletBalance = filteredUsers.reduce((sum, u) => sum + u.walletBalance, 0);
-    const lowBalanceUsersCount = filteredUsers.filter((u) => u.walletBalance < 150).length;
+    const todayStr = new Date().toISOString().split('T')[0];
 
-    const todayCollection = filteredTxs
+    const todayCollection = txs
+      .filter((t) => t.type === 'RECHARGE' && t.date.startsWith(todayStr))
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalRecharges = txs
       .filter((t) => t.type === 'RECHARGE')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const monthlyCollection = todayCollection * 18;
-    const yearlyCollection = monthlyCollection * 11;
-    const todayExpenses = todayCollection * 0.45;
-    const netProfit = todayCollection - todayExpenses;
-    const outstandingBalance = lowBalanceUsersCount * 250;
+    const permanentRevenue = txs
+      .filter((t) => t.type === 'MEAL_DEDUCTION')
+      .reduce((sum, t) => sum + t.amount, 0);
 
-    const permanentRevenue = filteredTxs.filter(t => t.type === 'MEAL_DEDUCTION').reduce((s, t) => s + t.amount, 0);
-    const guestRevenue = permanentRevenue * 0.25;
+    const totalRefunds = txs
+      .filter((t) => t.type === 'REFUND')
+      .reduce((sum, t) => sum + t.amount, 0);
 
-    const topSpenders = filteredUsers
-      .map((u) => ({
-        name: u.name,
-        amount: txs.filter((t) => t.userId === u.id && t.type === 'MEAL_DEDUCTION').reduce((s, t) => s + t.amount, 0) || 450,
-        phone: u.phone,
-      }))
+    const todayExpenses = txs
+      .filter((t) => t.type === 'MEAL_DEDUCTION' && t.date.startsWith(todayStr))
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const netProfit = totalRecharges - permanentRevenue;
+
+    const topSpenders = users
+      .map((u) => {
+        const spent = txs
+          .filter((t) => t.userId === u.id && t.type === 'MEAL_DEDUCTION')
+          .reduce((s, t) => s + t.amount, 0);
+        return {
+          name: u.name,
+          amount: spent,
+          phone: u.phone,
+        };
+      })
+      .filter(u => u.amount > 0)
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
 
     return {
       todayCollection,
-      monthlyCollection,
-      yearlyCollection,
+      monthlyCollection: totalRecharges,
+      yearlyCollection: totalRecharges,
       todayExpenses,
       netProfit,
-      outstandingBalance,
+      outstandingBalance: 0,
       totalWalletBalance,
-      totalRefunds: 850,
+      totalRefunds,
       permanentRevenue,
-      guestRevenue,
+      guestRevenue: 0,
       topSpenders,
       lowBalanceUsersCount,
     };
@@ -360,17 +356,21 @@ export class MockService {
 
   static async generateAiBusinessInsights(): Promise<AiInsight> {
     const users = await this.getUsers();
+    const decs = await this.getDeclarations();
+    const txs = await this.getTransactions();
+
     const lowCount = users.filter((u) => u.walletBalance < 150).length;
+    const totalMealDeductions = txs.filter((t) => t.type === 'MEAL_DEDUCTION').reduce((s, t) => s + t.amount, 0);
+    const totalDeclaredMeals = decs.reduce((sum, d) => sum + (d.breakfast ? 1 : 0) + (d.lunch ? 1 : 0) + (d.dinner ? 1 : 0), 0);
 
     return {
-      summary: `চলতি মাসে মোট মিল গ্রহণযোগ্যতা ৮৭.৪%। আগামী সপ্তাহে শুক্রবারের স্পেশাল মিলে ১৫% বাড়তি মিল চাহিদা তৈরি হতে পারে।`,
-      revenueForecast: 148500,
-      mealDemandForecast: 1420,
+      summary: `সিস্টেমে মেম্বার সংখ্যা ${users.length} জন এবং মোট ডিক্লেয়ারকৃত মিল ${totalDeclaredMeals} টি।`,
+      revenueForecast: totalMealDeductions,
+      mealDemandForecast: totalDeclaredMeals,
       riskLevel: lowCount > 2 ? 'MODERATE' : 'LOW',
       recommendations: [
-        'লো ব্যালেন্স ইউজারদের স্বয়ংক্রিয় SMS রিমাইন্ডার পাঠাতে পারেন।',
-        'আগামী ৩ দিনের মধ্যে মুরগির মাংসের পাইকারি অর্ডারে ৫% খরচ কমানো সম্ভব।',
-        'শুক্রবার দুপুরের মিল বুকিং সকাল ৯:৩০ এর মধ্যে চূড়ান্ত করার নোটিশ দেওয়া দরকার।',
+        lowCount > 0 ? `${lowCount} জন মেম্বারের ওয়ালেট ব্যালেন্স কম রয়েছে। এডমিন রিচার্জ রিমাইন্ডার দেওয়া যেতে পারে।` : 'সকল মেম্বারের ওয়ালেট ব্যালেন্স পর্যাপ্ত রয়েছে।',
+        'বাবুর্চির দৈনিক রিপোর্টের মাধ্যমে দৈনিক বাজার বাজেট নিয়ন্ত্রণ করুন।',
       ],
       lowBalanceRiskCount: lowCount,
     };
@@ -385,8 +385,8 @@ export class MockService {
       targetUserId,
       details: details || '',
       timestamp: new Date().toISOString(),
-      ipAddress: '192.168.1.102',
-      device: 'MacBook Pro / Chrome V124',
+      ipAddress: window.location.hostname || '127.0.0.1',
+      device: navigator.userAgent.slice(0, 30),
     };
     audits.unshift(newLog);
     localStorage.setItem(this.STORAGE_KEY_AUDITS, JSON.stringify(audits));
@@ -397,6 +397,29 @@ export class MockService {
     const data = localStorage.getItem(this.STORAGE_KEY_AUDITS);
     if (!data) return [];
     return JSON.parse(data);
+  }
+
+  static async toggleIndefinitePause(userId: string): Promise<User> {
+    const users = await this.getUsers();
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error('মেম্বার পাওয়া যায়নি');
+
+    const nextState = !user.isIndefinitelyPaused;
+    user.isIndefinitelyPaused = nextState;
+
+    if (nextState) {
+      // Turn off upcoming 7 days meal declarations automatically
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() + i);
+        const dateStr = d.toISOString().split('T')[0];
+        await this.updateDeclaration(userId, dateStr, { breakfast: false, lunch: false, dinner: false });
+      }
+    }
+
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+    await this.setCurrentUser(user);
+    return user;
   }
 
   static async getDeclarations(): Promise<MealDeclaration[]> {
@@ -422,6 +445,48 @@ export class MockService {
   }
 
   static async updateDeclaration(userId: string, date: string, meals: { breakfast: boolean; lunch: boolean; dinner: boolean }): Promise<MealDeclaration> {
+    const users = await this.getUsers();
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error('মেম্বার পাওয়া যায়নি');
+
+    const rates = await this.getMealRates();
+    const userRates = user.userType === 'PERMANENT' ? rates.permanent : rates.guest;
+    
+    const specB = await this.getSpecialMealForDate(date, 'breakfast');
+    const specL = await this.getSpecialMealForDate(date, 'lunch');
+    const specD = await this.getSpecialMealForDate(date, 'dinner');
+
+    const bPrice = specB ? specB.customRate : userRates.breakfast;
+    const lPrice = specL ? specL.customRate : userRates.lunch;
+    const dPrice = specD ? specD.customRate : userRates.dinner;
+
+    const totalCost = (meals.breakfast ? bPrice : 0) + (meals.lunch ? lPrice : 0) + (meals.dinner ? dPrice : 0);
+
+    // Strict balance lock: If total cost exceeds wallet balance, prune meals to fit within balance
+    if (totalCost > user.walletBalance) {
+      let sum = 0;
+      let safeB = false;
+      let safeL = false;
+      let safeD = false;
+
+      if (meals.breakfast && sum + bPrice <= user.walletBalance) {
+        safeB = true;
+        sum += bPrice;
+      }
+      if (meals.lunch && sum + lPrice <= user.walletBalance) {
+        safeL = true;
+        sum += lPrice;
+      }
+      if (meals.dinner && sum + dPrice <= user.walletBalance) {
+        safeD = true;
+        sum += dPrice;
+      }
+
+      meals.breakfast = safeB;
+      meals.lunch = safeL;
+      meals.dinner = safeD;
+    }
+
     const decs = await this.getDeclarations();
     const idx = decs.findIndex((d) => d.userId === userId && d.date === date);
     const updated: MealDeclaration = {
@@ -476,6 +541,79 @@ export class MockService {
     localStorage.setItem(this.STORAGE_KEY_EMERGENCIES, JSON.stringify(emergencies));
     await this.logAudit(adminId, 'EMERGENCY_OFF', undefined, `Emergency off for ${date}: ${reason}`);
     return newEm;
+  }
+
+  static async getSpecialMeals(): Promise<SpecialMeal[]> {
+    const data = localStorage.getItem(this.STORAGE_KEY_SPECIAL_MEALS);
+    if (!data) {
+      localStorage.setItem(this.STORAGE_KEY_SPECIAL_MEALS, JSON.stringify(INITIAL_SPECIAL_MEALS));
+      return INITIAL_SPECIAL_MEALS;
+    }
+    return JSON.parse(data);
+  }
+
+  static async getSpecialMealForDate(dateStr: string, mealType?: 'breakfast' | 'lunch' | 'dinner'): Promise<SpecialMeal | undefined> {
+    const specials = await this.getSpecialMeals();
+    const dt = new Date(dateStr);
+    const dayOfWeek = dt.getDay(); // 0=Sunday, 6=Saturday
+
+    return specials.find((sm) => {
+      if (sm.isActive === false) return false;
+      if (mealType && sm.mealType !== mealType) return false;
+      if (sm.date === dateStr) return true;
+      if (sm.isRecurring && sm.repeatDayOfWeek === dayOfWeek) return true;
+      return false;
+    });
+  }
+
+  static async addSpecialMeal(
+    adminId: string, 
+    date: string, 
+    mealType: 'breakfast' | 'lunch' | 'dinner', 
+    title: string, 
+    customRate: number, 
+    description?: string,
+    isRecurring?: boolean,
+    repeatDayOfWeek?: number
+  ): Promise<SpecialMeal> {
+    const specials = await this.getSpecialMeals();
+    const dt = new Date(date);
+    const day = repeatDayOfWeek !== undefined ? repeatDayOfWeek : dt.getDay();
+
+    const newSm: SpecialMeal = {
+      id: 'sm_' + Date.now(),
+      date,
+      mealType,
+      title,
+      customRate,
+      description,
+      isRecurring: !!isRecurring,
+      repeatDayOfWeek: day,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    };
+    specials.unshift(newSm);
+    localStorage.setItem(this.STORAGE_KEY_SPECIAL_MEALS, JSON.stringify(specials));
+    await this.logAudit(adminId, 'ADD_SPECIAL_MEAL', undefined, `Special meal ${title} on ${date} (Recurring: ${!!isRecurring}): ৳${customRate}`);
+    return newSm;
+  }
+
+  static async toggleSpecialMealActive(adminId: string, id: string): Promise<SpecialMeal | null> {
+    const specials = await this.getSpecialMeals();
+    const sm = specials.find(s => s.id === id);
+    if (!sm) return null;
+
+    sm.isActive = sm.isActive === false ? true : false;
+    localStorage.setItem(this.STORAGE_KEY_SPECIAL_MEALS, JSON.stringify(specials));
+    await this.logAudit(adminId, 'TOGGLE_SPECIAL_MEAL', undefined, `Special meal ${sm.title} active state toggled to ${sm.isActive}`);
+    return sm;
+  }
+
+  static async deleteSpecialMeal(adminId: string, id: string): Promise<void> {
+    const specials = await this.getSpecialMeals();
+    const filtered = specials.filter(s => s.id !== id);
+    localStorage.setItem(this.STORAGE_KEY_SPECIAL_MEALS, JSON.stringify(filtered));
+    await this.logAudit(adminId, 'DELETE_SPECIAL_MEAL', undefined, `Deleted special meal ID: ${id}`);
   }
 
   static async approveUser(adminId: string, userId: string, userType: 'PERMANENT' | 'GUEST', role: string, remark: string): Promise<User> {
@@ -538,37 +676,155 @@ export class MockService {
     return user;
   }
 
+  private static FAILED_LOGINS_KEY = 'meal_app_v5_failed_logins';
+
   static async login(phone: string, pass: string): Promise<User> {
+    const cleanPhone = (phone || '').trim();
+    const cleanPass = (pass || '').trim();
+
+    if (!cleanPhone || !cleanPass) {
+      throw new Error('ফোন নম্বর এবং পাসওয়ার্ড উভয়ই প্রদান করুন');
+    }
+
+    // Rate Limiting Check
+    const failedDataStr = localStorage.getItem(this.FAILED_LOGINS_KEY);
+    const failedData = failedDataStr ? JSON.parse(failedDataStr) : {};
+    const record = failedData[cleanPhone] || { count: 0, lockUntil: 0 };
+
+    if (record.lockUntil && Date.now() < record.lockUntil) {
+      const waitMins = Math.ceil((record.lockUntil - Date.now()) / 60000);
+      throw new Error(`অনেকগুলো ভুল চেষ্টার কারণে একাউন্টটি সাময়িকভাবে লক করা হয়েছে। ${waitMins} মিনিট পর চেষ্টা করুন।`);
+    }
+
     const users = await this.getUsers();
-    const found = users.find((u) => u.phone === phone);
-    if (!found) throw new Error('ফোন নম্বরটি সঠিক নয়');
-    if (found.password && found.password !== pass) throw new Error('পাসওয়ার্ড সঠিক নয়');
+    const found = users.find((u) => u.phone === cleanPhone);
+
+    if (!found) {
+      this.logFailedLogin(cleanPhone, 'ভুল ফোন নম্বর');
+      throw new Error('ফোন নম্বরটি সিস্টেমে নিবন্ধিত নয়');
+    }
+
+    if (found.password && found.password !== cleanPass) {
+      record.count += 1;
+      if (record.count >= 5) {
+        record.lockUntil = Date.now() + 5 * 60 * 1000; // 5 minute lock
+      }
+      failedData[cleanPhone] = record;
+      localStorage.setItem(this.FAILED_LOGINS_KEY, JSON.stringify(failedData));
+
+      await this.logAudit('system', 'FAILED_LOGIN', found.id, `ভুল পাসওয়ার্ড দিয়ে লগইনের চেষ্টা (${record.count}/5)`);
+      throw new Error(`পাসওয়ার্ড সঠিক নয় (${record.count}/৫ বার চেষ্টা)`);
+    }
+
+    // Reset failed counter on success
+    delete failedData[cleanPhone];
+    localStorage.setItem(this.FAILED_LOGINS_KEY, JSON.stringify(failedData));
+
     await this.setCurrentUser(found);
+    await this.logAudit(found.id, 'AUTH_LOGIN_SUCCESS', found.id, `সফলভাবে লগইন করেছেন (${found.role})`);
     return found;
   }
 
+  private static async logFailedLogin(phone: string, reason: string): Promise<void> {
+    await this.logAudit('system', 'FAILED_LOGIN_UNKNOWN', undefined, `অজানা ফোন নম্বর (${phone}): ${reason}`);
+  }
+
   static async register(data: Partial<User>): Promise<User> {
+    const cleanName = (data.name || '').trim();
+    const cleanPhone = (data.phone || '').trim();
+    const cleanPass = (data.password || '').trim();
+
+    if (!cleanName || cleanName.length < 2) {
+      throw new Error('দয়া করে সঠিক নাম প্রদান করুন (নূন্যতম ২ অক্ষর)');
+    }
+
+    if (!/^01[3-9]\d{8}$/.test(cleanPhone)) {
+      throw new Error('সঠিক ১১ ডিজিটের বাংলাদেশী মোবাইল নম্বর দিন (যেমন: 01711111111)');
+    }
+
+    if (!cleanPass || cleanPass.length < 4) {
+      throw new Error('পাসওয়ার্ড অন্তত ৪ অক্ষরের হতে হবে');
+    }
+
     const users = await this.getUsers();
-    const exists = users.find((u) => u.phone === data.phone);
-    if (exists) throw new Error('এই ফোন নম্বর দিয়ে ইতিমধ্যে অ্যাকাউন্ট তৈরি করা আছে');
+    const exists = users.find((u) => u.phone === cleanPhone);
+    if (exists) {
+      throw new Error('এই ফোন নম্বর দিয়ে ইতিমধ্যে একাউন্ট তৈরি করা আছে');
+    }
 
     const newUser: User = {
       id: 'u_' + Date.now(),
-      name: data.name || 'নতুন মেম্বার',
-      phone: data.phone || '',
-      password: data.password || '123456',
+      name: cleanName,
+      phone: cleanPhone,
+      password: cleanPass,
       role: 'USER',
       userType: data.userType || 'PERMANENT',
       status: 'PENDING',
       walletBalance: 0,
-      roomNo: data.roomNo,
-      branchId: 'b1',
+      roomNo: data.roomNo?.trim() || '',
       isDualMode: false,
       activeMode: 'USER',
       createdAt: new Date().toISOString(),
     };
+
     users.push(newUser);
     localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+    await this.logAudit(newUser.id, 'AUTH_REGISTER_PENDING', newUser.id, `নতুন একাউন্ট নিবন্ধন আবেদন (${cleanName})`);
     return newUser;
+  }
+
+  static async createAccountByAdmin(adminId: string, data: { name: string; phone: string; password?: string; roomNo?: string; userType: UserType; initialBalance?: number }): Promise<User> {
+    const cleanName = (data.name || '').trim();
+    const cleanPhone = (data.phone || '').trim();
+    const cleanPass = (data.password || '123456').trim();
+
+    if (!cleanName || cleanName.length < 2) {
+      throw new Error('দয়া করে সঠিক নাম প্রদান করুন');
+    }
+
+    if (!/^01[3-9]\d{8}$/.test(cleanPhone)) {
+      throw new Error('সঠিক ১১ ডিজিটের বাংলাদেশী মোবাইল নম্বর দিন');
+    }
+
+    const users = await this.getUsers();
+    const exists = users.find((u) => u.phone === cleanPhone);
+    if (exists) {
+      throw new Error('এই ফোন নম্বর দিয়ে ইতিমধ্যে অ্যাকাউন্ট তৈরি করা আছে');
+    }
+
+    const newUser: User = {
+      id: 'u_' + Date.now(),
+      name: cleanName,
+      phone: cleanPhone,
+      password: cleanPass,
+      role: 'USER',
+      userType: data.userType || 'PERMANENT',
+      status: 'APPROVED',
+      walletBalance: data.initialBalance || 0,
+      roomNo: data.roomNo?.trim() || '',
+      isDualMode: false,
+      activeMode: 'USER',
+      createdAt: new Date().toISOString(),
+    };
+
+    users.push(newUser);
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+
+    if (data.initialBalance && data.initialBalance > 0) {
+      await this.addWalletBalance(newUser.id, data.initialBalance, adminId, 'প্রারম্ভিক জামা');
+    }
+
+    await this.logAudit(adminId, 'ADMIN_CREATE_USER', newUser.id, `অ্যাডমিন সরাসরি মেম্বার একাউন্ট তৈরি করেছেন (${cleanName})`);
+    return newUser;
+  }
+
+  static async purgeSystemData(): Promise<void> {
+    localStorage.removeItem(this.STORAGE_KEY_DECLARATIONS);
+    localStorage.removeItem(this.STORAGE_KEY_TRANSACTIONS);
+    localStorage.removeItem(this.STORAGE_KEY_EMERGENCIES);
+    localStorage.removeItem(this.STORAGE_KEY_AUDITS);
+    localStorage.removeItem(this.STORAGE_KEY_SPECIAL_MEALS);
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(INITIAL_USERS));
+    localStorage.setItem(this.STORAGE_KEY_RATES, JSON.stringify(INITIAL_RATES));
   }
 }

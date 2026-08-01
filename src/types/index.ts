@@ -4,7 +4,6 @@ export type UserRole =
   | 'FINANCE_ADMIN'
   | 'MEAL_MANAGER'
   | 'HOSTEL_MANAGER'
-  | 'BRANCH_MANAGER'
   | 'AUDITOR'
   | 'SUPPORT_ADMIN'
   | 'READONLY_ADMIN'
@@ -14,16 +13,6 @@ export type UserRole =
 export type UserType = 'PERMANENT' | 'GUEST';
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type MealType = 'breakfast' | 'lunch' | 'dinner';
-
-export interface Branch {
-  id: string;
-  code: string;
-  name: string;
-  address?: string;
-  city?: string;
-  phone?: string;
-  isActive: boolean;
-}
 
 export interface RichProfile {
   avatarUrl?: string;
@@ -55,11 +44,11 @@ export interface User {
   userType: UserType;
   status: ApprovalStatus;
   walletBalance: number;
-  branchId?: string;
   roomNo?: string;
   profile?: RichProfile;
   isDualMode?: boolean;
   activeMode?: 'ADMIN' | 'USER';
+  isIndefinitelyPaused?: boolean;
   createdAt: string;
 }
 
@@ -100,6 +89,19 @@ export interface EmergencyClosure {
   createdAt: string;
 }
 
+export interface SpecialMeal {
+  id: string;
+  date: string; // YYYY-MM-DD
+  mealType: MealType;
+  title: string;
+  customRate: number;
+  description?: string;
+  isRecurring?: boolean;
+  repeatDayOfWeek?: number; // 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+  isActive?: boolean;
+  createdAt: string;
+}
+
 export type TransactionType = 
   | 'RECHARGE' 
   | 'MEAL_DEDUCTION' 
@@ -132,6 +134,24 @@ export interface AuditLog {
   reason?: string;
 }
 
+export interface ArchivedUserReplica {
+  id: string;
+  originalUserId: string;
+  userName: string;
+  userMobile: string;
+  userRoom?: string;
+  userType: 'PERMANENT' | 'GUEST';
+  walletBalanceAtDeletion: number;
+  deletedAt: string;
+  deletedByAdminId: string;
+  monthYear: string;
+  totalMealsCount: number;
+  totalMoneySpent: number;
+  declarations: MealDeclaration[];
+  transactions: WalletTransaction[];
+  replicaDataJson: string;
+}
+
 export interface FinancialMetrics {
   todayCollection: number;
   monthlyCollection: number;
@@ -160,10 +180,10 @@ export interface AdvancedUserFilter {
   searchTerm?: string;
   userType?: UserType | 'ALL';
   role?: UserRole | 'ALL';
-  branchId?: string | 'ALL';
   approvalStatus?: ApprovalStatus | 'ALL';
   minBalance?: number;
   maxBalance?: number;
   department?: string;
   batch?: string;
 }
+

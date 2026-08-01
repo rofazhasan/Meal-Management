@@ -48,12 +48,10 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2 sm:gap-3">
             
             {/* Quick Wallet Pill */}
-            {currentUser.role === 'USER' && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-semibold text-xs sm:text-sm shadow-sm shadow-cyan-500/10 backdrop-blur-md">
-                <Wallet className="w-4 h-4 text-cyan-400" />
-                <AnimatedNumber value={currentUser.walletBalance} prefix={BN.tkSymbol} decimals={0} className="text-slate-100 font-bold" />
-              </div>
-            )}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-semibold text-xs sm:text-sm shadow-sm shadow-cyan-500/10 backdrop-blur-md">
+              <Wallet className="w-4 h-4 text-cyan-400" />
+              <AnimatedNumber value={currentUser.walletBalance} prefix={BN.tkSymbol} decimals={0} className="text-slate-100 font-bold" />
+            </div>
 
             {/* User Avatar & Name */}
             <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300">
@@ -64,30 +62,32 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* Quick Role Switcher Pill */}
-            <div className="hidden md:flex items-center bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs">
-              <button
-                onClick={() => onSwitchRole('USER')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all font-medium ${
-                  currentUser.role === 'USER'
-                    ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white font-semibold shadow-md shadow-sky-500/20'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <UserCheck className="w-3.5 h-3.5" />
-                ইউজার মোড
-              </button>
-              <button
-                onClick={() => onSwitchRole('ADMIN')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all font-medium ${
-                  currentUser.role === 'ADMIN'
-                    ? 'bg-gradient-to-r from-amber-600 to-rose-500 text-white font-semibold shadow-md shadow-amber-500/20'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Shield className="w-3.5 h-3.5" />
-                অ্যাডমিন মোড
-              </button>
-            </div>
+            {(currentUser.isDualMode || currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN') && (
+              <div className="flex items-center bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs">
+                <button
+                  onClick={() => onSwitchRole('USER')}
+                  className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-lg transition-all font-medium text-[11px] sm:text-xs ${
+                    currentUser.activeMode === 'USER'
+                      ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white font-semibold shadow-md shadow-sky-500/20'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">ইউজার</span> মোড
+                </button>
+                <button
+                  onClick={() => onSwitchRole('ADMIN')}
+                  className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-lg transition-all font-medium text-[11px] sm:text-xs ${
+                    currentUser.activeMode === 'ADMIN'
+                      ? 'bg-gradient-to-r from-amber-600 to-rose-500 text-white font-semibold shadow-md shadow-amber-500/20'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">অ্যাডমিন</span> মোড
+                </button>
+              </div>
+            )}
 
             {/* Theme Toggle */}
             <button
