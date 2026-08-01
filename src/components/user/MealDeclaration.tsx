@@ -157,9 +157,21 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
     if (emergencyForDate) return;
     setBalanceAlertMsg(null);
 
+    // Global Master Meal Switch Lock
+    const isGlobalOff =
+      (type === 'breakfast' && rates.globalMealStatus?.breakfast === false) ||
+      (type === 'lunch' && rates.globalMealStatus?.lunch === false) ||
+      (type === 'dinner' && rates.globalMealStatus?.dinner === false);
+
+    if (isGlobalOff) {
+      const mealName = type === 'breakfast' ? 'সকালের নাস্তা' : type === 'lunch' ? 'দুপুরের খাবার' : 'রাতের খাবার';
+      setBalanceAlertMsg(`${mealName} এডমিন কর্তৃক সিস্টেম সেটিংসে বিশ্বব্যাপী বন্ধ (Global OFF) রাখা হয়েছে।`);
+      return;
+    }
+
     // 10 AM Cutoff Time Lock for today's meals
     if (isToday) {
-      const now = new Date();
+      const now = getBangladeshNow();
       const currentHour = now.getHours();
       if (currentHour >= 10) {
         setBalanceAlertMsg('আজকের মিল পরিবর্তন বা অন/অফ করার নির্ধারিত সময় (সকাল ১০:০০) পার হয়ে গেছে।');
@@ -468,8 +480,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
         <div
           onClick={() => handleToggleMeal('breakfast')}
           className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between min-h-[170px] group ${
-            emergencyForDate
-              ? 'bg-slate-950 border-slate-800 opacity-50 cursor-not-allowed'
+            emergencyForDate || rates.globalMealStatus?.breakfast === false
+              ? 'bg-slate-950/80 border-slate-800 opacity-60 cursor-not-allowed'
               : breakfast
               ? (specB
                 ? 'bg-gradient-to-br from-amber-950/70 via-slate-900 to-slate-900 border-amber-500/60 shadow-xl shadow-amber-950/40'
@@ -482,11 +494,17 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
               {specB ? `✨ ${specB.title}` : BN.breakfast}
               {specB && <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />}
             </span>
-            {breakfast ? <CheckCircle2 className="w-7 h-7 text-emerald-400 group-hover:scale-110 transition-transform shrink-0" /> : <XCircle className="w-7 h-7 text-slate-600 group-hover:scale-110 transition-transform shrink-0" />}
+            {rates.globalMealStatus?.breakfast === false ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold">মাস্টার অফ</span>
+            ) : breakfast ? (
+              <CheckCircle2 className="w-7 h-7 text-emerald-400 group-hover:scale-110 transition-transform shrink-0" />
+            ) : (
+              <XCircle className="w-7 h-7 text-slate-600 group-hover:scale-110 transition-transform shrink-0" />
+            )}
           </div>
           <div>
-            <div className={`text-2xl font-extrabold mt-4 font-display ${breakfast ? (specB ? 'text-amber-400' : 'text-emerald-400') : 'text-slate-500'}`}>
-              {breakfast ? BN.mealOn : BN.mealOff}
+            <div className={`text-2xl font-extrabold mt-4 font-display ${rates.globalMealStatus?.breakfast === false ? 'text-rose-400 text-lg' : breakfast ? (specB ? 'text-amber-400' : 'text-emerald-400') : 'text-slate-500'}`}>
+              {rates.globalMealStatus?.breakfast === false ? '⛔ এডমিন কর্তৃক বন্ধ' : breakfast ? BN.mealOn : BN.mealOff}
             </div>
             <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-1">
               চার্জ: ৳{effectiveBRate}
@@ -499,8 +517,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
         <div
           onClick={() => handleToggleMeal('lunch')}
           className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between min-h-[170px] group ${
-            emergencyForDate
-              ? 'bg-slate-950 border-slate-800 opacity-50 cursor-not-allowed'
+            emergencyForDate || rates.globalMealStatus?.lunch === false
+              ? 'bg-slate-950/80 border-slate-800 opacity-60 cursor-not-allowed'
               : lunch
               ? (specL
                 ? 'bg-gradient-to-br from-amber-950/70 via-slate-900 to-slate-900 border-amber-500/60 shadow-xl shadow-amber-950/40'
@@ -513,11 +531,17 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
               {specL ? `✨ ${specL.title}` : BN.lunch}
               {specL && <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />}
             </span>
-            {lunch ? <CheckCircle2 className="w-7 h-7 text-emerald-400 group-hover:scale-110 transition-transform shrink-0" /> : <XCircle className="w-7 h-7 text-slate-600 group-hover:scale-110 transition-transform shrink-0" />}
+            {rates.globalMealStatus?.lunch === false ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold">মাস্টার অফ</span>
+            ) : lunch ? (
+              <CheckCircle2 className="w-7 h-7 text-emerald-400 group-hover:scale-110 transition-transform shrink-0" />
+            ) : (
+              <XCircle className="w-7 h-7 text-slate-600 group-hover:scale-110 transition-transform shrink-0" />
+            )}
           </div>
           <div>
-            <div className={`text-2xl font-extrabold mt-4 font-display ${lunch ? (specL ? 'text-amber-400' : 'text-emerald-400') : 'text-slate-500'}`}>
-              {lunch ? BN.mealOn : BN.mealOff}
+            <div className={`text-2xl font-extrabold mt-4 font-display ${rates.globalMealStatus?.lunch === false ? 'text-rose-400 text-lg' : lunch ? (specL ? 'text-amber-400' : 'text-emerald-400') : 'text-slate-500'}`}>
+              {rates.globalMealStatus?.lunch === false ? '⛔ এডমিন কর্তৃক বন্ধ' : lunch ? BN.mealOn : BN.mealOff}
             </div>
             <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-1">
               চার্জ: ৳{effectiveLRate}
@@ -530,8 +554,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
         <div
           onClick={() => handleToggleMeal('dinner')}
           className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between min-h-[170px] group ${
-            emergencyForDate
-              ? 'bg-slate-950 border-slate-800 opacity-50 cursor-not-allowed'
+            emergencyForDate || rates.globalMealStatus?.dinner === false
+              ? 'bg-slate-950/80 border-slate-800 opacity-60 cursor-not-allowed'
               : dinner
               ? (specD
                 ? 'bg-gradient-to-br from-amber-950/70 via-slate-900 to-slate-900 border-amber-500/60 shadow-xl shadow-amber-950/40'
@@ -544,11 +568,17 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
               {specD ? `✨ ${specD.title}` : BN.dinner}
               {specD && <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />}
             </span>
-            {dinner ? <CheckCircle2 className="w-7 h-7 text-emerald-400 group-hover:scale-110 transition-transform shrink-0" /> : <XCircle className="w-7 h-7 text-slate-600 group-hover:scale-110 transition-transform shrink-0" />}
+            {rates.globalMealStatus?.dinner === false ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold">মাস্টার অফ</span>
+            ) : dinner ? (
+              <CheckCircle2 className="w-7 h-7 text-emerald-400 group-hover:scale-110 transition-transform shrink-0" />
+            ) : (
+              <XCircle className="w-7 h-7 text-slate-600 group-hover:scale-110 transition-transform shrink-0" />
+            )}
           </div>
           <div>
-            <div className={`text-2xl font-extrabold mt-4 font-display ${dinner ? (specD ? 'text-amber-400' : 'text-emerald-400') : 'text-slate-500'}`}>
-              {dinner ? BN.mealOn : BN.mealOff}
+            <div className={`text-2xl font-extrabold mt-4 font-display ${rates.globalMealStatus?.dinner === false ? 'text-rose-400 text-lg' : dinner ? (specD ? 'text-amber-400' : 'text-emerald-400') : 'text-slate-500'}`}>
+              {rates.globalMealStatus?.dinner === false ? '⛔ এডমিন কর্তৃক বন্ধ' : dinner ? BN.mealOn : BN.mealOff}
             </div>
             <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-1">
               চার্জ: ৳{effectiveDRate}

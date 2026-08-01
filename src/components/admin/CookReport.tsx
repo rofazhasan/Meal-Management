@@ -47,6 +47,10 @@ export const CookReport: React.FC<CookReportProps> = ({
   const lunchMembers: User[] = [];
   const dinnerMembers: User[] = [];
 
+  const isBGlobalOff = rates.globalMealStatus?.breakfast === false;
+  const isLGlobalOff = rates.globalMealStatus?.lunch === false;
+  const isDGlobalOff = rates.globalMealStatus?.dinner === false;
+
   activeUsers.forEach((user) => {
     const userDec = dateDeclarations.find((d) => d.userId === user.id);
     const userRates = user.userType === 'PERMANENT' ? rates.permanent : rates.guest;
@@ -55,13 +59,13 @@ export const CookReport: React.FC<CookReportProps> = ({
     const lPrice = specL ? specL.customRate : userRates.lunch;
     const dPrice = specD ? specD.customRate : userRates.dinner;
 
-    if (userDec ? userDec.breakfast : user.walletBalance >= bPrice) {
+    if (!isBGlobalOff && (userDec ? userDec.breakfast : user.walletBalance >= bPrice)) {
       breakfastMembers.push(user);
     }
-    if (userDec ? userDec.lunch : user.walletBalance >= lPrice) {
+    if (!isLGlobalOff && (userDec ? userDec.lunch : user.walletBalance >= lPrice)) {
       lunchMembers.push(user);
     }
-    if (userDec ? userDec.dinner : user.walletBalance >= dPrice) {
+    if (!isDGlobalOff && (userDec ? userDec.dinner : user.walletBalance >= dPrice)) {
       dinnerMembers.push(user);
     }
   });

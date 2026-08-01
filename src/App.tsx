@@ -294,6 +294,7 @@ const MainApplication: React.FC = () => {
                   <BulkMealControl
                     users={users}
                     declarations={declarations}
+                    rates={rates}
                     specialMeals={specialMeals}
                     onRefreshData={handleRefreshAll}
                   />

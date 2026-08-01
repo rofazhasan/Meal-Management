@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { UtensilsCrossed, Calendar, Search, Filter, Sparkles, CheckCircle2, XCircle, Check, X, Users, RefreshCw } from 'lucide-react';
-import { User, MealDeclaration, SpecialMeal } from '../../types';
+import { UtensilsCrossed, Calendar, Search, Filter, Sparkles, CheckCircle2, XCircle, Check, X, Users, RefreshCw, ShieldAlert } from 'lucide-react';
+import { User, MealDeclaration, SpecialMeal, MealRateConfig } from '../../types';
 import { MockService } from '../../services/mockStorage';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { getBangladeshDateStr, getBangladeshTomorrowStr } from '../../utils/dateUtils';
@@ -8,6 +8,7 @@ import { getBangladeshDateStr, getBangladeshTomorrowStr } from '../../utils/date
 interface BulkMealControlProps {
   users: User[];
   declarations: MealDeclaration[];
+  rates?: MealRateConfig;
   specialMeals?: SpecialMeal[];
   onRefreshData: () => void;
 }
@@ -15,6 +16,7 @@ interface BulkMealControlProps {
 export const BulkMealControl: React.FC<BulkMealControlProps> = ({
   users,
   declarations,
+  rates,
   specialMeals = [],
   onRefreshData,
 }) => {
@@ -180,6 +182,25 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
             />
           </div>
         </div>
+
+        {/* Master Global Meal Switch Indicator */}
+        {rates?.globalMealStatus && (
+          <div className="flex flex-wrap items-center gap-2 text-xs font-bold p-3 rounded-2xl bg-slate-900/80 border border-slate-800">
+            <span className="text-slate-400 flex items-center gap-1">
+              <ShieldAlert className="w-4 h-4 text-amber-400" />
+              সিস্টেম মাস্টার গ্লোবাল সুইচ স্ট্যাটাস:
+            </span>
+            <span className={`px-2 py-0.5 rounded-lg border text-[11px] ${rates.globalMealStatus.breakfast ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-rose-500/15 border-rose-500/30 text-rose-300'}`}>
+              সকাল: {rates.globalMealStatus.breakfast ? 'অন' : '⛔ সিস্টেম বন্ধ (Off)'}
+            </span>
+            <span className={`px-2 py-0.5 rounded-lg border text-[11px] ${rates.globalMealStatus.lunch ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-rose-500/15 border-rose-500/30 text-rose-300'}`}>
+              দুপুর: {rates.globalMealStatus.lunch ? 'অন' : '⛔ সিস্টেম বন্ধ (Off)'}
+            </span>
+            <span className={`px-2 py-0.5 rounded-lg border text-[11px] ${rates.globalMealStatus.dinner ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-rose-500/15 border-rose-500/30 text-rose-300'}`}>
+              রাত: {rates.globalMealStatus.dinner ? 'অন' : '⛔ সিস্টেম বন্ধ (Off)'}
+            </span>
+          </div>
+        )}
 
         {specialObj && (
           <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
