@@ -37,8 +37,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const todayLunches = todayDecs.filter(d => d.lunch).length;
   const todayDinners = todayDecs.filter(d => d.dinner).length;
 
-  // Emergency Off Form state
-  const [emergencyDate, setEmergencyDate] = useState(todayStr);
+  // Emergency Off Form state (Supports Date Range)
+  const [emergencyStartDate, setEmergencyStartDate] = useState(todayStr);
+  const [emergencyEndDate, setEmergencyEndDate] = useState(todayStr);
   const [emergencyReason, setEmergencyReason] = useState('');
   const [emergencySubmitting, setEmergencySubmitting] = useState(false);
 
@@ -65,9 +66,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
     setEmergencySubmitting(true);
     try {
-      await MockService.addEmergency(emergencyDate, emergencyReason, ['breakfast', 'lunch', 'dinner']);
+      await MockService.addEmergency(currentAdmin.id, emergencyStartDate, emergencyEndDate, emergencyReason, ['breakfast', 'lunch', 'dinner']);
       setEmergencyReason('');
-      alert('জরুরি মিল বন্ধ সফলভাবে আপডেট করা হয়েছে!');
+      alert(`জরুরি মিল বন্ধ নোটিশ (${emergencyStartDate} থেকে ${emergencyEndDate}) সফলভাবে পোস্ট করা হয়েছে!`);
       onRefreshData();
     } finally {
       setEmergencySubmitting(false);
@@ -220,15 +221,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           <form onSubmit={handleEmergencySubmit} className="space-y-3.5">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1 font-sans">{BN.closureDate}</label>
-              <input
-                type="date"
-                required
-                value={emergencyDate}
-                onChange={(e) => setEmergencyDate(e.target.value)}
-                className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 font-mono focus:border-rose-500 focus:outline-none"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1 font-sans">বন্ধ শুরুর তারিখ</label>
+                <input
+                  type="date"
+                  required
+                  value={emergencyStartDate}
+                  onChange={(e) => {
+                    setEmergencyStartDate(e.target.value);
+                    if (e.target.value > emergencyEndDate) setEmergencyEndDate(e.target.value);
+                  }}
+                  className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-2.5 text-xs text-slate-100 font-mono focus:border-rose-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1 font-sans">বন্ধ শেষের তারিখ (রেঞ্জ)</label>
+                <input
+                  type="date"
+                  required
+                  value={emergencyEndDate}
+                  min={emergencyStartDate}
+                  onChange={(e) => setEmergencyEndDate(e.target.value)}
+                  className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-2.5 text-xs text-slate-100 font-mono focus:border-rose-500 focus:outline-none"
+                />
+              </div>
             </div>
 
             <div>
@@ -239,16 +257,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 value={emergencyReason}
                 onChange={(e) => setEmergencyReason(e.target.value)}
                 placeholder="যেমন: গ্যাস সংযোগ মেরামতের কারণে সব মিল বন্ধ"
-                className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:border-rose-500 focus:outline-none"
+                className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-100 focus:border-rose-500 focus:outline-none"
               />
             </div>
 
             <button
               type="submit"
               disabled={emergencySubmitting}
-              className="w-full py-3.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-sm transition-all shadow-lg shadow-rose-600/30 active:scale-95 font-display"
+              className="w-full py-3.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs sm:text-sm transition-all shadow-lg shadow-rose-600/30 active:scale-95 font-display"
             >
-              {emergencySubmitting ? 'প্রসেসিং...' : BN.emergencySubmit}
+              {emergencySubmitting ? 'প্রসেসিং...' : 'জরুরি বন্ধ নোটিশ জারি করুন'}
             </button>
           </form>
 
@@ -259,7 +277,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="space-y-2">
                 {emergencies.map((em) => (
                   <div key={em.id} className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs">
-                    <p className="font-bold text-rose-300 font-mono">{em.date}: {em.reason}</p>
+                    <p className="font-bold text-rose-300 font-mono">
+                      {em.date} {em.endDate && em.endDate !== em.date ? `থেকে ${em.endDate}` : ''}: {em.reason}
+                    </p>
                   </div>
                 ))}
               </div>

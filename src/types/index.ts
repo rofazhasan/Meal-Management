@@ -83,7 +83,8 @@ export interface MealDeclaration {
 
 export interface EmergencyClosure {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD (Start Date)
+  endDate?: string; // YYYY-MM-DD (End Date for range closures)
   reason: string;
   closedMeals: MealType[];
   createdAt: string;

@@ -107,7 +107,7 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
     updatedAt: new Date().toISOString(),
   };
 
-  const emergencyForDate = emergencies.find(e => e.date === selectedDate);
+  const emergencyForDate = emergencies.find(e => selectedDate >= e.date && selectedDate <= (e.endDate || e.date));
   const isToday = selectedDate === getBangladeshDateStr();
 
   const [breakfast, setBreakfast] = useState(isInsufficientBalance ? false : activeDec.breakfast);

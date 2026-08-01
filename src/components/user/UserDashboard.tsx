@@ -68,7 +68,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
     updatedAt: new Date().toISOString(),
   };
 
-  const todayEmergency = emergencies.find(e => e.date === todayStr);
+  const todayEmergency = emergencies.find(e => todayStr >= e.date && todayStr <= (e.endDate || e.date));
 
   // Live 10 AM Deadline Calculator in Bangladesh Standard Time (UTC+6)
   useEffect(() => {

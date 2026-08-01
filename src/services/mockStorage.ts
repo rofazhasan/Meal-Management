@@ -519,11 +519,15 @@ export class MockService {
 
     const users = await this.getUsers();
     const approvedUsers = users.filter((u) => u.status === 'APPROVED');
+    const rates = await this.getMealRates();
+    const emergencies = await this.getEmergencies();
 
-    // Calculate previous date string
-    const [y, m, d] = targetDate.split('-').map(Number);
-    const prevDt = new Date(y, m - 1, d - 1);
-    const prevDateStr = prevDt.toISOString().split('T')[0];
+    // Check if targetDate is covered by an emergency closure
+    const targetEmergency = emergencies.find((em) => {
+      const start = em.date;
+      const end = em.endDate || em.date;
+      return targetDate >= start && targetDate <= end;
+    });
 
     let hasChanges = false;
 
@@ -532,11 +536,76 @@ export class MockService {
 
       const existing = decs.find((dec) => dec.userId === u.id && dec.date === targetDate);
       if (!existing) {
-        // Look up previous day's declaration
-        const prevDec = decs.find((dec) => dec.userId === u.id && dec.date === prevDateStr);
-        const meals = prevDec
-          ? { breakfast: prevDec.breakfast, lunch: prevDec.lunch, dinner: prevDec.dinner }
-          : { breakfast: true, lunch: true, dinner: true };
+        let meals = { breakfast: false, lunch: false, dinner: false };
+
+        // 1. If target date is an emergency closure day, force all meals OFF
+        if (targetEmergency) {
+          meals = { breakfast: false, lunch: false, dinner: false };
+        } else {
+          const userRates = u.userType === 'PERMANENT' ? rates.permanent : rates.guest;
+          const minRate = Math.min(userRates.breakfast, userRates.lunch, userRates.dinner);
+
+          // 2. Wallet Protection: If user money is less than minimum meal cost, auto OFF all meals (cannot go minus!)
+          if (u.walletBalance < minRate) {
+            meals = { breakfast: false, lunch: false, dinner: false };
+          } else {
+            // 3. Search backwards (up to 7 days) for the last valid active declaration day (not emergency, not all off)
+            let foundMeals = null;
+            const [y, m, d] = targetDate.split('-').map(Number);
+            
+            for (let step = 1; step <= 7; step++) {
+              const checkDt = new Date(y, m - 1, d - step);
+              const checkStr = getBangladeshDateStr(checkDt);
+
+              const wasEmergency = emergencies.some((em) => {
+                const start = em.date;
+                const end = em.endDate || em.date;
+                return checkStr >= start && checkStr <= end;
+              });
+              if (wasEmergency) continue;
+
+              const prevDec = decs.find((dec) => dec.userId === u.id && dec.date === checkStr);
+              if (prevDec && (prevDec.breakfast || prevDec.lunch || prevDec.dinner)) {
+                foundMeals = { breakfast: prevDec.breakfast, lunch: prevDec.lunch, dinner: prevDec.dinner };
+                break;
+              }
+            }
+
+            meals = foundMeals ? foundMeals : { breakfast: true, lunch: true, dinner: true };
+
+            // 4. Enforce Master Global Meal Switches
+            if (rates.globalMealStatus?.breakfast === false) meals.breakfast = false;
+            if (rates.globalMealStatus?.lunch === false) meals.lunch = false;
+            if (rates.globalMealStatus?.dinner === false) meals.dinner = false;
+
+            // 5. Enforce Wallet Balance Cap so wallet NEVER goes negative
+            const totalCost =
+              (meals.breakfast ? userRates.breakfast : 0) +
+              (meals.lunch ? userRates.lunch : 0) +
+              (meals.dinner ? userRates.dinner : 0);
+
+            if (totalCost > u.walletBalance) {
+              let sum = 0;
+              let safeB = false;
+              let safeL = false;
+              let safeD = false;
+
+              if (meals.breakfast && sum + userRates.breakfast <= u.walletBalance) {
+                safeB = true;
+                sum += userRates.breakfast;
+              }
+              if (meals.lunch && sum + userRates.lunch <= u.walletBalance) {
+                safeL = true;
+                sum += userRates.lunch;
+              }
+              if (meals.dinner && sum + userRates.dinner <= u.walletBalance) {
+                safeD = true;
+                sum += userRates.dinner;
+              }
+              meals = { breakfast: safeB, lunch: safeL, dinner: safeD };
+            }
+          }
+        }
 
         const newDec: MealDeclaration = {
           id: 'auto_dec_' + u.id + '_' + targetDate + '_' + Date.now(),
@@ -645,34 +714,25 @@ export class MockService {
     return JSON.parse(data);
   }
 
-  static async addEmergency(adminIdOrDate: string, dateOrReason: string, reasonOrClosedMeals?: any, closedMeals?: any): Promise<EmergencyClosure> {
-    let adminId = 'admin';
-    let date = adminIdOrDate;
-    let reason = dateOrReason;
-    let meals: ('breakfast' | 'lunch' | 'dinner')[] = ['breakfast', 'lunch', 'dinner'];
-
-    if (Array.isArray(reasonOrClosedMeals)) {
-      date = adminIdOrDate;
-      reason = dateOrReason;
-      meals = reasonOrClosedMeals;
-    } else if (typeof reasonOrClosedMeals === 'string') {
-      adminId = adminIdOrDate;
-      date = dateOrReason;
-      reason = reasonOrClosedMeals;
-      if (Array.isArray(closedMeals)) meals = closedMeals;
-    }
-
+  static async addEmergency(
+    adminId: string,
+    startDate: string,
+    endDate: string,
+    reason: string,
+    closedMeals?: ('breakfast' | 'lunch' | 'dinner')[]
+  ): Promise<EmergencyClosure> {
     const emergencies = await this.getEmergencies();
     const newEm: EmergencyClosure = {
       id: 'em_' + Date.now(),
-      date,
+      date: startDate,
+      endDate: endDate && endDate >= startDate ? endDate : startDate,
       reason,
-      closedMeals: meals,
+      closedMeals: closedMeals || ['breakfast', 'lunch', 'dinner'],
       createdAt: new Date().toISOString(),
     };
     emergencies.unshift(newEm);
     localStorage.setItem(this.STORAGE_KEY_EMERGENCIES, JSON.stringify(emergencies));
-    await this.logAudit(adminId, 'EMERGENCY_OFF', undefined, `Emergency off for ${date}: ${reason}`);
+    await this.logAudit(adminId, 'EMERGENCY_OFF', undefined, `Emergency off from ${startDate} to ${newEm.endDate}: ${reason}`);
     return newEm;
   }
 
