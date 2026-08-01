@@ -543,7 +543,17 @@ export class MockService {
           meals = { breakfast: false, lunch: false, dinner: false };
         } else {
           const userRates = u.userType === 'PERMANENT' ? rates.permanent : rates.guest;
-          const minRate = Math.min(userRates.breakfast, userRates.lunch, userRates.dinner);
+
+          // Check if any special meal exists for targetDate
+          const specB = await this.getSpecialMealForDate(targetDate, 'breakfast');
+          const specL = await this.getSpecialMealForDate(targetDate, 'lunch');
+          const specD = await this.getSpecialMealForDate(targetDate, 'dinner');
+
+          const bRate = specB ? specB.customRate : userRates.breakfast;
+          const lRate = specL ? specL.customRate : userRates.lunch;
+          const dRate = specD ? specD.customRate : userRates.dinner;
+
+          const minRate = Math.min(bRate, lRate, dRate);
 
           // 2. Wallet Protection: If user money is less than minimum meal cost, auto OFF all meals (cannot go minus!)
           if (u.walletBalance < minRate) {
@@ -580,9 +590,9 @@ export class MockService {
 
             // 5. Enforce Wallet Balance Cap so wallet NEVER goes negative
             const totalCost =
-              (meals.breakfast ? userRates.breakfast : 0) +
-              (meals.lunch ? userRates.lunch : 0) +
-              (meals.dinner ? userRates.dinner : 0);
+              (meals.breakfast ? bRate : 0) +
+              (meals.lunch ? lRate : 0) +
+              (meals.dinner ? dRate : 0);
 
             if (totalCost > u.walletBalance) {
               let sum = 0;
@@ -590,17 +600,17 @@ export class MockService {
               let safeL = false;
               let safeD = false;
 
-              if (meals.breakfast && sum + userRates.breakfast <= u.walletBalance) {
+              if (meals.breakfast && sum + bRate <= u.walletBalance) {
                 safeB = true;
-                sum += userRates.breakfast;
+                sum += bRate;
               }
-              if (meals.lunch && sum + userRates.lunch <= u.walletBalance) {
+              if (meals.lunch && sum + lRate <= u.walletBalance) {
                 safeL = true;
-                sum += userRates.lunch;
+                sum += lRate;
               }
-              if (meals.dinner && sum + userRates.dinner <= u.walletBalance) {
+              if (meals.dinner && sum + dRate <= u.walletBalance) {
                 safeD = true;
-                sum += userRates.dinner;
+                sum += dRate;
               }
               meals = { breakfast: safeB, lunch: safeL, dinner: safeD };
             }
