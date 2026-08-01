@@ -36,7 +36,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
             activeTab === 'admin-dashboard'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+              : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-900/60 font-semibold'
           }`}
         >
           <ShieldCheck className="w-4 h-4" />
@@ -53,7 +53,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
             activeTab === 'admin-cook-report'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+              : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-900/60 font-semibold'
           }`}
         >
           <ChefHat className="w-4 h-4" />
@@ -65,7 +65,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
             activeTab === 'admin-bulk-meals'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+              : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-900/60 font-semibold'
           }`}
         >
           <UtensilsCrossed className="w-4 h-4" />
@@ -77,7 +77,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
             activeTab === 'admin-finance'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+              : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-900/60 font-semibold'
           }`}
         >
           <DollarSign className="w-4 h-4" />
@@ -89,7 +89,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
             activeTab === 'admin-users'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+              : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-900/60 font-semibold'
           }`}
         >
           <Users className="w-4 h-4" />
@@ -101,7 +101,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
             activeTab === 'admin-settings'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+              : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-900/60 font-semibold'
           }`}
         >
           <Settings className="w-4 h-4" />
@@ -113,7 +113,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
             activeTab === 'admin-audit'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+              : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-900/60 font-semibold'
           }`}
         >
           <ShieldAlert className="w-4 h-4" />
@@ -129,8 +129,8 @@ export const Navigation: React.FC<NavigationProps> = ({
         onClick={() => onTabChange('dashboard')}
         className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all active:scale-95 ${
           activeTab === 'dashboard'
-            ? 'bg-gradient-to-b from-cyan-500/20 to-sky-500/10 text-cyan-300 font-bold border border-cyan-500/30 shadow-md shadow-cyan-500/10'
-            : 'text-slate-400 hover:text-slate-200'
+            ? 'bg-gradient-to-b from-cyan-500/20 to-sky-500/10 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30 shadow-md shadow-cyan-500/10'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
         }`}
       >
         <LayoutDashboard className="w-5 h-5" />

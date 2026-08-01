@@ -30,14 +30,14 @@ export const Header: React.FC<HeaderProps> = ({
           <AppLogo size="md" />
           <div>
             <div className="flex items-center gap-1.5">
-              <h1 className="text-lg sm:text-xl font-extrabold font-display bg-gradient-to-r from-cyan-300 via-sky-200 to-white bg-clip-text text-transparent">
+              <h1 className="text-lg sm:text-xl font-extrabold font-display bg-gradient-to-r from-cyan-700 via-sky-800 to-slate-950 dark:from-cyan-300 dark:via-sky-200 dark:to-white bg-clip-text text-transparent">
                 {BN.appTitle}
               </h1>
-              <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-amber-500/20 to-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+              <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500/10 dark:bg-gradient-to-r dark:from-amber-500/20 dark:to-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
                 ENTERPRISE v4.0
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 hidden sm:block font-sans">
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 hidden sm:block font-sans">
               {BN.appSubtitle}
             </p>
           </div>
@@ -48,28 +48,28 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2 sm:gap-3">
             
             {/* Quick Wallet Pill */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-semibold text-xs sm:text-sm shadow-sm shadow-cyan-500/10 backdrop-blur-md">
-              <Wallet className="w-4 h-4 text-cyan-400" />
-              <AnimatedNumber value={currentUser.walletBalance} prefix={BN.tkSymbol} decimals={0} className="text-slate-100 font-bold" />
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 font-semibold text-xs sm:text-sm shadow-sm shadow-cyan-500/10 backdrop-blur-md">
+              <Wallet className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+              <AnimatedNumber value={currentUser.walletBalance} prefix={BN.tkSymbol} decimals={0} className="text-slate-900 dark:text-slate-100 font-bold" />
             </div>
 
             {/* User Avatar & Name */}
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300">
               <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-cyan-500 to-sky-400 flex items-center justify-center text-slate-950 font-bold text-[11px]">
                 {currentUser.name.charAt(0)}
               </div>
-              <span className="font-semibold text-slate-200">{currentUser.name}</span>
+              <span className="font-semibold text-slate-800 dark:text-slate-200">{currentUser.name}</span>
             </div>
 
             {/* Quick Role Switcher Pill */}
             {(currentUser.isDualMode || currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN') && (
-              <div className="flex items-center bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs">
+              <div className="flex items-center bg-slate-100 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
                 <button
                   onClick={() => onSwitchRole('USER')}
                   className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-lg transition-all font-medium text-[11px] sm:text-xs ${
                     currentUser.activeMode === 'USER'
-                      ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white font-semibold shadow-md shadow-sky-500/20'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-gradient-to-r from-cyan-600 to-sky-500 text-white font-bold shadow-md shadow-sky-500/20'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                   }`}
                 >
                   <UserCheck className="w-3.5 h-3.5" />
@@ -79,8 +79,8 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => onSwitchRole('ADMIN')}
                   className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-lg transition-all font-medium text-[11px] sm:text-xs ${
                     currentUser.activeMode === 'ADMIN'
-                      ? 'bg-gradient-to-r from-amber-600 to-rose-500 text-white font-semibold shadow-md shadow-amber-500/20'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-gradient-to-r from-amber-600 to-rose-500 text-white font-bold shadow-md shadow-amber-500/20'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                   }`}
                 >
                   <Shield className="w-3.5 h-3.5" />
@@ -92,16 +92,16 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Theme Toggle */}
             <button
               onClick={onToggleTheme}
-              className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-all active:scale-95 shadow-sm"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition-all active:scale-95 shadow-sm"
               title="থিম পরিবর্তন"
             >
-              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-sky-400" />}
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-sky-600" />}
             </button>
 
             {/* Logout button */}
             <button
               onClick={onLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 transition-all text-xs font-semibold active:scale-95 shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-all text-xs font-semibold active:scale-95 shadow-sm"
               title={BN.logout}
             >
               <LogOut className="w-3.5 h-3.5" />
