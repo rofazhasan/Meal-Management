@@ -309,6 +309,66 @@ export class MockService {
     return newTx;
   }
 
+  static async collectMonthlyFee(
+    adminId: string,
+    targetUserId: string | 'ALL',
+    method: 'WALLET_DEDUCTION' | 'CASH_HAND_TO_HAND',
+    amount: number,
+    monthYear: string
+  ): Promise<number> {
+    const users = await this.getUsers();
+    const transactions = await this.getTransactions();
+    const targetUsers = targetUserId === 'ALL' 
+      ? users.filter((u) => u.status === 'APPROVED') 
+      : users.filter((u) => u.id === targetUserId);
+
+    if (targetUsers.length === 0) throw new Error('কোনো উপযুক্ত সদস্য পাওয়া যায়নি');
+
+    let processedCount = 0;
+
+    for (const user of targetUsers) {
+      const balanceBefore = user.walletBalance;
+      let balanceAfter = balanceBefore;
+      let desc = '';
+
+      if (method === 'WALLET_DEDUCTION') {
+        balanceAfter = balanceBefore - amount;
+        user.walletBalance = balanceAfter;
+        desc = `মাসিক ফি (৳${amount}) কর্তন - ${monthYear} (ওয়ালেট থেকে সরাসরি কর্তন)`;
+      } else {
+        // CASH_HAND_TO_HAND: wallet balance remains untouched!
+        desc = `মাসিক ফি (৳${amount}) পরিশোধ - ${monthYear} (হাতে হাতে ক্যাশ প্রদান করা হয়েছে, ওয়ালেট থেকে কর্তন নয়)`;
+      }
+
+      const newTx: WalletTransaction = {
+        id: 'tx_mf_' + user.id + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        userId: user.id,
+        type: method === 'WALLET_DEDUCTION' ? 'MONTHLY_CHARGE' : 'CASH_PAID',
+        amount,
+        balanceBefore,
+        balanceAfter,
+        description: desc,
+        date: new Date().toISOString(),
+        adminId,
+      };
+
+      transactions.unshift(newTx);
+      processedCount++;
+    }
+
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+    localStorage.setItem(this.STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
+
+    await this.logAudit(
+      adminId,
+      'COLLECT_MONTHLY_FEE',
+      targetUserId === 'ALL' ? undefined : targetUserId,
+      `Monthly fee ৳${amount} collected via ${method} for ${monthYear} (${processedCount} members)`
+    );
+
+    return processedCount;
+  }
+
   static async getFinancialMetrics(): Promise<FinancialMetrics> {
     const users = await this.getUsers();
     const txs = await this.getTransactions();

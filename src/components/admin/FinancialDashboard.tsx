@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight, Users, AlertCircle, Download, FileText, Printer, Sparkles } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight, Users, AlertCircle, Download, FileText, Printer, Sparkles, CheckCircle2, Wallet, HandCoins } from 'lucide-react';
 import { FinancialMetrics, WalletTransaction, User } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
+import { MockService } from '../../services/mockStorage';
 
 interface FinancialDashboardProps {
   metrics: FinancialMetrics;
@@ -12,10 +13,39 @@ interface FinancialDashboardProps {
 
 export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   metrics,
-  transactions,
-  users,
+  transactions = [],
+  users = [],
 }) => {
   const [filterPeriod, setFilterPeriod] = useState<'today' | 'monthly' | 'yearly'>('monthly');
+
+  // Monthly Fee State
+  const [feeTargetUser, setFeeTargetUser] = useState<string>('ALL');
+  const [feeMethod, setFeeMethod] = useState<'WALLET_DEDUCTION' | 'CASH_HAND_TO_HAND'>('WALLET_DEDUCTION');
+  const [feeAmount, setFeeAmount] = useState<number>(500);
+  const [feeMonthYear, setFeeMonthYear] = useState<string>('আগস্ট ২০২৬');
+  const [feeSubmitting, setFeeSubmitting] = useState(false);
+
+  const handleCollectMonthlyFee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (feeAmount <= 0) return;
+    setFeeSubmitting(true);
+    try {
+      const count = await MockService.collectMonthlyFee(
+        'admin',
+        feeTargetUser,
+        feeMethod,
+        feeAmount,
+        feeMonthYear
+      );
+      const methodText = feeMethod === 'WALLET_DEDUCTION' ? 'ওয়ালেট থেকে সরাসরি কর্তন করা হয়েছে' : 'হাতে হাতে ক্যাশ রেকর্ড হিসাবে ট্রানজেকশন তৈরি হয়েছে (ওয়ালেট ব্যালেন্স অপরিবর্তিত)';
+      alert(`মোট ${count} জন মেম্বারের ${feeMonthYear} তারিখের মাসিক ফি (৳${feeAmount}) ${methodText}!`);
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message || 'মাসিক ফি সংগ্রহ করতে সমস্যা হয়েছে');
+    } finally {
+      setFeeSubmitting(false);
+    }
+  };
 
   const handleExportPDF = () => {
     alert('ফাইন্যান্সিয়াল রিপোর্ট PDF আকারে ডাউনলোড হচ্ছে...');
@@ -161,6 +191,105 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
             <Sparkles className="w-3.5 h-3.5" /> নিট অপারেটিং প্রফিট
           </p>
         </div>
+      </div>
+
+      {/* Monthly Fee Collection & Management Card */}
+      <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-cyan-500/30 space-y-5 shadow-xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+              <HandCoins className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white font-display">
+                💵 মাসিক ফি আদায় ও ওয়ালেট কর্তন হাব
+              </h3>
+              <p className="text-xs text-slate-400">
+                ২টি ভিন্ন উপায়ে মাসিক ফি এনট্রি করুন (ওয়ালেট থেকে সরাসরি কর্তন অথবা হাতে হাতে ক্যাশ গ্রহণ)
+              </p>
+            </div>
+          </div>
+          <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono">
+            মাসিক ফি: ৳{feeAmount}
+          </span>
+        </div>
+
+        <form onSubmit={handleCollectMonthlyFee} className="space-y-4 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            
+            {/* Target User */}
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">প্রাপক সদস্য নির্বাচন</label>
+              <select
+                value={feeTargetUser}
+                onChange={(e) => setFeeTargetUser(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-2.5 text-xs text-slate-100 font-bold focus:border-cyan-500 focus:outline-none"
+              >
+                <option value="ALL">সকল অনুমোদিত মেম্বার ({users.filter(u => u.status === 'APPROVED').length} জন)</option>
+                {users.filter(u => u.status === 'APPROVED').map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.phone}) - রুম: {u.roomNo || '-'}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Amount */}
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">মাসিক ফি পরিমাণ (৳)</label>
+              <input
+                type="number"
+                required
+                value={feeAmount}
+                onChange={(e) => setFeeAmount(Number(e.target.value))}
+                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-2.5 text-xs text-emerald-400 font-bold font-mono focus:border-cyan-500 focus:outline-none"
+              />
+            </div>
+
+            {/* Month & Year */}
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">মাস ও বছর (বিবরণ)</label>
+              <input
+                type="text"
+                required
+                value={feeMonthYear}
+                onChange={(e) => setFeeMonthYear(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-2.5 text-xs text-slate-100 font-bold focus:border-cyan-500 focus:outline-none"
+              />
+            </div>
+
+            {/* Payment Method Selector */}
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">পরিশোধের মাধ্যম</label>
+              <select
+                value={feeMethod}
+                onChange={(e) => setFeeMethod(e.target.value as any)}
+                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-2.5 text-xs text-amber-300 font-bold focus:border-cyan-500 focus:outline-none"
+              >
+                <option value="WALLET_DEDUCTION">💳 ওয়ালেট থেকে সরাসরি কর্তন</option>
+                <option value="CASH_HAND_TO_HAND">🤝 হাতে হাতে ক্যাশ প্রদান (ওয়ালেট অপরিবর্তিত)</option>
+              </select>
+            </div>
+
+          </div>
+
+          <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs">
+            <span className="text-slate-300 font-semibold">
+              {feeMethod === 'WALLET_DEDUCTION'
+                ? 'ℹ️ মেম্বারের ওয়ালেট ব্যালেন্স থেকে সরাসরি ৳' + feeAmount + ' কর্তন করা হবে এবং লেনদেন যুক্ত হবে।'
+                : 'ℹ️ মেম্বার হাতে হাতে ক্যাশ প্রদান করেছেন। ওয়ালেট ব্যালেন্স অপরিবর্তিত থাকবে এবং ট্রানজেকশনে লেখা থাকবে: "(হাতে হাতে ক্যাশ প্রদান করা হয়েছে, ওয়ালেট থেকে কর্তন নয়)"।'}
+            </span>
+          </div>
+
+          <button
+            type="submit"
+            disabled={feeSubmitting}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-sky-400 to-teal-400 hover:from-cyan-400 hover:to-teal-300 text-slate-950 font-extrabold text-sm transition-all shadow-xl shadow-cyan-500/25 active:scale-95 disabled:opacity-50 font-display flex items-center justify-center gap-2"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>{feeSubmitting ? 'প্রসেস হচ্ছে...' : 'মাসিক ফি আদায়ের ট্রানজেকশন প্রসেস করুন'}</span>
+          </button>
+        </form>
       </div>
 
       {/* Revenue Breakdown & Top Spenders */}

@@ -108,7 +108,8 @@ export type TransactionType =
   | 'MONTHLY_CHARGE' 
   | 'REFUND' 
   | 'PENALTY' 
-  | 'DISCOUNT';
+  | 'DISCOUNT'
+  | 'CASH_PAID';
 
 export interface WalletTransaction {
   id: string;

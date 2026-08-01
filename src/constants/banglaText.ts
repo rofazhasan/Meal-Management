@@ -72,7 +72,7 @@ export const BN = {
   lowBalanceAlertTitle: "লো ব্যালেন্স অ্যালার্ট",
   recharge: "রিচার্জ",
   deduction: "মিল কর্তন",
-  monthlyCharge: "মাসিক মেইনটেন্যান্স ফি",
+  monthlyCharge: "মাসিক ফি",
   permRates: "স্থায়ী রেসিডেন্ট রেটসমূহ",
   guestRates: "গেস্ট মেম্বার রেটসমূহ",
   confirmTopUp: "রিচার্জ নিশ্চিত করুন",
