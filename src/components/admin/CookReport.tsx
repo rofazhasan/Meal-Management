@@ -21,14 +21,15 @@ export const CookReport: React.FC<CookReportProps> = ({
 }) => {
   const [selectedDate, setSelectedDate] = useState(() => getBangladeshDateStr());
 
-  // Dynamically fetch declarations for selectedDate with auto-copy & emergency rules
-  const { data: dateDeclarations = declarations.filter(d => d.date === selectedDate) } = useQuery({
-    queryKey: ['declarations', selectedDate],
+  // Fetch declarations for selectedDate fresh — use EMPTY ARRAY as default to avoid stale previous-date data
+  const { data: rawDeclarations = [], isFetching } = useQuery({
+    queryKey: ['cook_declarations', selectedDate],
     queryFn: () => MockService.getDeclarationsForDate(selectedDate),
+    staleTime: 0,
   });
 
-  // Approved active users
-  const activeUsers = users.filter((u) => u.status === 'APPROVED');
+  // Approved active non-paused users
+  const activeUsers = users.filter((u) => u.status === 'APPROVED' && !u.isIndefinitelyPaused);
 
   const getSpecialMealForType = (type: 'breakfast' | 'lunch' | 'dinner') => {
     const dayOfWeek = getDayOfWeekFromDateStr(selectedDate);
@@ -46,30 +47,34 @@ export const CookReport: React.FC<CookReportProps> = ({
   const specD = getSpecialMealForType('dinner');
   const specialForDate = specB || specL || specD;
 
-  // Group members eating each meal
-  const breakfastMembers: User[] = [];
-  const lunchMembers: User[] = [];
-  const dinnerMembers: User[] = [];
+  // Determine if selectedDate is under emergency closure
+  const emergencyForDate = (rates as any)?.emergencies
+    ? (rates as any).emergencies.find((em: any) => {
+        const start = em.date;
+        const end = em.endDate || em.date;
+        return selectedDate >= start && selectedDate <= end;
+      })
+    : null;
 
   const isBGlobalOff = rates.globalMealStatus?.breakfast === false;
   const isLGlobalOff = rates.globalMealStatus?.lunch === false;
   const isDGlobalOff = rates.globalMealStatus?.dinner === false;
 
-  activeUsers.forEach((user) => {
-    if (user.isIndefinitelyPaused) return;
+  // Group members eating each meal — only count meals from fetched declarations
+  const breakfastMembers: User[] = [];
+  const lunchMembers: User[] = [];
+  const dinnerMembers: User[] = [];
 
-    const userDec = dateDeclarations.find((d) => d.userId === user.id);
+  if (!isFetching) {
+    activeUsers.forEach((user) => {
+      const userDec = rawDeclarations.find((d) => d.userId === user.id);
+      if (!userDec) return; // No declaration = no meal (either not yet copied or off)
 
-    if (!isBGlobalOff && userDec?.breakfast) {
-      breakfastMembers.push(user);
-    }
-    if (!isLGlobalOff && userDec?.lunch) {
-      lunchMembers.push(user);
-    }
-    if (!isDGlobalOff && userDec?.dinner) {
-      dinnerMembers.push(user);
-    }
-  });
+      if (!isBGlobalOff && userDec.breakfast) breakfastMembers.push(user);
+      if (!isLGlobalOff && userDec.lunch)     lunchMembers.push(user);
+      if (!isDGlobalOff && userDec.dinner)    dinnerMembers.push(user);
+    });
+  }
 
   // Calculate costs
   const calculateMealTotalCost = (memberList: User[], mealType: 'breakfast' | 'lunch' | 'dinner') => {
@@ -131,7 +136,15 @@ export const CookReport: React.FC<CookReportProps> = ({
       </div>
 
       {/* KPI Cards for Cook */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden relative transition-opacity duration-300 ${isFetching ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+        {isFetching && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl">
+            <div className="flex items-center gap-2 bg-slate-900/90 border border-cyan-500/40 rounded-2xl px-4 py-2.5 shadow-xl">
+              <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-bold text-cyan-300 font-sans">ডেটা লোড হচ্ছে…</span>
+            </div>
+          </div>
+        )}
         
         {/* Breakfast Card */}
         <div className="glass-panel p-5 rounded-3xl border border-emerald-500/30 flex items-center justify-between shadow-xl">

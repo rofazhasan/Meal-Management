@@ -537,85 +537,107 @@ export class MockService {
       if (u.isIndefinitelyPaused) continue;
 
       const existing = decs.find((dec) => dec.userId === u.id && dec.date === targetDate);
+
+      // 1. If target date is an emergency closure day, force all meals OFF
+      if (targetEmergency) {
+        if (existing) {
+          if (existing.breakfast || existing.lunch || existing.dinner) {
+            existing.breakfast = false;
+            existing.lunch = false;
+            existing.dinner = false;
+            existing.updatedAt = new Date().toISOString();
+            hasChanges = true;
+          }
+        } else {
+          decs.push({
+            id: 'auto_dec_' + u.id + '_' + targetDate + '_' + Date.now(),
+            userId: u.id,
+            date: targetDate,
+            breakfast: false,
+            lunch: false,
+            dinner: false,
+            isAutoCopied: true,
+            updatedAt: new Date().toISOString(),
+          });
+          hasChanges = true;
+        }
+        continue;
+      }
+
       if (!existing) {
         let meals = { breakfast: false, lunch: false, dinner: false };
 
-        // 1. If target date is an emergency closure day, force all meals OFF
-        if (targetEmergency) {
+        const userRates = u.userType === 'PERMANENT' ? rates.permanent : rates.guest;
+
+        // Check if any special meal exists for targetDate
+        const specB = await this.getSpecialMealForDate(targetDate, 'breakfast');
+        const specL = await this.getSpecialMealForDate(targetDate, 'lunch');
+        const specD = await this.getSpecialMealForDate(targetDate, 'dinner');
+
+        const bRate = specB ? specB.customRate : userRates.breakfast;
+        const lRate = specL ? specL.customRate : userRates.lunch;
+        const dRate = specD ? specD.customRate : userRates.dinner;
+
+        const minRate = Math.min(bRate, lRate, dRate);
+
+        // 2. Wallet Protection: If user money is less than minimum meal cost, auto OFF all meals
+        if (u.walletBalance < minRate) {
           meals = { breakfast: false, lunch: false, dinner: false };
         } else {
-          const userRates = u.userType === 'PERMANENT' ? rates.permanent : rates.guest;
+          // 3. Search backwards (up to 7 days) for the last valid active declaration day
+          let foundMeals = null;
+          const [y, m, d] = targetDate.split('-').map(Number);
 
-          // Check if any special meal exists for targetDate
-          const specB = await this.getSpecialMealForDate(targetDate, 'breakfast');
-          const specL = await this.getSpecialMealForDate(targetDate, 'lunch');
-          const specD = await this.getSpecialMealForDate(targetDate, 'dinner');
+          for (let step = 1; step <= 7; step++) {
+            const checkDt = new Date(y, m - 1, d - step);
+            const checkStr = getBangladeshDateStr(checkDt);
 
-          const bRate = specB ? specB.customRate : userRates.breakfast;
-          const lRate = specL ? specL.customRate : userRates.lunch;
-          const dRate = specD ? specD.customRate : userRates.dinner;
+            const wasEmergency = emergencies.some((em) => {
+              const start = em.date;
+              const end = em.endDate || em.date;
+              return checkStr >= start && checkStr <= end;
+            });
+            if (wasEmergency) continue;
 
-          const minRate = Math.min(bRate, lRate, dRate);
-
-          // 2. Wallet Protection: If user money is less than minimum meal cost, auto OFF all meals (cannot go minus!)
-          if (u.walletBalance < minRate) {
-            meals = { breakfast: false, lunch: false, dinner: false };
-          } else {
-            // 3. Search backwards (up to 7 days) for the last valid active declaration day (not emergency, not all off)
-            let foundMeals = null;
-            const [y, m, d] = targetDate.split('-').map(Number);
-            
-            for (let step = 1; step <= 7; step++) {
-              const checkDt = new Date(y, m - 1, d - step);
-              const checkStr = getBangladeshDateStr(checkDt);
-
-              const wasEmergency = emergencies.some((em) => {
-                const start = em.date;
-                const end = em.endDate || em.date;
-                return checkStr >= start && checkStr <= end;
-              });
-              if (wasEmergency) continue;
-
-              const prevDec = decs.find((dec) => dec.userId === u.id && dec.date === checkStr);
-              if (prevDec && (prevDec.breakfast || prevDec.lunch || prevDec.dinner)) {
-                foundMeals = { breakfast: prevDec.breakfast, lunch: prevDec.lunch, dinner: prevDec.dinner };
-                break;
-              }
+            const prevDec = decs.find((dec) => dec.userId === u.id && dec.date === checkStr);
+            if (prevDec && (prevDec.breakfast || prevDec.lunch || prevDec.dinner)) {
+              foundMeals = { breakfast: prevDec.breakfast, lunch: prevDec.lunch, dinner: prevDec.dinner };
+              break;
             }
+          }
 
-            meals = foundMeals ? foundMeals : { breakfast: true, lunch: true, dinner: true };
+          meals = foundMeals ? foundMeals : { breakfast: true, lunch: true, dinner: true };
 
-            // 4. Enforce Master Global Meal Switches
-            if (rates.globalMealStatus?.breakfast === false) meals.breakfast = false;
-            if (rates.globalMealStatus?.lunch === false) meals.lunch = false;
-            if (rates.globalMealStatus?.dinner === false) meals.dinner = false;
+          // 4. Enforce Master Global Meal Switches
+          if (rates.globalMealStatus?.breakfast === false) meals.breakfast = false;
+          if (rates.globalMealStatus?.lunch === false) meals.lunch = false;
+          if (rates.globalMealStatus?.dinner === false) meals.dinner = false;
 
-            // 5. Enforce Wallet Balance Cap so wallet NEVER goes negative
-            const totalCost =
-              (meals.breakfast ? bRate : 0) +
-              (meals.lunch ? lRate : 0) +
-              (meals.dinner ? dRate : 0);
+          // 5. Enforce Wallet Balance Cap so wallet NEVER goes negative
+          const totalCost =
+            (meals.breakfast ? bRate : 0) +
+            (meals.lunch ? lRate : 0) +
+            (meals.dinner ? dRate : 0);
 
-            if (totalCost > u.walletBalance) {
-              let sum = 0;
-              let safeB = false;
-              let safeL = false;
-              let safeD = false;
+          if (totalCost > u.walletBalance) {
+            let sum = 0;
+            let safeB = false;
+            let safeL = false;
+            let safeD = false;
 
-              if (meals.breakfast && sum + bRate <= u.walletBalance) {
-                safeB = true;
-                sum += bRate;
-              }
-              if (meals.lunch && sum + lRate <= u.walletBalance) {
-                safeL = true;
-                sum += lRate;
-              }
-              if (meals.dinner && sum + dRate <= u.walletBalance) {
-                safeD = true;
-                sum += dRate;
-              }
-              meals = { breakfast: safeB, lunch: safeL, dinner: safeD };
+            if (meals.breakfast && sum + bRate <= u.walletBalance) {
+              safeB = true;
+              sum += bRate;
             }
+            if (meals.lunch && sum + lRate <= u.walletBalance) {
+              safeL = true;
+              sum += lRate;
+            }
+            if (meals.dinner && sum + dRate <= u.walletBalance) {
+              safeD = true;
+              sum += dRate;
+            }
+            meals = { breakfast: safeB, lunch: safeL, dinner: safeD };
           }
         }
 
