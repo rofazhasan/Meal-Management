@@ -440,18 +440,75 @@ export class MockService {
   }
 
   static async getDeclarations(): Promise<MealDeclaration[]> {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const tomorrowDt = new Date();
+    tomorrowDt.setDate(tomorrowDt.getDate() + 1);
+    const tomorrowStr = tomorrowDt.toISOString().split('T')[0];
+
+    // Auto-trigger copying previous day's declaration for today and tomorrow
+    await this.ensureAutoCopiedDeclarationsForDate(todayStr);
+    await this.ensureAutoCopiedDeclarationsForDate(tomorrowStr);
+
     const data = localStorage.getItem(this.STORAGE_KEY_DECLARATIONS);
     if (!data) return [];
     return JSON.parse(data);
   }
 
+  static async ensureAutoCopiedDeclarationsForDate(targetDate: string): Promise<MealDeclaration[]> {
+    const rawData = localStorage.getItem(this.STORAGE_KEY_DECLARATIONS);
+    let decs: MealDeclaration[] = rawData ? JSON.parse(rawData) : [];
+
+    const users = await this.getUsers();
+    const approvedUsers = users.filter((u) => u.status === 'APPROVED');
+
+    // Calculate previous date string
+    const [y, m, d] = targetDate.split('-').map(Number);
+    const prevDt = new Date(y, m - 1, d - 1);
+    const prevDateStr = prevDt.toISOString().split('T')[0];
+
+    let hasChanges = false;
+
+    for (const u of approvedUsers) {
+      if (u.isIndefinitelyPaused) continue;
+
+      const existing = decs.find((dec) => dec.userId === u.id && dec.date === targetDate);
+      if (!existing) {
+        // Look up previous day's declaration
+        const prevDec = decs.find((dec) => dec.userId === u.id && dec.date === prevDateStr);
+        const meals = prevDec
+          ? { breakfast: prevDec.breakfast, lunch: prevDec.lunch, dinner: prevDec.dinner }
+          : { breakfast: true, lunch: true, dinner: true };
+
+        const newDec: MealDeclaration = {
+          id: 'auto_dec_' + u.id + '_' + targetDate + '_' + Date.now(),
+          userId: u.id,
+          date: targetDate,
+          breakfast: meals.breakfast,
+          lunch: meals.lunch,
+          dinner: meals.dinner,
+          isAutoCopied: true,
+          updatedAt: new Date().toISOString(),
+        };
+
+        decs.push(newDec);
+        hasChanges = true;
+      }
+    }
+
+    if (hasChanges) {
+      localStorage.setItem(this.STORAGE_KEY_DECLARATIONS, JSON.stringify(decs));
+    }
+
+    return decs;
+  }
+
   static async copyPreviousDayDeclaration(userId: string, targetDate: string): Promise<MealDeclaration> {
     const decs = await this.getDeclarations();
-    const targetDt = new Date(targetDate);
-    targetDt.setDate(targetDt.getDate() - 1);
-    const prevDateStr = targetDt.toISOString().split('T')[0];
+    const [y, m, d] = targetDate.split('-').map(Number);
+    const prevDt = new Date(y, m - 1, d - 1);
+    const prevDateStr = prevDt.toISOString().split('T')[0];
 
-    const prevDec = decs.find((d) => d.userId === userId && d.date === prevDateStr);
+    const prevDec = decs.find((dec) => dec.userId === userId && dec.date === prevDateStr);
     const meals = prevDec
       ? { breakfast: prevDec.breakfast, lunch: prevDec.lunch, dinner: prevDec.dinner }
       : { breakfast: true, lunch: true, dinner: true };
