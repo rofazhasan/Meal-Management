@@ -48,11 +48,70 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   };
 
   const handleExportPDF = () => {
-    alert('ফাইন্যান্সিয়াল রিপোর্ট PDF আকারে ডাউনলোড হচ্ছে...');
+    window.print();
   };
 
   const handleExportExcel = () => {
-    alert('ফাইন্যান্সিয়াল রিপোর্ট Excel (.xlsx) আকারে প্রস্তুত হচ্ছে...');
+    const rows: string[][] = [
+      ['মেস ম্যানেজমেন্ট সিস্টেম - ফাইনান্সিয়াল ড্যাশবোর্ড রিপোর্ট'],
+      ['রিপোর্ট তৈরির তারিখ', new Date().toLocaleString('bn-BD')],
+      ['ফিল্টার সময়কাল', filterPeriod === 'today' ? 'আজকের' : filterPeriod === 'monthly' ? 'চলতি মাসের' : 'বার্ষিক'],
+      [''],
+      ['মেট্রিকে বিবরণ', 'পরিমাণ (৳)'],
+      ['মোট ওয়ালেট ব্যালেন্স', (metrics.totalWalletBalance || 0).toString()],
+      ['মাসিক মোট কালেকশন (জমা)', (metrics.monthlyCollection || 0).toString()],
+      ['আজকের ব্যয় (খরচ)', (metrics.todayExpenses || 0).toString()],
+      ['স্থায়ী সদস্য রাজস্ব', (metrics.permanentRevenue || 0).toString()],
+      ['অতিথি সদস্য রাজস্ব', (metrics.guestRevenue || 0).toString()],
+      ['মোট রিফান্ড', (metrics.totalRefunds || 0).toString()],
+      ['নিট লাভ/লোকসান', (metrics.netProfit || 0).toString()],
+      [''],
+      ['সার্বিক লেনদেন রেজিস্টার (Transactions Ledger)'],
+      ['তারিখ ও সময়', 'মেম্বার নাম', 'ফোন নম্বর', 'লেনদেনের ধরণ', 'বিবরণ', 'পরিমাণ (৳)', 'পূর্বের ব্যালেন্স (৳)', 'পরের ব্যালেন্স (৳)'],
+    ];
+
+    transactions.forEach((tx) => {
+      const txUser = users?.find((u) => u.id === tx.userId);
+      const typeText =
+        tx.type === 'RECHARGE'
+          ? 'ওয়ালেট রিচার্জ'
+          : tx.type === 'MEAL_DEDUCTION'
+          ? 'মিল কর্তন'
+          : tx.type === 'MONTHLY_CHARGE'
+          ? 'মাসিক ফি'
+          : tx.type === 'CASH_PAID'
+          ? 'হাতে ক্যাশ পরিশোধ'
+          : tx.type === 'REFUND'
+          ? 'রিফান্ড'
+          : tx.type;
+
+      const dateStr = new Date(tx.date).toLocaleString('bn-BD');
+      const name = txUser ? txUser.name : 'অজানা মেম্বার';
+      const phone = txUser ? txUser.phone : tx.userId;
+      const desc = tx.description || '-';
+
+      rows.push([
+        `"${dateStr}"`,
+        `"${name.replace(/"/g, '""')}"`,
+        `"${phone.replace(/"/g, '""')}"`,
+        `"${typeText}"`,
+        `"${desc.replace(/"/g, '""')}"`,
+        tx.amount.toString(),
+        (tx.balanceBefore || 0).toString(),
+        (tx.balanceAfter || 0).toString(),
+      ]);
+    });
+
+    const csvContent = '\uFEFF' + rows.map((e) => e.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Meal_Management_Financial_Report_${filterPeriod}_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
