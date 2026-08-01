@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChefHat, Calendar, Printer, Utensils, CheckCircle2, DollarSign, Users, Sparkles, Clock } from 'lucide-react';
 import { User, MealDeclaration, MealRateConfig, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
+import { getBangladeshDateStr } from '../../utils/dateUtils';
 
 interface CookReportProps {
   users: User[];
@@ -16,7 +17,7 @@ export const CookReport: React.FC<CookReportProps> = ({
   rates,
   specialMeals = [],
 }) => {
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => getBangladeshDateStr());
 
   // Approved active users
   const activeUsers = users.filter((u) => u.status === 'APPROVED');

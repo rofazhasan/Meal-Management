@@ -6,6 +6,7 @@ import { StatusBadge } from '../common/StatusBadge';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
 import { MockService } from '../../services/mockStorage';
+import { getBangladeshDateStr, getBangladeshNow } from '../../utils/dateUtils';
 
 interface UserDashboardProps {
   currentUser: User;
@@ -53,7 +54,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
     }
   };
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getBangladeshDateStr();
   const userRates = currentUser.userType === 'PERMANENT' ? rates.permanent : rates.guest;
 
   const todayDec = declarations.find(d => d.date === todayStr) || {
@@ -69,11 +70,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
   const todayEmergency = emergencies.find(e => e.date === todayStr);
 
-  // Live 10 AM Deadline Calculator
+  // Live 10 AM Deadline Calculator in Bangladesh Standard Time (UTC+6)
   useEffect(() => {
     const updateCountdown = () => {
-      const now = new Date();
-      const cutoff = new Date();
+      const now = getBangladeshNow();
+      const cutoff = getBangladeshNow();
       cutoff.setHours(10, 0, 0, 0);
 
       if (now > cutoff) {

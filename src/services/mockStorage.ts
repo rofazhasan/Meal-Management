@@ -12,6 +12,7 @@ import {
   SpecialMeal,
   ArchivedUserReplica
 } from '../types';
+import { getBangladeshDateStr, getBangladeshTomorrowStr } from '../utils/dateUtils';
 
 const INITIAL_SPECIAL_MEALS: SpecialMeal[] = [];
 
@@ -500,10 +501,8 @@ export class MockService {
   }
 
   static async getDeclarations(): Promise<MealDeclaration[]> {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const tomorrowDt = new Date();
-    tomorrowDt.setDate(tomorrowDt.getDate() + 1);
-    const tomorrowStr = tomorrowDt.toISOString().split('T')[0];
+    const todayStr = getBangladeshDateStr();
+    const tomorrowStr = getBangladeshTomorrowStr();
 
     // Auto-trigger copying previous day's declaration for today and tomorrow
     await this.ensureAutoCopiedDeclarationsForDate(todayStr);

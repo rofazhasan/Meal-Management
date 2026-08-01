@@ -3,6 +3,7 @@ import { Settings, Save, CheckCircle2, DollarSign, ToggleLeft, ToggleRight, Cloc
 import { MealRateConfig, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { MockService } from '../../services/mockStorage';
+import { getBangladeshDateStr } from '../../utils/dateUtils';
 
 interface SettingsPanelProps {
   rates: MealRateConfig;
@@ -280,8 +281,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeal
   );
 };
 
+
 const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshData: () => void }> = ({ specialMeals, onRefreshData }) => {
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => getBangladeshDateStr());
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner'>('dinner');
   const [title, setTitle] = useState('🎉 স্পেশাল বিরিয়ানি ও ডেজার্ট নাইট');
   const [customRate, setCustomRate] = useState(150);

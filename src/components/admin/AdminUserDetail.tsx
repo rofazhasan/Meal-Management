@@ -6,6 +6,7 @@ import { StatusBadge } from '../common/StatusBadge';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
 import { MockService } from '../../services/mockStorage';
+import { getBangladeshDateStr } from '../../utils/dateUtils';
 
 interface AdminUserDetailProps {
   user: UserType;
@@ -28,7 +29,7 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
   const [topUpNote, setTopUpNote] = useState('ক্যাশ রিচার্জ');
   const [submitting, setSubmitting] = useState(false);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getBangladeshDateStr();
   const [overrideDate, setOverrideDate] = useState(todayStr);
   const [overrideB, setOverrideB] = useState(true);
   const [overrideL, setOverrideL] = useState(true);

@@ -3,6 +3,7 @@ import { UtensilsCrossed, Calendar, Search, Filter, Sparkles, CheckCircle2, XCir
 import { User, MealDeclaration, SpecialMeal } from '../../types';
 import { MockService } from '../../services/mockStorage';
 import { AnimatedNumber } from '../common/AnimatedNumber';
+import { getBangladeshDateStr, getBangladeshTomorrowStr } from '../../utils/dateUtils';
 
 interface BulkMealControlProps {
   users: User[];
@@ -18,13 +19,8 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
   onRefreshData,
 }) => {
   const approvedUsers = users.filter((u) => u.status === 'APPROVED');
-  const todayStr = new Date().toISOString().split('T')[0];
-
-  const tomorrowStr = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
-  })();
+  const todayStr = getBangladeshDateStr();
+  const tomorrowStr = getBangladeshTomorrowStr();
 
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [searchTerm, setSearchTerm] = useState('');

@@ -4,6 +4,7 @@ import { User, MealRateConfig, MealDeclaration as MealDeclarationType, Emergency
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { MockService } from '../../services/mockStorage';
+import { getBangladeshDateStr, getBangladeshNow, parseDateStr, getDayOfWeekFromDateStr } from '../../utils/dateUtils';
 
 interface MealDeclarationProps {
   currentUser: User;
@@ -22,7 +23,7 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
   specialMeals = [],
   onRefreshData,
 }) => {
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => getBangladeshDateStr());
   const [togglingPause, setTogglingPause] = useState(false);
   const userRates = currentUser.userType === 'PERMANENT' ? rates.permanent : rates.guest;
 
@@ -41,11 +42,11 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
     }
   };
 
-  // Generate next 7 days list with Bangla/English day names and Special Meal badges
+  // Generate next 7 days list with Bangla/English day names and Special Meal badges in Bangladesh Timezone
   const nextDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
+    const d = getBangladeshNow();
     d.setDate(d.getDate() + i);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = getBangladeshDateStr(d);
     const dayOfWeek = d.getDay();
     
     const bnDayName = d.toLocaleDateString('bn-BD', { weekday: 'short' });
@@ -72,8 +73,7 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
   });
 
   const getSpecialForMeal = (type: 'breakfast' | 'lunch' | 'dinner') => {
-    const dt = new Date(selectedDate);
-    const dayOfWeek = dt.getDay();
+    const dayOfWeek = getDayOfWeekFromDateStr(selectedDate);
     return specialMeals.find((sm) => {
       if (sm.isActive === false) return false;
       if (sm.mealType !== type) return false;
@@ -108,7 +108,7 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
   };
 
   const emergencyForDate = emergencies.find(e => e.date === selectedDate);
-  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+  const isToday = selectedDate === getBangladeshDateStr();
 
   const [breakfast, setBreakfast] = useState(isInsufficientBalance ? false : activeDec.breakfast);
   const [lunch, setLunch] = useState(isInsufficientBalance ? false : activeDec.lunch);

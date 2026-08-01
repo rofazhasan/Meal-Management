@@ -6,6 +6,7 @@ import { StatusBadge } from '../common/StatusBadge';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
 import { MockService } from '../../services/mockStorage';
+import { getBangladeshDateStr } from '../../utils/dateUtils';
 
 interface AdminDashboardProps {
   currentAdmin: User;
@@ -30,7 +31,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const activeUsers = users.filter(u => u.status === 'APPROVED');
   const totalWalletSum = users.reduce((acc, u) => acc + u.walletBalance, 0);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getBangladeshDateStr();
   const todayDecs = declarations.filter(d => d.date === todayStr);
   const todayBreakfasts = todayDecs.filter(d => d.breakfast).length;
   const todayLunches = todayDecs.filter(d => d.lunch).length;
