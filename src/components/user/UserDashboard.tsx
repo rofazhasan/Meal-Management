@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, Clock, CheckCircle2, XCircle, ArrowUpRight, ArrowDownRight, Calendar, AlertCircle, UtensilsCrossed, Sparkles, ShieldAlert, ChevronRight } from 'lucide-react';
+import { Wallet, Clock, CheckCircle2, XCircle, ArrowUpRight, ArrowDownRight, Calendar, AlertCircle, UtensilsCrossed, Sparkles, ShieldAlert, ChevronRight, UserCheck, Lock, Edit3, X } from 'lucide-react';
 import { User, MealRateConfig, MealDeclaration, WalletTransaction, EmergencyClosure } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
@@ -28,6 +28,30 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 }) => {
   const [timeLeft, setTimeLeft] = useState('');
   const [isPassed10AM, setIsPassed10AM] = useState(false);
+  
+  // Profile Edit State
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [editName, setEditName] = useState(currentUser.name);
+  const [editPassword, setEditPassword] = useState(currentUser.password || '');
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const handleProfileSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      await MockService.updateUserProfile(currentUser.id, {
+        name: editName,
+        password: editPassword,
+      });
+      alert('আপনার নাম ও পাসওয়ার্ড সফলভাবে আপডেট করা হয়েছে!');
+      setShowProfileModal(false);
+      onRefreshData();
+    } catch (err: any) {
+      alert(err.message || 'আপডেট করতে সমস্যা হয়েছে');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const todayStr = new Date().toISOString().split('T')[0];
   const userRates = currentUser.userType === 'PERMANENT' ? rates.permanent : rates.guest;
@@ -106,7 +130,15 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="px-4 py-2.5 rounded-2xl bg-slate-900/90 border border-slate-700 hover:border-cyan-500/50 text-slate-200 hover:text-white font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 flex items-center gap-2"
+            >
+              <Edit3 className="w-4 h-4 text-cyan-400" />
+              <span>প্রোফাইল ও পাসওয়ার্ড আপডেট</span>
+            </button>
+
             <button
               onClick={() => onNavigateTab('meals')}
               className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-400 hover:from-cyan-400 hover:to-sky-300 text-slate-950 font-bold text-xs sm:text-sm transition-all shadow-lg shadow-cyan-500/25 active:scale-95 flex items-center gap-2"
@@ -379,6 +411,79 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           </div>
         )}
       </div>
+
+      {/* MODAL: Profile & Password Edit Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-cyan-500/30 max-w-md w-full shadow-2xl space-y-5 animate-scale-in my-8">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white font-display">
+                    👤 প্রোফাইল ও পাসওয়ার্ড সংশোধন
+                  </h3>
+                  <p className="text-xs text-slate-400">নাম ও পাসওয়ার্ড পরিবর্তন করতে পারেন</p>
+                </div>
+              </div>
+              <button onClick={() => setShowProfileModal(false)} className="p-2 rounded-2xl bg-slate-900 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleProfileSave} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1 font-sans">পূর্ণ নাম (Full Name)</label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-3 text-slate-100 font-bold focus:border-cyan-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1 font-sans flex items-center justify-between">
+                  <span>মোবাইল নম্বর (Phone Number)</span>
+                  <span className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
+                    <Lock className="w-3 h-3" /> অপরিবর্তনযোগ্য
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  readOnly
+                  disabled
+                  value={currentUser.phone}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-400 font-mono font-bold cursor-not-allowed opacity-75"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">সিকিউরিটির জন্য মোবাইল নম্বর পরিবর্তন করতে মেস এডমিনের সাথে যোগাযোগ করুন।</p>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1 font-sans">নতুন পাসওয়ার্ড (New Password)</label>
+                <input
+                  type="password"
+                  required
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-3 text-slate-100 font-mono font-bold focus:border-cyan-500 focus:outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingProfile}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-sky-400 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-950 font-extrabold text-xs transition-all shadow-xl shadow-cyan-500/25 active:scale-95 disabled:opacity-50 font-display"
+              >
+                {savingProfile ? 'সংরক্ষণ হচ্ছে...' : 'পাসওয়ার্ড ও প্রোফাইল আপডেট করুন'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

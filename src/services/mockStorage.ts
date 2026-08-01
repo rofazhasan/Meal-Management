@@ -205,6 +205,23 @@ export class MockService {
     sessionStorage.clear();
   }
 
+  static async updateUserProfile(userId: string, data: { name?: string; password?: string }): Promise<User> {
+    const users = await this.getUsers();
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error('ইউজার পাওয়া যায়নি');
+
+    if (data.name && data.name.trim()) {
+      user.name = data.name.trim();
+    }
+    if (data.password && data.password.trim()) {
+      user.password = data.password.trim();
+    }
+
+    await this.setCurrentUser(user);
+    await this.logAudit(userId, 'UPDATE_PROFILE', userId, `Updated user profile (Name: ${data.name})`);
+    return user;
+  }
+
   static async toggleAdminUserMode(userId: string): Promise<User | null> {
     const users = await this.getUsers();
     const user = users.find((u) => u.id === userId);

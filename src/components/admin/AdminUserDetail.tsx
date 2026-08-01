@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, User, Phone, Home, Wallet, Shield, History, PlusCircle, Check, X, Calendar, Sparkles } from 'lucide-react';
+import { ArrowLeft, User, Phone, Home, Wallet, Shield, History, PlusCircle, Check, X, Calendar, Sparkles, UtensilsCrossed } from 'lucide-react';
 import { User as UserType, WalletTransaction, MealDeclaration, UserType as MemberType } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
@@ -27,6 +27,12 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
   const [topUpAmount, setTopUpAmount] = useState<number>(500);
   const [topUpNote, setTopUpNote] = useState('ক্যাশ রিচার্জ');
   const [submitting, setSubmitting] = useState(false);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [overrideDate, setOverrideDate] = useState(todayStr);
+  const [overrideB, setOverrideB] = useState(true);
+  const [overrideL, setOverrideL] = useState(true);
+  const [overrideD, setOverrideD] = useState(true);
 
   const userTx = transactions.filter(t => t.userId === user.id);
   const userDecs = declarations.filter(d => d.userId === user.id);
@@ -179,6 +185,83 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
           </form>
         </div>
 
+      </div>
+
+      {/* Admin Meal Override & Control Section */}
+      <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-amber-500/30 space-y-4 shadow-xl">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-slate-100 text-base flex items-center gap-2 font-display">
+            <UtensilsCrossed className="w-5 h-5 text-amber-400" />
+            এডমিন মিল ওভাররাইড ও কন্ট্রোল (সকাল ১০:০০ কাট-অফ বাইপাস)
+          </h3>
+          <span className="px-2.5 py-1 rounded-full text-[10px] bg-amber-500/20 text-amber-300 font-extrabold border border-amber-500/30">
+            অ্যাডমিন পাওয়ার
+          </span>
+        </div>
+        <p className="text-xs text-slate-400">
+          মেস এডমিন হিসেবে আপনি যেকোনো তারিখের জন্য এই ইউজারের মিল অন বা অফ করতে পারেন (সকাল ১০:০০ টার সময় পার হলেও এডমিন ওভাররাইড কাজ করবে)।
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">তারিখ নির্বাচন</label>
+            <input
+              type="date"
+              value={overrideDate}
+              onChange={(e) => setOverrideDate(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-cyan-300 font-mono font-bold"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setOverrideB(!overrideB)}
+            className={`p-3 rounded-xl border text-xs font-bold transition flex items-center justify-between ${
+              overrideB ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-slate-900 text-slate-500 border-slate-800'
+            }`}
+          >
+            <span>সকালের নাস্তা</span>
+            <span>{overrideB ? '✅ অন' : '❌ অফ'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setOverrideL(!overrideL)}
+            className={`p-3 rounded-xl border text-xs font-bold transition flex items-center justify-between ${
+              overrideL ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-slate-900 text-slate-500 border-slate-800'
+            }`}
+          >
+            <span>দুপুরের খাবার</span>
+            <span>{overrideL ? '✅ অন' : '❌ অফ'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setOverrideD(!overrideD)}
+            className={`p-3 rounded-xl border text-xs font-bold transition flex items-center justify-between ${
+              overrideD ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-slate-900 text-slate-500 border-slate-800'
+            }`}
+          >
+            <span>রাতের খাবার</span>
+            <span>{overrideD ? '✅ অন' : '❌ অফ'}</span>
+          </button>
+        </div>
+
+        <button
+          onClick={async () => {
+            await MockService.updateDeclaration(user.id, overrideDate, {
+              breakfast: overrideB,
+              lunch: overrideL,
+              dinner: overrideD,
+            });
+            alert(`এডমিন দ্বারা ${user.name}-এর ${overrideDate} তারিখের মিল সফলভাবে অন/অফ আপডেট ও ওভাররাইড করা হয়েছে!`);
+            onRefreshData();
+          }}
+          className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs transition-all shadow-lg shadow-amber-500/20 active:scale-95 font-display flex items-center justify-center gap-2"
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>এই ইউজারের মিল ডিক্লারেশন ওভাররাইড সেভ করুন</span>
+        </button>
       </div>
 
       {/* Transaction & Meal Declarations History Tabs */}

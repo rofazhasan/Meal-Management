@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, CheckCircle2, XCircle, Clock, Copy, ShieldAlert, Zap, Layers, Sparkles, Power } from 'lucide-react';
 import { User, MealRateConfig, MealDeclaration as MealDeclarationType, EmergencyClosure, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
@@ -123,7 +123,11 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
     (lunch ? effectiveLRate : 0) +
     (dinner ? effectiveDRate : 0);
 
-  // Sync state when date changes
+  // Sync state when date, declarations, or specialMeals change
+  useEffect(() => {
+    handleSelectDate(selectedDate);
+  }, [declarations, specialMeals, selectedDate]);
+
   const handleSelectDate = (dateStr: string) => {
     setSelectedDate(dateStr);
     const dec = declarations.find(d => d.date === dateStr);
