@@ -509,6 +509,12 @@ export class MockService {
     return JSON.parse(data);
   }
 
+  static async getDeclarationsForDate(targetDate: string): Promise<MealDeclaration[]> {
+    await this.ensureAutoCopiedDeclarationsForDate(targetDate);
+    const decs = await this.getDeclarations();
+    return decs.filter((d) => d.date === targetDate);
+  }
+
   static async ensureAutoCopiedDeclarationsForDate(targetDate: string): Promise<MealDeclaration[]> {
     const rawData = localStorage.getItem(this.STORAGE_KEY_DECLARATIONS);
     let decs: MealDeclaration[] = rawData ? JSON.parse(rawData) : [];

@@ -33,9 +33,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const todayStr = getBangladeshDateStr();
   const todayDecs = declarations.filter(d => d.date === todayStr);
-  const todayBreakfasts = todayDecs.filter(d => d.breakfast).length;
-  const todayLunches = todayDecs.filter(d => d.lunch).length;
-  const todayDinners = todayDecs.filter(d => d.dinner).length;
+
+  const isEmergencyToday = emergencies.some(em => {
+    const start = em.date;
+    const end = em.endDate || em.date;
+    return todayStr >= start && todayStr <= end;
+  });
+
+  const isBGlobalOff = rates?.globalMealStatus?.breakfast === false;
+  const isLGlobalOff = rates?.globalMealStatus?.lunch === false;
+  const isDGlobalOff = rates?.globalMealStatus?.dinner === false;
+
+  const todayBreakfasts = (isEmergencyToday || isBGlobalOff) ? 0 : todayDecs.filter(d => d.breakfast).length;
+  const todayLunches = (isEmergencyToday || isLGlobalOff) ? 0 : todayDecs.filter(d => d.lunch).length;
+  const todayDinners = (isEmergencyToday || isDGlobalOff) ? 0 : todayDecs.filter(d => d.dinner).length;
 
   // Emergency Off Form state (Supports Date Range)
   const [emergencyStartDate, setEmergencyStartDate] = useState(todayStr);

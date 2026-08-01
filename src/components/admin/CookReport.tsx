@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { ChefHat, Calendar, Printer, Utensils, CheckCircle2, DollarSign, Users, Sparkles, Clock } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { User, MealDeclaration, MealRateConfig, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
-import { getBangladeshDateStr } from '../../utils/dateUtils';
+import { getBangladeshDateStr, getDayOfWeekFromDateStr } from '../../utils/dateUtils';
+import { MockService } from '../../services/mockStorage';
 
 interface CookReportProps {
   users: User[];
@@ -19,15 +21,17 @@ export const CookReport: React.FC<CookReportProps> = ({
 }) => {
   const [selectedDate, setSelectedDate] = useState(() => getBangladeshDateStr());
 
+  // Dynamically fetch declarations for selectedDate with auto-copy & emergency rules
+  const { data: dateDeclarations = declarations.filter(d => d.date === selectedDate) } = useQuery({
+    queryKey: ['declarations', selectedDate],
+    queryFn: () => MockService.getDeclarationsForDate(selectedDate),
+  });
+
   // Approved active users
   const activeUsers = users.filter((u) => u.status === 'APPROVED');
 
-  // Filter declarations for selected date
-  const dateDeclarations = declarations.filter((d) => d.date === selectedDate);
-  
   const getSpecialMealForType = (type: 'breakfast' | 'lunch' | 'dinner') => {
-    const dt = new Date(selectedDate);
-    const dayOfWeek = dt.getDay();
+    const dayOfWeek = getDayOfWeekFromDateStr(selectedDate);
     return specialMeals.find((sm) => {
       if (sm.isActive === false) return false;
       if (sm.mealType !== type) return false;
@@ -52,20 +56,17 @@ export const CookReport: React.FC<CookReportProps> = ({
   const isDGlobalOff = rates.globalMealStatus?.dinner === false;
 
   activeUsers.forEach((user) => {
+    if (user.isIndefinitelyPaused) return;
+
     const userDec = dateDeclarations.find((d) => d.userId === user.id);
-    const userRates = user.userType === 'PERMANENT' ? rates.permanent : rates.guest;
 
-    const bPrice = specB ? specB.customRate : userRates.breakfast;
-    const lPrice = specL ? specL.customRate : userRates.lunch;
-    const dPrice = specD ? specD.customRate : userRates.dinner;
-
-    if (!isBGlobalOff && (userDec ? userDec.breakfast : user.walletBalance >= bPrice)) {
+    if (!isBGlobalOff && userDec?.breakfast) {
       breakfastMembers.push(user);
     }
-    if (!isLGlobalOff && (userDec ? userDec.lunch : user.walletBalance >= lPrice)) {
+    if (!isLGlobalOff && userDec?.lunch) {
       lunchMembers.push(user);
     }
-    if (!isDGlobalOff && (userDec ? userDec.dinner : user.walletBalance >= dPrice)) {
+    if (!isDGlobalOff && userDec?.dinner) {
       dinnerMembers.push(user);
     }
   });
