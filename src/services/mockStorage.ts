@@ -974,7 +974,25 @@ export class MockService {
     return newUser;
   }
 
-  static async createAccountByAdmin(adminId: string, data: { name: string; phone: string; password?: string; roomNo?: string; userType: UserType; initialBalance?: number }): Promise<User> {
+  static async updateUserRole(adminId: string, targetUserId: string, newRole: 'USER' | 'ADMIN' | 'SUPERADMIN'): Promise<User> {
+    const users = await this.getUsers();
+    const user = users.find((u) => u.id === targetUserId);
+    if (!user) throw new Error('মেম্বার খুঁজে পাওয়া যায়নি');
+
+    user.role = newRole as any;
+    user.isDualMode = newRole === 'ADMIN' || newRole === 'SUPERADMIN';
+    if (newRole === 'ADMIN' || newRole === 'SUPERADMIN') {
+      user.activeMode = user.activeMode || 'ADMIN';
+    } else {
+      user.activeMode = 'USER';
+    }
+
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+    await this.logAudit(adminId, 'UPDATE_USER_ROLE', targetUserId, `User role updated to ${newRole}`);
+    return user;
+  }
+
+  static async createAccountByAdmin(adminId: string, data: { name: string; phone: string; password?: string; roomNo?: string; userType: UserType; initialBalance?: number; role?: 'USER' | 'ADMIN' | 'SUPERADMIN' }): Promise<User> {
     const cleanName = (data.name || '').trim();
     const cleanPhone = (data.phone || '').trim();
     const cleanPass = (data.password || '123456').trim();
@@ -993,18 +1011,21 @@ export class MockService {
       throw new Error('এই ফোন নম্বর দিয়ে ইতিমধ্যে অ্যাকাউন্ট তৈরি করা আছে');
     }
 
+    const targetRole = data.role || 'USER';
+    const isDual = targetRole === 'ADMIN' || targetRole === 'SUPERADMIN';
+
     const newUser: User = {
       id: 'u_' + Date.now(),
       name: cleanName,
       phone: cleanPhone,
       password: cleanPass,
-      role: 'USER',
+      role: targetRole as any,
       userType: data.userType || 'PERMANENT',
       status: 'APPROVED',
       walletBalance: data.initialBalance || 0,
       roomNo: data.roomNo?.trim() || '',
-      isDualMode: false,
-      activeMode: 'USER',
+      isDualMode: isDual,
+      activeMode: isDual ? 'ADMIN' : 'USER',
       createdAt: new Date().toISOString(),
     };
 
@@ -1015,7 +1036,7 @@ export class MockService {
       await this.addWalletBalance(newUser.id, data.initialBalance, adminId, 'প্রারম্ভিক জামা');
     }
 
-    await this.logAudit(adminId, 'ADMIN_CREATE_USER', newUser.id, `অ্যাডমিন সরাসরি মেম্বার একাউন্ট তৈরি করেছেন (${cleanName})`);
+    await this.logAudit(adminId, 'ADMIN_CREATE_USER', newUser.id, `অ্যাডমিন নতুন (${targetRole}) একাউন্ট তৈরি করেছেন (${cleanName})`);
     return newUser;
   }
 

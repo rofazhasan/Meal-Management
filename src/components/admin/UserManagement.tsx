@@ -66,9 +66,23 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const [password, setPassword] = useState('123456');
   const [roomNo, setRoomNo] = useState('');
   const [userType, setUserType] = useState<UserType>('PERMANENT');
+  const [accountRole, setAccountRole] = useState<'USER' | 'ADMIN'>('USER');
   const [initialBalance, setInitialBalance] = useState<number>(500);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const handleToggleRole = async (targetUser: User, newRole: 'USER' | 'ADMIN') => {
+    const roleText = newRole === 'ADMIN' ? 'এডমিন' : 'সাধারণ ইউজার';
+    if (confirm(`আপনি কি নিশ্চিত যে ${targetUser.name} কে ${roleText} রোলে পরিবর্তন করতে চান?`)) {
+      try {
+        await MockService.updateUserRole(currentAdmin?.id || 'admin', targetUser.id, newRole);
+        alert(`${targetUser.name} কে সফলভাবে ${roleText} রোলে পরিবর্তন করা হয়েছে!`);
+        onRefreshData();
+      } catch (err: any) {
+        alert(err.message || 'রোল পরিবর্তন করতে সমস্যা হয়েছে');
+      }
+    }
+  };
 
   const handleCreateAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,13 +97,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         roomNo,
         userType,
         initialBalance,
+        role: accountRole,
       });
-      alert(`সফলভাবে নতুন মেম্বার (${name}) একাউন্ট সক্রিয় করা হয়েছে!`);
+      alert(`সফলভাবে নতুন (${accountRole === 'ADMIN' ? 'এডমিন' : 'মেম্বার'}) ${name} একাউন্ট সক্রিয় করা হয়েছে!`);
       setShowCreateModal(false);
       setName('');
       setPhone('');
       setPassword('123456');
       setRoomNo('');
+      setAccountRole('USER');
       setInitialBalance(500);
       onRefreshData();
     } catch (err: any) {
@@ -160,6 +176,28 @@ export const UserManagement: React.FC<UserManagementProps> = ({
               <FileText className="w-3.5 h-3.5" />
               <span>রিপোর্ট</span>
             </button>
+
+            {/* Role Switcher Action */}
+            {info.row.original.role === 'ADMIN' || info.row.original.role === 'SUPERADMIN' ? (
+              <button
+                onClick={() => handleToggleRole(info.row.original, 'USER')}
+                className="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm"
+                title="ইউজার রোলে পরিবর্তন করুন"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>ইউজার করুন</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => handleToggleRole(info.row.original, 'ADMIN')}
+                className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm"
+                title="এডমিনে রূপান্তর করুন"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>👑 এডমিন করুন</span>
+              </button>
+            )}
+
             <button
               onClick={() => handleDeleteUser(info.row.original)}
               className="px-2.5 py-1 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm"
@@ -354,7 +392,19 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">অ্যাকাউন্ট রোল</label>
+                  <select
+                    value={accountRole}
+                    onChange={(e) => setAccountRole(e.target.value as any)}
+                    className="w-full bg-slate-900/90 border border-amber-500/40 rounded-xl py-2.5 px-2.5 text-amber-300 font-bold focus:outline-none focus:border-amber-400"
+                  >
+                    <option value="USER">👤 সাধারণ ইউজার</option>
+                    <option value="ADMIN">👑 মেস এডমিন (Admin)</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">রুম নম্বর</label>
                   <input
