@@ -119,23 +119,174 @@ h1, h2, h3, .font-display {
   color: #ffffff;
 }
 
-/* Print Styles */
+/* Light Mode Smooth Theme Overrides */
+.light {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.light .bg-slate-950,
+.light .bg-slate-900 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+.light .bg-slate-900\/80,
+.light .bg-slate-900\/90,
+.light .bg-slate-950\/40,
+.light .bg-slate-950\/90,
+.light .bg-slate-900\/60,
+.light .bg-slate-900\/50 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light .bg-slate-800,
+.light .bg-slate-800\/80,
+.light .bg-slate-800\/50 {
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light .border-slate-800,
+.light .border-slate-700,
+.light .border-slate-700\/80 {
+  border-color: #cbd5e1 !important;
+}
+
+.light .text-slate-100,
+.light .text-slate-200,
+.light .text-slate-300,
+.light .text-white {
+  color: #0f172a !important;
+}
+
+.light .text-slate-400,
+.light .text-slate-500 {
+  color: #475569 !important;
+}
+
+.light input,
+.light select,
+.light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* High Quality Professional Print & PDF Styles */
 @media print {
-  header, nav, button.print\:hidden, div.print\:hidden {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+
+  header,
+  nav,
+  button,
+  .print\:hidden,
+  div.print\:hidden,
+  .no-print {
     display: none !important;
   }
-  body {
+
+  body, html {
     background-color: #ffffff !important;
-    color: #000000 !important;
-  }
-  .glass-panel, .glass-card {
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .glass-panel,
+  .glass-card,
+  .glass-card-hover,
+  div[class*="glass"] {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
     border: 1px solid #cbd5e1 !important;
     box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-radius: 8px !important;
+    margin-bottom: 12px !important;
   }
-  .text-white, .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 {
-    color: #000000 !important;
+
+  .text-white,
+  .text-slate-100,
+  .text-slate-200,
+  .text-slate-300,
+  .text-slate-400,
+  .text-slate-500 {
+    color: #0f172a !important;
+  }
+
+  /* Table PDF Print Optimizations */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+    page-break-inside: auto !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    border: 1px solid #94a3b8 !important;
+    padding: 6px 8px !important;
+    font-size: 10pt !important;
+  }
+
+  td {
+    border: 1px solid #cbd5e1 !important;
+    padding: 6px 8px !important;
+    font-size: 9.5pt !important;
+    color: #0f172a !important;
+  }
+
+  .badge, span[class*="rounded"] {
+    border: 1px solid #94a3b8 !important;
+    background: #f8fafc !important;
+    color: #0f172a !important;
+  }
+
+  .text-emerald-400, .text-emerald-300 {
+    color: #047857 !important;
+  }
+
+  .text-rose-400, .text-rose-300 {
+    color: #b91c1c !important;
+  }
+
+  .text-cyan-400, .text-cyan-300 {
+    color: #0369a1 !important;
+  }
+
+  .text-amber-400, .text-amber-300 {
+    color: #b45309 !important;
+  }
+
+  .text-purple-400, .text-purple-300 {
+    color: #6b21a8 !important;
   }
 }
 

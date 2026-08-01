@@ -16,10 +16,10 @@ export const AmbientBackground: React.FC = () => {
       <div className="absolute -bottom-40 right-10 w-96 h-96 bg-amber-500/10 rounded-full blur-[150px] animate-float-slow" />
 
       {/* Modern Grid Overlay Pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:32px_32px] opacity-[0.03]" />
+      <div className="absolute inset-0 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:32px_32px] opacity-[0.03] dark:opacity-[0.03]" />
 
       {/* Radial Gradient Vignette Layer */}
-      <div className="absolute inset-0 bg-radial from-transparent via-[#050811]/40 to-[#050811]" />
+      <div className="absolute inset-0 bg-radial from-transparent via-transparent to-slate-100/60 dark:to-[#050811]" />
     </div>
   );
 };
