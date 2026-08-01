@@ -119,62 +119,153 @@ h1, h2, h3, .font-display {
   color: #ffffff;
 }
 
-/* Light Mode Smooth Theme Overrides */
+/* Light Mode Master Theme Overrides */
 .light {
   background-color: #f8fafc !important;
   color: #0f172a !important;
 }
 
-.light .bg-slate-950,
-.light .bg-slate-900 {
-  background-color: #ffffff !important;
+.light body,
+.light #root,
+.light div.min-h-screen,
+.light main {
+  background-color: #f8fafc !important;
+  background: #f8fafc !important;
   color: #0f172a !important;
-  border-color: #e2e8f0 !important;
 }
 
-.light .bg-slate-900\/80,
-.light .bg-slate-900\/90,
+/* Glassmorphism & Panel Overrides for Light Mode */
+.light .glass-panel,
+.light .glass-card,
+.light .glass-card-hover {
+  background: #ffffff !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02) !important;
+  color: #0f172a !important;
+}
+
+.light .glass-card-hover:hover {
+  border-color: rgba(2, 132, 199, 0.4) !important;
+  box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.12) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Background Class Remapping in Light Mode */
+.light .bg-\[\#050811\],
+.light .bg-slate-950,
+.light .bg-slate-900,
 .light .bg-slate-950\/40,
 .light .bg-slate-950\/90,
+.light .bg-slate-900\/80,
+.light .bg-slate-900\/90,
 .light .bg-slate-900\/60,
-.light .bg-slate-900\/50 {
+.light .bg-slate-900\/50,
+.light .bg-slate-900\/40 {
   background-color: #ffffff !important;
   color: #0f172a !important;
-  border-color: #cbd5e1 !important;
 }
 
 .light .bg-slate-800,
 .light .bg-slate-800\/80,
-.light .bg-slate-800\/50 {
+.light .bg-slate-800\/50,
+.light .bg-slate-800\/30 {
   background-color: #f1f5f9 !important;
   color: #1e293b !important;
   border-color: #cbd5e1 !important;
 }
 
+/* Border Class Remapping */
 .light .border-slate-800,
+.light .border-slate-800\/80,
 .light .border-slate-700,
 .light .border-slate-700\/80 {
-  border-color: #cbd5e1 !important;
+  border-color: #e2e8f0 !important;
 }
 
+/* Text Color Remapping for High Contrast in Light Mode */
+.light .text-white,
 .light .text-slate-100,
-.light .text-slate-200,
-.light .text-slate-300,
-.light .text-white {
+.light .text-slate-200 {
   color: #0f172a !important;
 }
 
-.light .text-slate-400,
-.light .text-slate-500 {
-  color: #475569 !important;
+.light .text-slate-300,
+.light .text-slate-400 {
+  color: #334155 !important;
 }
 
+.light .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Input, Select, Textarea in Light Mode */
 .light input,
 .light select,
 .light textarea {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
+}
+
+.light input:focus,
+.light select:focus,
+.light textarea:focus {
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15) !important;
+}
+
+.light input::placeholder,
+.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Option elements inside Select */
+.light select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Accent Color Enhancements for Light Mode */
+.light .text-cyan-300 {
+  color: #0284c7 !important;
+}
+
+.light .text-cyan-400 {
+  color: #0369a1 !important;
+}
+
+.light .text-amber-300 {
+  color: #d97706 !important;
+}
+
+.light .text-amber-400 {
+  color: #b45309 !important;
+}
+
+.light .text-emerald-300 {
+  color: #059669 !important;
+}
+
+.light .text-emerald-400 {
+  color: #047857 !important;
+}
+
+.light .text-rose-300 {
+  color: #e11d48 !important;
+}
+
+.light .text-rose-400 {
+  color: #be123c !important;
+}
+
+.light .text-purple-300 {
+  color: #9333ea !important;
+}
+
+.light .text-purple-400 {
+  color: #7e22ce !important;
 }
 
 /* High Quality Professional Print & PDF Styles */

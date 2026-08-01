@@ -173,7 +173,7 @@ const MainApplication: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#050811] text-slate-100 selection:bg-cyan-500 selection:text-white relative">
+    <div className="min-h-screen bg-slate-950 dark:bg-slate-950 light:bg-slate-50 text-slate-100 dark:text-slate-100 light:text-slate-900 selection:bg-cyan-500 selection:text-white relative transition-colors duration-300">
       {/* Background Floating Orbs */}
       <AmbientBackground />
 
