@@ -60,9 +60,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ transaction, user, o
             <span className="font-mono text-slate-300 print:text-black">{user?.phone || 'N/A'}</span>
           </div>
           <div className="flex justify-between py-1 border-b border-slate-800/50 print:border-gray-100">
-            <span className="text-slate-400 print:text-gray-500">রুম / একাউন্ট টাইপ:</span>
-            <span className="text-slate-300 print:text-black">
-              {user?.roomNo || 'মেস'} ({user?.userType === 'PERMANENT' ? 'স্থায়ী' : 'গেস্ট'})
+            <span className="text-slate-400 print:text-gray-500">একাউন্ট টাইপ:</span>
+            <span className="text-slate-300 print:text-black font-bold">
+              {user?.userType === 'PERMANENT' ? 'স্থায়ী মেম্বার' : 'গেস্ট মেম্বার'}
             </span>
           </div>
           <div className="flex justify-between py-1 border-b border-slate-800/50 print:border-gray-100">

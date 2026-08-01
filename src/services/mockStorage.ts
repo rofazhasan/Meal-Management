@@ -26,7 +26,6 @@ const INITIAL_USERS: User[] = [
     userType: 'PERMANENT',
     status: 'APPROVED',
     walletBalance: 1000,
-    roomNo: '৩০২',
     isDualMode: false,
     activeMode: 'USER',
     createdAt: new Date().toISOString(),
@@ -47,7 +46,6 @@ const INITIAL_USERS: User[] = [
     userType: 'PERMANENT',
     status: 'APPROVED',
     walletBalance: 2000,
-    roomNo: '১০১',
     isDualMode: true,
     activeMode: 'ADMIN',
     createdAt: new Date().toISOString(),
@@ -126,7 +124,6 @@ export class MockService {
       originalUserId: user.id,
       userName: user.name,
       userMobile: user.phone,
-      userRoom: user.roomNo,
       userType: user.userType,
       walletBalanceAtDeletion: user.walletBalance,
       deletedAt: new Date().toISOString(),
@@ -242,10 +239,9 @@ export class MockService {
         const term = filter.searchTerm.toLowerCase();
         const matchName = u.name.toLowerCase().includes(term);
         const matchPhone = u.phone.includes(term);
-        const matchRoom = u.roomNo?.toLowerCase().includes(term);
         const matchStudentId = u.profile?.studentId?.toLowerCase().includes(term);
         const matchDept = u.profile?.department?.toLowerCase().includes(term);
-        if (!matchName && !matchPhone && !matchRoom && !matchStudentId && !matchDept) return false;
+        if (!matchName && !matchPhone && !matchStudentId && !matchDept) return false;
       }
       if (filter.userType && filter.userType !== 'ALL' && u.userType !== filter.userType) return false;
       if (filter.role && filter.role !== 'ALL' && u.role !== filter.role) return false;
@@ -962,7 +958,6 @@ export class MockService {
       userType: data.userType || 'PERMANENT',
       status: 'PENDING',
       walletBalance: 0,
-      roomNo: data.roomNo?.trim() || '',
       isDualMode: false,
       activeMode: 'USER',
       createdAt: new Date().toISOString(),
@@ -992,7 +987,7 @@ export class MockService {
     return user;
   }
 
-  static async createAccountByAdmin(adminId: string, data: { name: string; phone: string; password?: string; roomNo?: string; userType: UserType; initialBalance?: number; role?: 'USER' | 'ADMIN' | 'SUPERADMIN' }): Promise<User> {
+  static async createAccountByAdmin(adminId: string, data: { name: string; phone: string; password?: string; userType: UserType; initialBalance?: number; role?: 'USER' | 'ADMIN' | 'SUPERADMIN' }): Promise<User> {
     const cleanName = (data.name || '').trim();
     const cleanPhone = (data.phone || '').trim();
     const cleanPass = (data.password || '123456').trim();
@@ -1023,7 +1018,6 @@ export class MockService {
       userType: data.userType || 'PERMANENT',
       status: 'APPROVED',
       walletBalance: data.initialBalance || 0,
-      roomNo: data.roomNo?.trim() || '',
       isDualMode: isDual,
       activeMode: isDual ? 'ADMIN' : 'USER',
       createdAt: new Date().toISOString(),

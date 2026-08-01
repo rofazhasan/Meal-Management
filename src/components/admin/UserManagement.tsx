@@ -64,7 +64,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('123456');
-  const [roomNo, setRoomNo] = useState('');
   const [userType, setUserType] = useState<UserType>('PERMANENT');
   const [accountRole, setAccountRole] = useState<'USER' | 'ADMIN'>('USER');
   const [initialBalance, setInitialBalance] = useState<number>(500);
@@ -94,7 +93,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         name,
         phone,
         password,
-        roomNo,
         userType,
         initialBalance,
         role: accountRole,
@@ -104,7 +102,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       setName('');
       setPhone('');
       setPassword('123456');
-      setRoomNo('');
       setAccountRole('USER');
       setInitialBalance(500);
       onRefreshData();
@@ -134,10 +131,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             </div>
           </div>
         ),
-      }),
-      columnHelper.accessor('roomNo', {
-        header: 'রুম',
-        cell: (info) => <span className="font-mono text-slate-300 font-bold">{info.getValue() || '-'}</span>,
       }),
       columnHelper.accessor('userType', {
         header: 'সদস্যের ধরণ',
@@ -392,7 +385,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">অ্যাকাউন্ট রোল</label>
                   <select
@@ -403,17 +396,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                     <option value="USER">👤 সাধারণ ইউজার</option>
                     <option value="ADMIN">👑 মেস এডমিন (Admin)</option>
                   </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">রুম নম্বর</label>
-                  <input
-                    type="text"
-                    value={roomNo}
-                    onChange={(e) => setRoomNo(e.target.value)}
-                    placeholder="৩০২"
-                    className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl py-2.5 px-3.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
-                  />
                 </div>
 
                 <div>
@@ -526,7 +508,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                         {u.name}
                         <span className="block text-[10px] text-slate-400 print:text-gray-600 font-normal font-mono">{u.phone}</span>
                       </td>
-                      <td className="p-3 font-mono text-slate-300 print:text-black">{u.roomNo || '-'}</td>
                       <td className="p-3 text-slate-300 print:text-black">{u.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'}</td>
                       <td className="p-3 text-slate-300 print:text-black">{u.status}</td>
                       <td className="p-3 text-right font-mono font-bold text-emerald-400 print:text-black">৳{u.walletBalance}</td>
@@ -548,7 +529,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 <h3 className="text-lg font-bold text-white font-display print:text-black">
                   📄 {selectedReportUser.name}-এর মেস রিপোর্ট
                 </h3>
-                <p className="text-xs text-slate-400 print:text-gray-600">রুম: {selectedReportUser.roomNo || 'N/A'} | ফোন: {selectedReportUser.phone}</p>
+                <p className="text-xs text-slate-400 print:text-gray-600">ফোন: {selectedReportUser.phone}</p>
               </div>
               <div className="flex items-center gap-2 print:hidden">
                 <button
@@ -630,7 +611,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-1 font-mono">
-                        ডিলিট তারিখ: {new Date(arch.deletedAt).toLocaleDateString('bn-BD')} | রুম: {arch.userRoom || 'N/A'} | মোট মিল: {arch.totalMealsCount} টি | খরচ: ৳{arch.totalMoneySpent}
+                        ডিলিট তারিখ: {new Date(arch.deletedAt).toLocaleDateString('bn-BD')} | মোট মিল: {arch.totalMealsCount} টি | খরচ: ৳{arch.totalMoneySpent}
                       </p>
                     </div>
 
@@ -709,10 +690,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 <div>
                   <span className="text-slate-400 print:text-gray-600 block">মোবাইল নম্বর:</span>
                   <span className="font-bold text-white print:text-black font-mono text-sm">{selectedArchiveForPrint.userMobile}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 print:text-gray-600 block">রুম নম্বর:</span>
-                  <span className="font-bold text-white print:text-black font-mono">{selectedArchiveForPrint.userRoom || 'N/A'}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 print:text-gray-600 block">সদস্যের ধরণ:</span>

@@ -287,7 +287,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
                 <option value="ALL">সকল অনুমোদিত মেম্বার ({users.filter(u => u.status === 'APPROVED').length} জন)</option>
                 {users.filter(u => u.status === 'APPROVED').map((u) => (
                   <option key={u.id} value={u.id}>
-                    {u.name} ({u.phone}) - রুম: {u.roomNo || '-'}
+                    {u.name} ({u.phone})
                   </option>
                 ))}
               </select>

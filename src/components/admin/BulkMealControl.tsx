@@ -70,9 +70,8 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       const matchName = u.name.toLowerCase().includes(term);
-      const matchRoom = u.roomNo?.toLowerCase().includes(term);
       const matchPhone = u.phone.includes(term);
-      return matchName || matchRoom || matchPhone;
+      return matchName || matchPhone;
     }
     return true;
   });
@@ -408,7 +407,7 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
                         <div>
                           <h4 className="font-bold text-slate-100 text-sm">{u.name}</h4>
                           <p className="text-[11px] text-slate-400 font-mono">
-                            রুম: <span className="text-slate-200 font-bold">{u.roomNo || '-'}</span> • {u.phone}
+                            {u.phone}
                           </p>
                         </div>
                       </div>

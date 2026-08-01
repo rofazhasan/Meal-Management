@@ -44,7 +44,6 @@ export interface User {
   userType: UserType;
   status: ApprovalStatus;
   walletBalance: number;
-  roomNo?: string;
   profile?: RichProfile;
   isDualMode?: boolean;
   activeMode?: 'ADMIN' | 'USER';
@@ -141,7 +140,6 @@ export interface ArchivedUserReplica {
   originalUserId: string;
   userName: string;
   userMobile: string;
-  userRoom?: string;
   userType: 'PERMANENT' | 'GUEST';
   walletBalanceAtDeletion: number;
   deletedAt: string;

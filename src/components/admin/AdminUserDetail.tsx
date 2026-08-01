@@ -86,7 +86,7 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
             <div>
               <h2 className="text-2xl font-extrabold text-white font-display">{user.name}</h2>
               <p className="text-xs text-slate-400 font-sans mt-0.5">
-                ফোন: <span className="font-mono text-cyan-300">{user.phone}</span> • রুম: <span className="font-bold text-slate-200">{user.roomNo || '-'}</span>
+                ফোন: <span className="font-mono text-cyan-300">{user.phone}</span>
               </p>
             </div>
           </div>

@@ -169,7 +169,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <tr>
                   <th className="p-3.5">নাম</th>
                   <th className="p-3.5">ফোন</th>
-                  <th className="p-3.5">রুম</th>
                   <th className="p-3.5">ধরণ</th>
                   <th className="p-3.5 text-right">একশন</th>
                 </tr>
@@ -179,7 +178,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <tr key={u.id} className="hover:bg-slate-900/60 transition-colors">
                     <td className="p-3.5 font-bold text-slate-100">{u.name}</td>
                     <td className="p-3.5 font-mono text-slate-300">{u.phone}</td>
-                    <td className="p-3.5 font-mono">{u.roomNo || '-'}</td>
                     <td className="p-3.5"><StatusBadge userType={u.userType} /></td>
                     <td className="p-3.5 text-right space-x-2">
                       <button

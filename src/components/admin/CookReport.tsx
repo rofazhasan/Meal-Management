@@ -237,7 +237,7 @@ export const CookReport: React.FC<CookReportProps> = ({
                   <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black">
                     <span className="font-medium">{idx + 1}. {m.name}</span>
                     <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-gray-100 print:text-black print:border-gray-300">
-                      রুম {m.roomNo || 'N/A'}
+                      {m.phone}
                     </span>
                   </li>
                 ))}
@@ -262,7 +262,7 @@ export const CookReport: React.FC<CookReportProps> = ({
                   <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black">
                     <span className="font-medium">{idx + 1}. {m.name}</span>
                     <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-gray-100 print:text-black print:border-gray-300">
-                      রুম {m.roomNo || 'N/A'}
+                      {m.phone}
                     </span>
                   </li>
                 ))}
@@ -287,7 +287,7 @@ export const CookReport: React.FC<CookReportProps> = ({
                   <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black">
                     <span className="font-medium">{idx + 1}. {m.name}</span>
                     <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-gray-100 print:text-black print:border-gray-300">
-                      রুম {m.roomNo || 'N/A'}
+                      {m.phone}
                     </span>
                   </li>
                 ))}

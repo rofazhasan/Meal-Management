@@ -127,7 +127,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               <StatusBadge status={currentUser.status} />
             </div>
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed font-sans">
-              রুম নম্বর: <span className="text-slate-200 font-bold">{currentUser.roomNo || 'নির্ধারিত নয়'}</span> • ফোন: <span className="font-mono text-cyan-300">{currentUser.phone}</span>
+              ফোন: <span className="font-mono text-cyan-300">{currentUser.phone}</span>
             </p>
           </div>
 

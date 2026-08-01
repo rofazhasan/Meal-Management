@@ -16,7 +16,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
-  const [roomNo, setRoomNo] = useState('');
   const [userType, setUserType] = useState<UserType>('PERMANENT');
   const [error, setError] = useState<string | null>(null);
   const [pendingUserNotice, setPendingUserNotice] = useState<User | null>(null);
@@ -43,7 +42,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
           name,
           phone,
           password,
-          roomNo,
           userType,
           role: 'USER',
         });
@@ -212,20 +210,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
               {mode === 'register' && (
                 <>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 font-sans">{BN.roomPlaceholder}</label>
-                    <div className="relative">
-                      <Home className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        value={roomNo}
-                        onChange={(e) => setRoomNo(e.target.value)}
-                        placeholder="যেমন: ১০২"
-                        className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl py-3 pl-11 pr-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                      />
-                    </div>
-                  </div>
-
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1.5 font-sans">{BN.selectUserType}</label>
                     <div className="grid grid-cols-2 gap-3">

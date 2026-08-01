@@ -25,7 +25,7 @@ A **production-grade, Bangla-first meal management platform** built for hostels,
 * **Emergency Closure Alerts**: Instant notice display with automated wallet refund processing.
 
 ### 🛡️ Admin Power Tools
-* **In-Person Approval Queue**: Approve or reject pending member registrations with room assignment.
+* **In-Person Approval Queue**: Approve or reject pending member registrations.
 * **Wallet Top-Up Engine**: Add money to user accounts with mandatory reason logging.
 * **Emergency Meal Off**: Toggle emergency off for any date with automated user refunds.
 * **Pricing & Monthly Charges**: Configure tiered meal rates and monthly maintenance charges.
