@@ -12,7 +12,7 @@ import {
   SpecialMeal,
   ArchivedUserReplica
 } from '../types';
-import { getBangladeshDateStr, getBangladeshTomorrowStr } from '../utils/dateUtils';
+import { getBangladeshDateStr, getBangladeshTomorrowStr, getDayOfWeekFromDateStr } from '../utils/dateUtils';
 
 const INITIAL_SPECIAL_MEALS: SpecialMeal[] = [];
 
@@ -757,8 +757,7 @@ export class MockService {
 
   static async getSpecialMealForDate(dateStr: string, mealType?: 'breakfast' | 'lunch' | 'dinner'): Promise<SpecialMeal | undefined> {
     const specials = await this.getSpecialMeals();
-    const dt = new Date(dateStr);
-    const dayOfWeek = dt.getDay(); // 0=Sunday, 6=Saturday
+    const dayOfWeek = getDayOfWeekFromDateStr(dateStr);
 
     return specials.find((sm) => {
       if (sm.isActive === false) return false;
@@ -780,8 +779,7 @@ export class MockService {
     repeatDayOfWeek?: number
   ): Promise<SpecialMeal> {
     const specials = await this.getSpecialMeals();
-    const dt = new Date(date);
-    const day = repeatDayOfWeek !== undefined ? repeatDayOfWeek : dt.getDay();
+    const day = repeatDayOfWeek !== undefined ? repeatDayOfWeek : getDayOfWeekFromDateStr(date);
 
     const newSm: SpecialMeal = {
       id: 'sm_' + Date.now(),

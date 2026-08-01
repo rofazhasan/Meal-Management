@@ -5,6 +5,8 @@ import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
 
+import { getDayOfWeekFromDateStr } from '../../utils/dateUtils';
+
 interface UserReportsProps {
   currentUser: User;
   declarations: MealDeclaration[];
@@ -34,8 +36,7 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
   const totalMealsCount = totalBreakfasts + totalLunches + totalDinners;
 
   const getSpecialMealForTypeAndDate = (dateStr: string, type: 'breakfast' | 'lunch' | 'dinner') => {
-    const dt = new Date(dateStr);
-    const dayOfWeek = dt.getDay();
+    const dayOfWeek = getDayOfWeekFromDateStr(dateStr);
     return specialMeals.find((sm) => {
       if (sm.isActive === false) return false;
       if (sm.mealType !== type) return false;
