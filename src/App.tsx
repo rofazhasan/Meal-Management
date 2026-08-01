@@ -11,6 +11,7 @@ import { WalletScreen } from './components/user/WalletScreen';
 import { UserReports } from './components/user/UserReports';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { CookReport } from './components/admin/CookReport';
+import { BulkMealControl } from './components/admin/BulkMealControl';
 import { UserManagement } from './components/admin/UserManagement';
 import { AdminUserDetail } from './components/admin/AdminUserDetail';
 import { SettingsPanel } from './components/admin/SettingsPanel';
@@ -286,6 +287,15 @@ const MainApplication: React.FC = () => {
                     declarations={declarations}
                     rates={rates}
                     specialMeals={specialMeals}
+                  />
+                )}
+
+                {activeTab === 'admin-bulk-meals' && (
+                  <BulkMealControl
+                    users={users}
+                    declarations={declarations}
+                    specialMeals={specialMeals}
+                    onRefreshData={handleRefreshAll}
                   />
                 )}
 

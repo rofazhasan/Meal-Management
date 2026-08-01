@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, CalendarCheck, Wallet, BarChart3, ShieldCheck, Users, Settings, ShieldAlert, DollarSign, Building2, ChefHat } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck, Wallet, BarChart3, ShieldCheck, Users, Settings, ShieldAlert, DollarSign, Building2, ChefHat, UtensilsCrossed } from 'lucide-react';
 import { BN } from '../../constants/banglaText';
 
 export type TabType = 
@@ -9,6 +9,7 @@ export type TabType =
   | 'reports' 
   | 'admin-dashboard' 
   | 'admin-cook-report'
+  | 'admin-bulk-meals'
   | 'admin-finance' 
   | 'admin-users' 
   | 'admin-settings' 
@@ -57,6 +58,18 @@ export const Navigation: React.FC<NavigationProps> = ({
         >
           <ChefHat className="w-4 h-4" />
           বাবুর্চির হিসাব
+        </button>
+
+        <button
+          onClick={() => onTabChange('admin-bulk-meals')}
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap active:scale-95 ${
+            activeTab === 'admin-bulk-meals'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-bold'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+          }`}
+        >
+          <UtensilsCrossed className="w-4 h-4" />
+          বাল্ক মিল ওভাররাইড
         </button>
 
         <button
