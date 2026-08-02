@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UtensilsCrossed, Calendar, Search, Filter, Sparkles, CheckCircle2, XCircle, Check, X, Users, RefreshCw, ShieldAlert } from 'lucide-react';
-import { User, MealDeclaration, SpecialMeal, MealRateConfig } from '../../types';
+import { User, MealDeclaration, SpecialMeal, MealRateConfig, EmergencyClosure } from '../../types';
 import { MockService } from '../../services/mockStorage';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { getBangladeshDateStr, getBangladeshTomorrowStr } from '../../utils/dateUtils';
@@ -10,6 +10,7 @@ interface BulkMealControlProps {
   declarations: MealDeclaration[];
   rates?: MealRateConfig;
   specialMeals?: SpecialMeal[];
+  emergencies?: EmergencyClosure[];
   onRefreshData: () => void;
 }
 
@@ -18,6 +19,7 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
   declarations,
   rates,
   specialMeals = [],
+  emergencies = [],
   onRefreshData,
 }) => {
   const approvedUsers = users.filter((u) => u.status === 'APPROVED');
@@ -34,30 +36,55 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
   // Key: userId, Value: { breakfast: boolean, lunch: boolean, dinner: boolean }
   const [mealMap, setMealMap] = useState<Record<string, { breakfast: boolean; lunch: boolean; dinner: boolean }>>({});
 
-  // Sync state whenever selectedDate, approvedUsers, or declarations update
+  // Sync state whenever selectedDate, approvedUsers, declarations, or emergencies update
   useEffect(() => {
     const newMap: Record<string, { breakfast: boolean; lunch: boolean; dinner: boolean }> = {};
+
+    // Check if selectedDate falls in an emergency closure
+    const emergencyForDate = emergencies.find((em) => {
+      const start = em.date;
+      const end = em.endDate || em.date;
+      return selectedDate >= start && selectedDate <= end;
+    });
 
     approvedUsers.forEach((u) => {
       const dec = declarations.find((d) => d.userId === u.id && d.date === selectedDate);
       if (dec) {
-        newMap[u.id] = {
-          breakfast: dec.breakfast,
-          lunch: dec.lunch,
-          dinner: dec.dinner,
-        };
+        // FIX 7a: If emergency, force-override any stored declaration to reflect closure
+        if (emergencyForDate) {
+          newMap[u.id] = {
+            breakfast: emergencyForDate.closedMeals.includes('breakfast') ? false : dec.breakfast,
+            lunch: emergencyForDate.closedMeals.includes('lunch') ? false : dec.lunch,
+            dinner: emergencyForDate.closedMeals.includes('dinner') ? false : dec.dinner,
+          };
+        } else {
+          newMap[u.id] = {
+            breakfast: dec.breakfast,
+            lunch: dec.lunch,
+            dinner: dec.dinner,
+          };
+        }
       } else {
-        // Default default meal declaration if not explicitly set
-        newMap[u.id] = {
-          breakfast: true,
-          lunch: true,
-          dinner: true,
-        };
+        // FIX 7b: No declaration yet — default to OFF for closed meals on emergency days,
+        // otherwise default all ON (will be wallet-checked on actual save)
+        if (emergencyForDate) {
+          newMap[u.id] = {
+            breakfast: !emergencyForDate.closedMeals.includes('breakfast'),
+            lunch: !emergencyForDate.closedMeals.includes('lunch'),
+            dinner: !emergencyForDate.closedMeals.includes('dinner'),
+          };
+        } else {
+          newMap[u.id] = {
+            breakfast: true,
+            lunch: true,
+            dinner: true,
+          };
+        }
       }
     });
 
     setMealMap(newMap);
-  }, [selectedDate, declarations, users]);
+  }, [selectedDate, declarations, users, emergencies]);
 
   // Special meal info for selected date
   const specialObj = specialMeals.find(

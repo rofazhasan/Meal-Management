@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, User, Phone, Home, Wallet, Shield, History, PlusCircle, Check, X, Calendar, Sparkles, UtensilsCrossed } from 'lucide-react';
+import { ArrowLeft, User, Phone, Home, Wallet, Shield, History, PlusCircle, Check, X, Calendar, Sparkles, UtensilsCrossed, KeyRound } from 'lucide-react';
 import { User as UserType, WalletTransaction, MealDeclaration, UserType as MemberType } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
@@ -62,6 +62,18 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
     onRefreshData();
   };
 
+  const handleResetPassword = async () => {
+    if (confirm(`আপনি কি নিশ্চিত যে ${user.name} এর পাসওয়ার্ড রিসেট করে '123' সেট করতে চান?`)) {
+      try {
+        await MockService.approvePasswordReset(adminId, user.id, '123');
+        alert(`${user.name} এর পাসওয়ার্ড সফলভাবে রিসেট করে '123' করা হয়েছে!`);
+        onRefreshData();
+      } catch (err: any) {
+        alert(err.message || 'পাসওয়ার্ড রিসেট করতে সমস্যা হয়েছে');
+      }
+    }
+  };
+
   return (
     <div className="space-y-6 pb-24 max-w-4xl mx-auto animate-scale-in">
       
@@ -98,15 +110,30 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
         </div>
 
         {/* Action Controls for Admin */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-slate-800/80">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-800/80">
           <button
             onClick={handleToggleType}
             className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-700/80 hover:border-slate-600 text-xs font-semibold text-slate-200 flex items-center justify-between transition-all active:scale-95"
           >
-            <span>সদস্যের ধরণ পরিবর্তন করুন</span>
+            <span>সদস্যের ধরণ</span>
             <span className="font-bold text-cyan-400 font-display">
               {user.userType === 'PERMANENT' ? 'অতিথিতে সুইচ' : 'স্থায়ীতে সুইচ'}
             </span>
+          </button>
+
+          <button
+            onClick={handleResetPassword}
+            className={`p-3.5 rounded-2xl border text-xs font-bold flex items-center justify-between transition-all active:scale-95 font-display ${
+              user.isPasswordResetRequested
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30 animate-pulse'
+                : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
+            }`}
+          >
+            <span className="flex items-center gap-1.5">
+              <KeyRound className="w-4 h-4 text-amber-400" />
+              পাসওয়ার্ড রিসেট
+            </span>
+            <span className="font-mono text-amber-400">Set to 123</span>
           </button>
 
           <div className="flex gap-2">
@@ -115,14 +142,14 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
               disabled={user.status === 'APPROVED'}
               className="flex-1 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 text-xs font-bold transition-all disabled:opacity-40 active:scale-95 font-display"
             >
-              অনুমোদন দিন
+              অনুমোদন
             </button>
             <button
               onClick={() => handleStatusChange('REJECTED')}
               disabled={user.status === 'REJECTED'}
               className="flex-1 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs font-bold transition-all disabled:opacity-40 active:scale-95 font-display"
             >
-              বাতিল করুন
+              বাতিল
             </button>
           </div>
         </div>

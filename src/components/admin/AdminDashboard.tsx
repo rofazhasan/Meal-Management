@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ShieldAlert, UserCheck, Utensils, Wallet, AlertOctagon, Check, X, PlusCircle, Sparkles, ChevronRight } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { ShieldAlert, UserCheck, Utensils, Wallet, AlertOctagon, Check, X, PlusCircle, Sparkles, ChevronRight, Printer, TriangleAlert, UserX, SlidersHorizontal, KeyRound } from 'lucide-react';
 import { User, MealRateConfig, EmergencyClosure, WalletTransaction, MealDeclaration } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
@@ -29,30 +29,200 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const pendingUsers = users.filter(u => u.status === 'PENDING');
   const activeUsers = users.filter(u => u.status === 'APPROVED');
+  const passwordResetUsers = users.filter(u => u.isPasswordResetRequested);
   const totalWalletSum = users.reduce((acc, u) => acc + u.walletBalance, 0);
+
+  const handleApproveReset = async (userId: string) => {
+    try {
+      await MockService.approvePasswordReset(currentAdmin.id, userId, '123');
+      alert('পাসওয়ার্ড রিসেট অনুমোদন করা হয়েছে! উক্ত সদস্যের পাসওয়ার্ড 123 সেট হয়েছে।');
+      onRefreshData();
+    } catch (err: any) {
+      alert(err.message || 'পাসওয়ার্ড রিসেট করতে সমস্যা হয়েছে');
+    }
+  };
+
+  const handleRejectReset = async (userId: string) => {
+    try {
+      await MockService.rejectPasswordReset(currentAdmin.id, userId);
+      alert('পাসওয়ার্ড রিসেট অনুরোধ বাতিল করা হয়েছে');
+      onRefreshData();
+    } catch (err: any) {
+      alert(err.message || 'বাতিল করতে সমস্যা হয়েছে');
+    }
+  };
 
   const todayStr = getBangladeshDateStr();
   const todayDecs = declarations.filter(d => d.date === todayStr);
-
-  const isEmergencyToday = emergencies.some(em => {
-    const start = em.date;
-    const end = em.endDate || em.date;
-    return todayStr >= start && todayStr <= end;
-  });
 
   const isBGlobalOff = rates?.globalMealStatus?.breakfast === false;
   const isLGlobalOff = rates?.globalMealStatus?.lunch === false;
   const isDGlobalOff = rates?.globalMealStatus?.dinner === false;
 
-  const todayBreakfasts = (isEmergencyToday || isBGlobalOff) ? 0 : todayDecs.filter(d => d.breakfast).length;
-  const todayLunches = (isEmergencyToday || isLGlobalOff) ? 0 : todayDecs.filter(d => d.lunch).length;
-  const todayDinners = (isEmergencyToday || isDGlobalOff) ? 0 : todayDecs.filter(d => d.dinner).length;
+  // FIX 14: Check per-meal emergency closure instead of blanking ALL meals on any emergency
+  const emergencyToday = emergencies.find(em => {
+    const start = em.date;
+    const end = em.endDate || em.date;
+    return todayStr >= start && todayStr <= end;
+  });
+  const isBEmergencyOff = !!emergencyToday && emergencyToday.closedMeals.includes('breakfast');
+  const isLEmergencyOff = !!emergencyToday && emergencyToday.closedMeals.includes('lunch');
+  const isDEmergencyOff = !!emergencyToday && emergencyToday.closedMeals.includes('dinner');
+
+  const todayBreakfasts = (isBEmergencyOff || isBGlobalOff) ? 0 : todayDecs.filter(d => d.breakfast).length;
+  const todayLunches = (isLEmergencyOff || isLGlobalOff) ? 0 : todayDecs.filter(d => d.lunch).length;
+  const todayDinners = (isDEmergencyOff || isDGlobalOff) ? 0 : todayDecs.filter(d => d.dinner).length;
 
   // Emergency Off Form state (Supports Date Range)
   const [emergencyStartDate, setEmergencyStartDate] = useState(todayStr);
   const [emergencyEndDate, setEmergencyEndDate] = useState(todayStr);
   const [emergencyReason, setEmergencyReason] = useState('');
   const [emergencySubmitting, setEmergencySubmitting] = useState(false);
+
+  // ── Meal-Off Report State ────────────────────────────────────────
+  const [reportDate, setReportDate] = useState(todayStr);
+
+  // Compute meal-off report for reportDate
+  const mealOffReport = useCallback(() => {
+    const reportDecs = declarations.filter(d => d.date === reportDate);
+    const minPermRate = Math.min(
+      rates.permanent.breakfast,
+      rates.permanent.lunch,
+      rates.permanent.dinner,
+    );
+    const minGuestRate = Math.min(
+      rates.guest.breakfast,
+      rates.guest.lunch,
+      rates.guest.dinner,
+    );
+
+    const isEmergencyOnDate = emergencies.some(em => {
+      const start = em.date;
+      const end = em.endDate || em.date;
+      return reportDate >= start && reportDate <= end;
+    });
+
+    type ReportRow = {
+      user: User;
+      dec: MealDeclaration | undefined;
+      category: 'INSUFFICIENT_BALANCE' | 'VOLUNTARILY_OFF' | 'PARTIAL_OFF';
+      offMeals: string[];
+    };
+
+    const rows: ReportRow[] = [];
+
+    for (const u of activeUsers) {
+      const dec = reportDecs.find(d => d.userId === u.id);
+      const allOff = dec ? (!dec.breakfast && !dec.lunch && !dec.dinner) : true;
+      const someOff = dec ? (!dec.breakfast || !dec.lunch || !dec.dinner) : true;
+
+      if (!someOff) continue; // all meals ON — skip
+
+      const offMeals: string[] = [];
+      if (dec && !dec.breakfast) offMeals.push('নাস্তা');
+      if (dec && !dec.lunch) offMeals.push('দুপুর');
+      if (dec && !dec.dinner) offMeals.push('রাত');
+      if (!dec) offMeals.push('নাস্তা', 'দুপুর', 'রাত');
+
+      const minRate = u.userType === 'PERMANENT' ? minPermRate : minGuestRate;
+      const balanceTooLow = u.walletBalance < minRate;
+
+      let category: ReportRow['category'];
+      if (allOff && balanceTooLow && !isEmergencyOnDate) {
+        category = 'INSUFFICIENT_BALANCE';
+      } else if (allOff) {
+        category = 'VOLUNTARILY_OFF';
+      } else {
+        category = 'PARTIAL_OFF';
+      }
+
+      rows.push({ user: u, dec, category, offMeals });
+    }
+
+    return {
+      isEmergencyOnDate,
+      insufficientBalance: rows.filter(r => r.category === 'INSUFFICIENT_BALANCE'),
+      voluntarilyOff: rows.filter(r => r.category === 'VOLUNTARILY_OFF'),
+      partialOff: rows.filter(r => r.category === 'PARTIAL_OFF'),
+    };
+  }, [declarations, reportDate, activeUsers, rates, emergencies]);
+
+  const report = mealOffReport();
+
+  const handlePrintReport = () => {
+    const printStyle = `
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Hind Siliguri', sans-serif; background: #fff; color: #0f172a; padding: 24px; }
+        h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .meta { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+        .section { margin-bottom: 22px; }
+        .section-title { font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; }
+        .red { background: #fee2e2; color: #991b1b; }
+        .yellow { background: #fef9c3; color: #854d0e; }
+        .blue { background: #dbeafe; color: #1e40af; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { background: #f1f5f9; padding: 7px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { padding: 7px 10px; border-bottom: 1px solid #e2e8f0; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .badge-red { background: #fee2e2; color: #991b1b; padding: 2px 7px; border-radius: 99px; font-size: 10px; font-weight: 700; }
+        .badge-yellow { background: #fef9c3; color: #854d0e; padding: 2px 7px; border-radius: 99px; font-size: 10px; font-weight: 700; }
+        .badge-blue { background: #dbeafe; color: #1e40af; padding: 2px 7px; border-radius: 99px; font-size: 10px; font-weight: 700; }
+        .empty { color: #94a3b8; font-size: 12px; padding: 8px 10px; }
+        footer { margin-top: 28px; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+      </style>
+    `;
+    const allRows = [
+      ...report.insufficientBalance,
+      ...report.voluntarilyOff,
+      ...report.partialOff,
+    ];
+    const tableRows = allRows.map(r => `
+      <tr>
+        <td>${r.user.name}</td>
+        <td class="mono">${r.user.phone}</td>
+        <td class="mono">৳${r.user.walletBalance}</td>
+        <td>${r.offMeals.join(', ')}</td>
+        <td>${
+          r.category === 'INSUFFICIENT_BALANCE'
+            ? '<span class="badge-red">ব্যালেন্স স্বল্পতা</span>'
+            : r.category === 'VOLUNTARILY_OFF'
+            ? `<span class="badge-yellow">${r.user.isIndefinitelyPaused ? 'অনির্দিষ্ট বিরতি' : 'স্বেচ্ছায় বন্ধ'}</span>`
+            : '<span class="badge-blue">আংশিক বন্ধ</span>'
+        }</td>
+      </tr>
+    `).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">${printStyle}<title>মিল বন্ধ রিপোর্ট - ${reportDate}</title></head><body>
+      <h1>মিল বন্ধ সদস্য রিপোর্ট</h1>
+      <p class="meta">তারিখ: ${reportDate} &nbsp;|&nbsp; মোট বন্ধ: ${allRows.length} জন &nbsp;|&nbsp; মুদ্রণের সময়: ${new Date().toLocaleString('bn-BD')}</p>
+      <div class="section">
+        <div class="section-title red">🔴 ব্যালেন্স স্বল্পতার কারণে বন্ধ (${report.insufficientBalance.length} জন)</div>
+        ${report.insufficientBalance.length === 0 ? '<p class="empty">কেউ নেই।</p>' : ''}
+      </div>
+      <div class="section">
+        <div class="section-title yellow">🟡 স্বেচ্ছায় / অনির্দিষ্ট বিরতিতে বন্ধ (${report.voluntarilyOff.length} জন)</div>
+        ${report.voluntarilyOff.length === 0 ? '<p class="empty">কেউ নেই।</p>' : ''}
+      </div>
+      <div class="section">
+        <div class="section-title blue">🔵 আংশিক বন্ধ (${report.partialOff.length} জন)</div>
+        ${report.partialOff.length === 0 ? '<p class="empty">কেউ নেই।</p>' : ''}
+      </div>
+      ${allRows.length > 0 ? `
+      <table>
+        <thead><tr><th>নাম</th><th>ফোন</th><th>ওয়ালেট</th><th>বন্ধ মিল</th><th>কারণ</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>` : '<p class="empty">নির্বাচিত তারিখে কোনো মেম্বারের মিল বন্ধ নেই।</p>'}
+      <footer>মিল ম্যানেজার সিস্টেম — অ্যাডমিন প্রিন্ট রিপোর্ট</footer>
+    </body></html>`;
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      setTimeout(() => { win.print(); }, 400);
+    }
+  };
 
   // Quick Top-up Modal State
   const [topUpUser, setTopUpUser] = useState<User | null>(null);
@@ -158,6 +328,65 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
       </div>
+
+      {/* Password Reset Requests Section */}
+      {passwordResetUsers.length > 0 && (
+        <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-amber-500/40 space-y-4 shadow-xl shadow-amber-950/20 bg-gradient-to-r from-amber-950/20 via-slate-900 to-slate-900 animate-scale-in">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              <KeyRound className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-100 text-base font-display flex items-center gap-2">
+                পাসওয়ার্ড রিসেট অনুরোধসমুহ ({passwordResetUsers.length} টি)
+              </h3>
+              <p className="text-xs text-slate-400 font-sans">
+                অনুমোদন করলে মেম্বারের পাসওয়ার্ড রিসেট হয়ে <code className="bg-slate-950 px-1.5 py-0.5 rounded text-amber-400 font-mono font-bold">123</code> সেট হবে
+              </p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-800/80">
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-slate-900/90 uppercase text-[10px] text-slate-400 border-b border-slate-800 font-mono">
+                <tr>
+                  <th className="p-3.5">সদস্যের নাম</th>
+                  <th className="p-3.5">মোবাইল নম্বর</th>
+                  <th className="p-3.5">অনুরোধের সময়</th>
+                  <th className="p-3.5 text-right">একশন (রিসেট to 123)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 bg-slate-950/40 font-sans">
+                {passwordResetUsers.map((u) => (
+                  <tr key={u.id} className="hover:bg-slate-900/60 transition-colors">
+                    <td className="p-3.5 font-bold text-slate-100">{u.name}</td>
+                    <td className="p-3.5 font-mono text-cyan-300">{u.phone}</td>
+                    <td className="p-3.5 font-mono text-slate-400">
+                      {u.passwordResetRequestedAt ? new Date(u.passwordResetRequestedAt).toLocaleTimeString('bn-BD') : 'অনুরোধ করা হয়েছে'}
+                    </td>
+                    <td className="p-3.5 text-right space-x-2">
+                      <button
+                        onClick={() => handleApproveReset(u.id)}
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        অনুমোদন (Reset to 123)
+                      </button>
+                      <button
+                        onClick={() => handleRejectReset(u.id)}
+                        className="px-3 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        বাতিল
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Pending Approvals Action Section */}
       {pendingUsers.length > 0 && (
@@ -362,6 +591,177 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
 
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════
+          MEAL-OFF MEMBERS REPORT
+          ═══════════════════════════════════════════════════════════ */}
+      <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-slate-800/80 space-y-5 shadow-xl">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20">
+              <UserX className="w-5 h-5 text-rose-400" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-100 text-base font-display">মিল বন্ধ সদস্য রিপোর্ট</h3>
+              <p className="text-xs text-slate-400 font-sans">কোন সদস্যের মিল কেন বন্ধ তার বিস্তারিত তালিকা</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex items-center gap-2 bg-slate-900/80 border border-slate-700/80 rounded-xl px-3 py-2">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="date"
+                value={reportDate}
+                onChange={e => setReportDate(e.target.value)}
+                className="bg-transparent text-xs text-slate-100 font-mono focus:outline-none"
+              />
+            </div>
+            <button
+              onClick={handlePrintReport}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-slate-100 border border-slate-600/60 font-bold text-xs transition-all shadow-md active:scale-95"
+            >
+              <Printer className="w-4 h-4 text-cyan-400" />
+              প্রিন্ট করুন
+            </button>
+          </div>
+        </div>
+
+        {/* Summary Pills */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center">
+            <p className="text-2xl font-extrabold text-rose-400 font-mono">{report.insufficientBalance.length}</p>
+            <p className="text-[10px] text-rose-300 font-bold mt-0.5">ব্যালেন্স স্বল্পতা</p>
+          </div>
+          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
+            <p className="text-2xl font-extrabold text-amber-400 font-mono">{report.voluntarilyOff.length}</p>
+            <p className="text-[10px] text-amber-300 font-bold mt-0.5">স্বেচ্ছায় বন্ধ</p>
+          </div>
+          <div className="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-center">
+            <p className="text-2xl font-extrabold text-sky-400 font-mono">{report.partialOff.length}</p>
+            <p className="text-[10px] text-sky-300 font-bold mt-0.5">আংশিক বন্ধ</p>
+          </div>
+        </div>
+
+        {report.isEmergencyOnDate && (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold">
+            <TriangleAlert className="w-4 h-4 shrink-0" />
+            নির্বাচিত তারিখটি জরুরি বন্ধের আওতায় — সকল মিল বন্ধ ছিল, তাই তালিকা নির্ভরযোগ্য নয়।
+          </div>
+        )}
+
+        {/* Category: Insufficient Balance */}
+        {report.insufficientBalance.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 text-[11px] font-bold">
+                🔴 ব্যালেন্স স্বল্পতার কারণে সিস্টেম বন্ধ করেছে ({report.insufficientBalance.length} জন)
+              </span>
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-rose-500/20">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-rose-500/5 text-[10px] text-rose-400 uppercase border-b border-rose-500/20 font-mono">
+                  <tr>
+                    <th className="p-3">নাম</th>
+                    <th className="p-3">ফোন</th>
+                    <th className="p-3">ওয়ালেট</th>
+                    <th className="p-3">বন্ধ মিল</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-rose-500/10 bg-slate-950/30">
+                  {report.insufficientBalance.map(r => (
+                    <tr key={r.user.id} className="hover:bg-rose-500/5 transition-colors">
+                      <td className="p-3 font-bold text-slate-100">{r.user.name}</td>
+                      <td className="p-3 font-mono text-slate-300">{r.user.phone}</td>
+                      <td className="p-3 font-mono text-rose-400 font-bold">৳{r.user.walletBalance}</td>
+                      <td className="p-3 text-rose-300">{r.offMeals.join(', ')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Category: Voluntarily Off */}
+        {report.voluntarilyOff.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[11px] font-bold">
+                🟡 স্বেচ্ছায় / অনির্দিষ্ট বিরতিতে বন্ধ ({report.voluntarilyOff.length} জন)
+              </span>
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-amber-500/20">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-amber-500/5 text-[10px] text-amber-400 uppercase border-b border-amber-500/20 font-mono">
+                  <tr>
+                    <th className="p-3">নাম</th>
+                    <th className="p-3">ফোন</th>
+                    <th className="p-3">ওয়ালেট</th>
+                    <th className="p-3">কারণ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-amber-500/10 bg-slate-950/30">
+                  {report.voluntarilyOff.map(r => (
+                    <tr key={r.user.id} className="hover:bg-amber-500/5 transition-colors">
+                      <td className="p-3 font-bold text-slate-100">{r.user.name}</td>
+                      <td className="p-3 font-mono text-slate-300">{r.user.phone}</td>
+                      <td className="p-3 font-mono text-slate-300">৳{r.user.walletBalance}</td>
+                      <td className="p-3">
+                        {r.user.isIndefinitelyPaused
+                          ? <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[10px] font-bold">অনির্দিষ্ট বিরতি</span>
+                          : <span className="px-2 py-0.5 rounded-full bg-slate-700/50 text-slate-300 border border-slate-600/50 text-[10px] font-bold">নিজে বন্ধ করেছে</span>
+                        }
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Category: Partial Off */}
+        {report.partialOff.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30 text-[11px] font-bold">
+                🔵 কিছু মিল বন্ধ (আংশিক) ({report.partialOff.length} জন)
+              </span>
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-sky-500/20">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-sky-500/5 text-[10px] text-sky-400 uppercase border-b border-sky-500/20 font-mono">
+                  <tr>
+                    <th className="p-3">নাম</th>
+                    <th className="p-3">ফোন</th>
+                    <th className="p-3">ওয়ালেট</th>
+                    <th className="p-3">বন্ধ মিল</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-sky-500/10 bg-slate-950/30">
+                  {report.partialOff.map(r => (
+                    <tr key={r.user.id} className="hover:bg-sky-500/5 transition-colors">
+                      <td className="p-3 font-bold text-slate-100">{r.user.name}</td>
+                      <td className="p-3 font-mono text-slate-300">{r.user.phone}</td>
+                      <td className="p-3 font-mono text-slate-300">৳{r.user.walletBalance}</td>
+                      <td className="p-3 text-sky-300">{r.offMeals.join(', ')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {report.insufficientBalance.length === 0 && report.voluntarilyOff.length === 0 && report.partialOff.length === 0 && (
+          <div className="py-8 text-center">
+            <Utensils className="w-10 h-10 text-emerald-400 mx-auto mb-3 opacity-60" />
+            <p className="text-slate-400 font-sans text-sm">এই তারিখে সকল সদস্যের সব মিল চালু আছে।</p>
+          </div>
+        )}
       </div>
 
     </div>

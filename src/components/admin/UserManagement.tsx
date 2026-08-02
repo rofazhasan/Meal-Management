@@ -7,7 +7,7 @@ import {
   flexRender,
   createColumnHelper,
 } from '@tanstack/react-table';
-import { Search, UserCheck, Eye, PlusCircle, Printer, FileText, X, CheckCircle, Shield, UserPlus, FileSpreadsheet, Trash2, FolderArchive, Download } from 'lucide-react';
+import { Search, UserCheck, Eye, PlusCircle, Printer, FileText, X, CheckCircle, Shield, UserPlus, FileSpreadsheet, Trash2, FolderArchive, Download, KeyRound } from 'lucide-react';
 import { User, UserType, ArchivedUserReplica } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
@@ -83,6 +83,18 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     }
   };
 
+  const handleResetPassword = async (targetUser: User) => {
+    if (confirm(`আপনি কি নিশ্চিত যে ${targetUser.name} (${targetUser.phone}) এর পাসওয়ার্ড রিসেট করে '123' সেট করতে চান?`)) {
+      try {
+        await MockService.approvePasswordReset(currentAdmin?.id || 'admin', targetUser.id, '123');
+        alert(`${targetUser.name} এর পাসওয়ার্ড সফলভাবে রিসেট করে '123' করা হয়েছে!`);
+        onRefreshData();
+      } catch (err: any) {
+        alert(err.message || 'পাসওয়ার্ড রিসেট করতে সমস্যা হয়েছে');
+      }
+    }
+  };
+
   const handleCreateAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -138,7 +150,17 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       }),
       columnHelper.accessor('status', {
         header: 'স্ট্যাটাস',
-        cell: (info) => <StatusBadge status={info.getValue()} />,
+        cell: (info) => (
+          <div className="flex items-center gap-1.5">
+            <StatusBadge status={info.getValue()} />
+            {info.row.original.isPasswordResetRequested && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse flex items-center gap-1 font-mono">
+                <KeyRound className="w-3 h-3 text-amber-400" />
+                রিসেট অনুরোধ
+              </span>
+            )}
+          </div>
+        ),
       }),
       columnHelper.accessor('walletBalance', {
         header: 'পার্স ব্যালেন্স',
@@ -190,6 +212,20 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 <span>👑 এডমিন করুন</span>
               </button>
             )}
+
+            {/* Reset Password Action */}
+            <button
+              onClick={() => handleResetPassword(info.row.original)}
+              className={`px-2.5 py-1 rounded-xl border text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm ${
+                info.row.original.isPasswordResetRequested
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30 animate-pulse'
+                  : 'bg-slate-900/80 text-slate-300 border-slate-700 hover:bg-slate-800'
+              }`}
+              title="পাসওয়ার্ড রিসেট করে 123 করুন"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+              <span>{info.row.original.isPasswordResetRequested ? 'অনুমোদন (123)' : 'রিসেট (123)'}</span>
+            </button>
 
             <button
               onClick={() => handleDeleteUser(info.row.original)}

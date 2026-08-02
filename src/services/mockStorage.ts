@@ -12,7 +12,7 @@ import {
   SpecialMeal,
   ArchivedUserReplica
 } from '../types';
-import { getBangladeshDateStr, getBangladeshTomorrowStr, getDayOfWeekFromDateStr } from '../utils/dateUtils';
+import { getBangladeshDateStr, getBangladeshTomorrowStr, getDayOfWeekFromDateStr, getBangladeshNow } from '../utils/dateUtils';
 
 const INITIAL_SPECIAL_MEALS: SpecialMeal[] = [];
 
@@ -313,35 +313,49 @@ export class MockService {
     amount: number,
     monthYear: string
   ): Promise<number> {
+    if (amount <= 0) throw new Error('মাসিক ফির পরিমাণ শূন্যের বেশি হতে হবে');
+
     const users = await this.getUsers();
     const transactions = await this.getTransactions();
-    const targetUsers = targetUserId === 'ALL' 
-      ? users.filter((u) => u.status === 'APPROVED') 
+    const rates = await this.getMealRates();
+
+    const targetUsers = targetUserId === 'ALL'
+      ? users.filter((u) => u.status === 'APPROVED')
       : users.filter((u) => u.id === targetUserId);
 
-    if (targetUsers.length === 0) throw new Error('কোনো উপযুক্ত সদস্য পাওয়া যায়নি');
+    if (targetUsers.length === 0) throw new Error('কোনো উপযুক্ত সদস্য পাওয়া যায়নি');
 
     let processedCount = 0;
 
     for (const user of targetUsers) {
+      // FIX 12: Skip GUEST users whose configured monthlyCharge is 0 when collecting ALL
+      // (Guest members typically don't have a monthly service charge)
+      if (targetUserId === 'ALL' && user.userType === 'GUEST' && rates.guest.monthlyCharge === 0) {
+        continue;
+      }
+
       const balanceBefore = user.walletBalance;
       let balanceAfter = balanceBefore;
       let desc = '';
+      let actualAmount = amount;
 
       if (method === 'WALLET_DEDUCTION') {
-        balanceAfter = balanceBefore - amount;
+        // FIX 2: Wallet floor guard — never allow balance to go below 0
+        actualAmount = Math.min(amount, Math.max(0, balanceBefore));
+        balanceAfter = balanceBefore - actualAmount;
         user.walletBalance = balanceAfter;
-        desc = `মাসিক ফি (৳${amount}) কর্তন - ${monthYear} (ওয়ালেট থেকে সরাসরি কর্তন)`;
+        desc = `মাসিক ফি (৳${actualAmount}) কর্তন - ${monthYear} (ওয়ালেট থেকে সরাসরি কর্তন)`
+          + (actualAmount < amount ? ` [আংশিক: পূর্ণ ৳${amount} এর মধ্যে ৳${actualAmount} কর্তন করা হয়েছে, ব্যালেন্স অপর্যাপ্ত]` : '');
       } else {
         // CASH_HAND_TO_HAND: wallet balance remains untouched!
-        desc = `মাসিক ফি (৳${amount}) পরিশোধ - ${monthYear} (হাতে হাতে ক্যাশ প্রদান করা হয়েছে, ওয়ালেট থেকে কর্তন নয়)`;
+        desc = `মাসিক ফি (৳${actualAmount}) পরিশোধ - ${monthYear} (হাতে হাতে ক্যাশ প্রদান করা হয়েছে, ওয়ালেট থেকে কর্তন নয়)`;
       }
 
       const newTx: WalletTransaction = {
         id: 'tx_mf_' + user.id + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
         userId: user.id,
         type: method === 'WALLET_DEDUCTION' ? 'MONTHLY_CHARGE' : 'CASH_PAID',
-        amount,
+        amount: actualAmount,
         balanceBefore,
         balanceAfter,
         description: desc,
@@ -482,11 +496,11 @@ export class MockService {
     user.isIndefinitelyPaused = nextState;
 
     if (nextState) {
-      // Turn off upcoming 7 days meal declarations automatically
+      // Turn off upcoming 7 days meal declarations automatically (use Bangladesh timezone)
       for (let i = 0; i < 7; i++) {
-        const d = new Date();
+        const d = getBangladeshNow();
         d.setDate(d.getDate() + i);
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = getBangladeshDateStr(d);
         await this.updateDeclaration(userId, dateStr, { breakfast: false, lunch: false, dinner: false });
       }
     }
@@ -666,9 +680,10 @@ export class MockService {
 
   static async copyPreviousDayDeclaration(userId: string, targetDate: string): Promise<MealDeclaration> {
     const decs = await this.getDeclarations();
+    // Use parseDateStr to get local date object, then subtract 1 day safely
     const [y, m, d] = targetDate.split('-').map(Number);
     const prevDt = new Date(y, m - 1, d - 1);
-    const prevDateStr = prevDt.toISOString().split('T')[0];
+    const prevDateStr = getBangladeshDateStr(prevDt);
 
     const prevDec = decs.find((dec) => dec.userId === userId && dec.date === prevDateStr);
     const meals = prevDec
@@ -685,6 +700,17 @@ export class MockService {
     const user = users.find((u) => u.id === userId);
     if (!user) throw new Error('মেম্বার পাওয়া যায়নি');
 
+    // 🔒 Emergency Gate: If date is under emergency closure, force all meals OFF regardless of input
+    const emergencies = await this.getEmergencies();
+    const isEmergencyDay = emergencies.some((em) => {
+      const start = em.date;
+      const end = em.endDate || em.date;
+      return date >= start && date <= end;
+    });
+    if (isEmergencyDay) {
+      meals = { breakfast: false, lunch: false, dinner: false };
+    }
+
     const rates = await this.getMealRates();
     const userRates = user.userType === 'PERMANENT' ? rates.permanent : rates.guest;
     
@@ -699,7 +725,7 @@ export class MockService {
     const totalCost = (meals.breakfast ? bPrice : 0) + (meals.lunch ? lPrice : 0) + (meals.dinner ? dPrice : 0);
 
     // Strict balance lock: If total cost exceeds wallet balance, prune meals to fit within balance
-    if (totalCost > user.walletBalance) {
+    if (!isEmergencyDay && totalCost > user.walletBalance) {
       let sum = 0;
       let safeB = false;
       let safeL = false;
@@ -756,17 +782,47 @@ export class MockService {
     closedMeals?: ('breakfast' | 'lunch' | 'dinner')[]
   ): Promise<EmergencyClosure> {
     const emergencies = await this.getEmergencies();
+    const resolvedEnd = endDate && endDate >= startDate ? endDate : startDate;
     const newEm: EmergencyClosure = {
       id: 'em_' + Date.now(),
       date: startDate,
-      endDate: endDate && endDate >= startDate ? endDate : startDate,
+      endDate: resolvedEnd,
       reason,
       closedMeals: closedMeals || ['breakfast', 'lunch', 'dinner'],
       createdAt: new Date().toISOString(),
     };
     emergencies.unshift(newEm);
     localStorage.setItem(this.STORAGE_KEY_EMERGENCIES, JSON.stringify(emergencies));
-    await this.logAudit(adminId, 'EMERGENCY_OFF', undefined, `Emergency off from ${startDate} to ${newEm.endDate}: ${reason}`);
+
+    // 🔒 Immediately zero ALL existing declarations for every day in the emergency range
+    // This ensures active declarations don't linger until someone opens CookReport
+    const [sy, sm, sd] = startDate.split('-').map(Number);
+    const [ey, em, ed] = resolvedEnd.split('-').map(Number);
+    const startDt = new Date(sy, sm - 1, sd);
+    const endDt = new Date(ey, em - 1, ed);
+
+    const rawDecs = localStorage.getItem(this.STORAGE_KEY_DECLARATIONS);
+    const decs: MealDeclaration[] = rawDecs ? JSON.parse(rawDecs) : [];
+    let changed = false;
+
+    for (let dt = new Date(startDt); dt <= endDt; dt.setDate(dt.getDate() + 1)) {
+      const dateStr = getBangladeshDateStr(new Date(dt));
+      decs.forEach((dec) => {
+        if (dec.date === dateStr && (dec.breakfast || dec.lunch || dec.dinner)) {
+          dec.breakfast = false;
+          dec.lunch = false;
+          dec.dinner = false;
+          dec.updatedAt = new Date().toISOString();
+          changed = true;
+        }
+      });
+    }
+
+    if (changed) {
+      localStorage.setItem(this.STORAGE_KEY_DECLARATIONS, JSON.stringify(decs));
+    }
+
+    await this.logAudit(adminId, 'EMERGENCY_OFF', undefined, `Emergency off from ${startDate} to ${resolvedEnd}: ${reason}`);
     return newEm;
   }
 
@@ -952,6 +1008,53 @@ export class MockService {
 
   private static async logFailedLogin(phone: string, reason: string): Promise<void> {
     await this.logAudit('system', 'FAILED_LOGIN_UNKNOWN', undefined, `অজানা ফোন নম্বর (${phone}): ${reason}`);
+  }
+
+  static async requestPasswordReset(phone: string): Promise<User> {
+    const cleanPhone = (phone || '').trim();
+    if (!cleanPhone) {
+      throw new Error('দয়া করে আপনার নিবন্ধিত ফোন নম্বর প্রদান করুন');
+    }
+
+    const users = await this.getUsers();
+    const user = users.find((u) => u.phone === cleanPhone);
+    if (!user) {
+      throw new Error('এই ফোন নম্বরটি সিস্টেমে নিবন্ধিত নয়');
+    }
+
+    user.isPasswordResetRequested = true;
+    user.passwordResetRequestedAt = new Date().toISOString();
+
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+    await this.logAudit('system', 'PASSWORD_RESET_REQUESTED', user.id, `পাসওয়ার্ড রিসেট অনুরোধ করা হয়েছে (${user.name})`);
+    return user;
+  }
+
+  static async approvePasswordReset(adminId: string, userId: string, resetPasswordVal = '123'): Promise<User> {
+    const users = await this.getUsers();
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error('মেম্বার পাওয়া যায়নি');
+
+    user.password = resetPasswordVal;
+    user.isPasswordResetRequested = false;
+    delete user.passwordResetRequestedAt;
+
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+    await this.logAudit(adminId, 'PASSWORD_RESET_APPROVED', userId, `এডমিন কর্তৃক পাসওয়ার্ড রিসেট করে ${resetPasswordVal} সেট করা হয়েছে (${user.name})`);
+    return user;
+  }
+
+  static async rejectPasswordReset(adminId: string, userId: string): Promise<User> {
+    const users = await this.getUsers();
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error('মেম্বার পাওয়া যায়নি');
+
+    user.isPasswordResetRequested = false;
+    delete user.passwordResetRequestedAt;
+
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+    await this.logAudit(adminId, 'PASSWORD_RESET_REJECTED', userId, `এডমিন কর্তৃক পাসওয়ার্ড রিসেট অনুরোধ বাতিল করা হয়েছে (${user.name})`);
+    return user;
   }
 
   static async register(data: Partial<User>): Promise<User> {

@@ -21,6 +21,28 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [pendingUserNotice, setPendingUserNotice] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Password reset modal state
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetPhone, setResetPhone] = useState('');
+  const [resetSuccessNotice, setResetSuccessNotice] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const handleRequestResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError(null);
+    setResetSuccessNotice(null);
+    setResetLoading(true);
+    try {
+      await MockService.requestPasswordReset(resetPhone);
+      setResetSuccessNotice('আপনার পাসওয়ার্ড রিসেট অনুরোধ সফলভাবে অ্যাডমিনের কাছে পাঠানো হয়েছে! অ্যাডমিন অনুমোদন করলে আপনার পাসওয়ার্ড রিসেট হয়ে 123 হবে।');
+    } catch (err: any) {
+      setResetError(err.message || 'অনুরোধ পাঠাতে সমস্যা হয়েছে');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -54,24 +76,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleQuickLogin = async (phoneNum: string, pass: string) => {
-    setPhone(phoneNum);
-    setPassword(pass);
-    setError(null);
-    setLoading(true);
-    try {
-      const user = await MockService.login(phoneNum, pass);
-      if (user.status === 'PENDING') {
-        setPendingUserNotice(user);
-      } else {
-        onLoginSuccess(user);
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#050811]">
@@ -186,7 +190,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 font-sans">{BN.passwordPlaceholder}</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-300 font-sans">{BN.passwordPlaceholder}</label>
+                  {mode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null);
+                        setResetPhone(phone);
+                        setShowResetModal(true);
+                      }}
+                      className="text-xs text-amber-400 hover:text-amber-300 hover:underline font-sans font-semibold transition"
+                    >
+                      পাসওয়ার্ড ভুলে গেছেন?
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <Lock className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -258,6 +277,98 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         )}
 
       </div>
+
+      {/* Forgot Password Reset Request Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-amber-500/30 max-w-md w-full shadow-2xl space-y-5 animate-scale-in">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                  <KeyRound className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-100 font-display">পাসওয়ার্ড রিসেট অনুরোধ</h3>
+                  <p className="text-xs text-slate-400 font-sans">পাসওয়ার্ড রিসেট অনুরোধ পাঠাতে ফোন নম্বর দিন</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowResetModal(false);
+                  setResetSuccessNotice(null);
+                  setResetError(null);
+                }}
+                className="p-2 rounded-xl bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800"
+              >
+                ✕
+              </button>
+            </div>
+
+            {resetSuccessNotice ? (
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs space-y-3">
+                <p className="font-semibold">{resetSuccessNotice}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowResetModal(false);
+                    setResetSuccessNotice(null);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs font-display hover:bg-emerald-400 transition"
+                >
+                  ঠিক আছে (ঠিক আছে)
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleRequestResetSubmit} className="space-y-4">
+                {resetError && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold">
+                    {resetError}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 font-sans">আপনার নিবন্ধিত মোবাইল নম্বর</label>
+                  <div className="relative">
+                    <Phone className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      value={resetPhone}
+                      onChange={(e) => setResetPhone(e.target.value)}
+                      placeholder="01711111111"
+                      className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl py-3 pl-11 pr-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/10 text-slate-300 text-xs font-sans space-y-1">
+                  <p className="font-bold text-amber-300">💡 পাসওয়ার্ড রিসেট নিয়মাবলী:</p>
+                  <p>অনুরোধটি মেস অ্যাডমিনের কাছে পাঠানো হবে। অ্যাডমিন অনুমোদন করলে আপনার পাসওয়ার্ড ডিফল্ট <code className="bg-slate-900 px-1.5 py-0.5 rounded text-amber-400 font-mono font-bold">123</code> এ সেট হবে।</p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowResetModal(false)}
+                    className="flex-1 py-3 rounded-2xl bg-slate-900 border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-bold transition font-display"
+                  >
+                    বাতিল
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-extrabold text-xs transition shadow-lg shadow-amber-500/20 active:scale-95 font-display"
+                  >
+                    {resetLoading ? 'অনুরোধ পাঠানো হচ্ছে...' : 'অনুরোধ পাঠান'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

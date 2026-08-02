@@ -20,6 +20,12 @@ import { FinancialDashboard } from './components/admin/FinancialDashboard';
 import { MockService } from './services/mockStorage';
 import { User } from './types';
 
+// All roles that have administrative access
+const ADMIN_ROLES = new Set([
+  'ADMIN', 'SUPERADMIN', 'OWNER', 'FINANCE_ADMIN',
+  'MEAL_MANAGER', 'HOSTEL_MANAGER', 'AUDITOR', 'SUPPORT_ADMIN', 'READONLY_ADMIN'
+]);
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -41,7 +47,7 @@ const MainApplication: React.FC = () => {
     MockService.getCurrentUser().then((u) => {
       if (u) {
         setCurrentUser(u);
-        if (u.role === 'ADMIN' || u.role === 'SUPERADMIN') {
+        if (ADMIN_ROLES.has(u.role)) {
           setActiveTab('admin-dashboard');
         }
       }
@@ -147,8 +153,8 @@ const MainApplication: React.FC = () => {
 
   const pendingCount = users.filter((u) => u.status === 'PENDING').length;
   const isAdmin = !!currentUser && (
-    currentUser.activeMode === 'ADMIN' || 
-    (currentUser.activeMode !== 'USER' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN'))
+    currentUser.activeMode === 'ADMIN' ||
+    (currentUser.activeMode !== 'USER' && ADMIN_ROLES.has(currentUser.role))
   );
 
   // Strict route protection guard for non-admin users (Must be called before any early returns to obey React Rules of Hooks)
@@ -164,7 +170,7 @@ const MainApplication: React.FC = () => {
         <AmbientBackground />
         <AuthScreen onLoginSuccess={(u) => {
           setCurrentUser(u);
-          if (u.role === 'ADMIN' || u.role === 'SUPERADMIN') setActiveTab('admin-dashboard');
+          if (ADMIN_ROLES.has(u.role)) setActiveTab('admin-dashboard');
           else setActiveTab('dashboard');
           handleRefreshAll();
         }} />
@@ -303,6 +309,7 @@ const MainApplication: React.FC = () => {
                     declarations={declarations}
                     rates={rates}
                     specialMeals={specialMeals}
+                    emergencies={emergencies}
                     onRefreshData={handleRefreshAll}
                   />
                 )}

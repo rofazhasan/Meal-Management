@@ -48,6 +48,8 @@ export interface User {
   isDualMode?: boolean;
   activeMode?: 'ADMIN' | 'USER';
   isIndefinitelyPaused?: boolean;
+  isPasswordResetRequested?: boolean;
+  passwordResetRequestedAt?: string;
   createdAt: string;
 }
 

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight, Users, AlertCircle, Download, FileText, Printer, Sparkles, CheckCircle2, Wallet, HandCoins } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight, Users, AlertCircle, Download, FileText, Printer, Sparkles, CheckCircle2, Wallet, HandCoins, ClipboardList, CheckCheck, XCircle } from 'lucide-react';
 import { FinancialMetrics, WalletTransaction, User } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
@@ -24,6 +24,83 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   const [feeAmount, setFeeAmount] = useState<number>(500);
   const [feeMonthYear, setFeeMonthYear] = useState<string>('আগস্ট ২০২৬');
   const [feeSubmitting, setFeeSubmitting] = useState(false);
+
+  // Monthly Fee Status Tracker
+  const [feeCheckMonth, setFeeCheckMonth] = useState(feeMonthYear);
+
+  const feeStatusReport = useMemo(() => {
+    const approvedUsers = users.filter(u => u.status === 'APPROVED');
+    return approvedUsers.map(u => {
+      const paid = transactions.find(
+        tx =>
+          tx.userId === u.id &&
+          (tx.type === 'MONTHLY_CHARGE' || tx.type === 'CASH_PAID') &&
+          tx.description.includes(feeCheckMonth)
+      );
+      return {
+        user: u,
+        paid: !!paid,
+        method: paid
+          ? paid.type === 'MONTHLY_CHARGE'
+            ? 'ওয়ালেট কর্তন'
+            : 'হাতে ক্যাশ'
+          : null,
+        amount: paid ? paid.amount : null,
+        paidAt: paid ? new Date(paid.date).toLocaleDateString('bn-BD') : null,
+      };
+    });
+  }, [users, transactions, feeCheckMonth]);
+
+  const paidCount = feeStatusReport.filter(r => r.paid).length;
+  const unpaidCount = feeStatusReport.filter(r => !r.paid).length;
+
+  const handlePrintFeeReport = () => {
+    const style = `
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Hind Siliguri', sans-serif; background: #fff; color: #0f172a; padding: 28px; }
+        h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .meta { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+        .summary { display: flex; gap: 16px; margin-bottom: 18px; }
+        .pill { padding: 6px 14px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+        .green { background: #dcfce7; color: #166534; }
+        .red { background: #fee2e2; color: #991b1b; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { background: #f1f5f9; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .badge-green { background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; }
+        .badge-red { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; }
+        footer { margin-top: 24px; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+      </style>
+    `;
+    const rows = feeStatusReport.map(r => `
+      <tr>
+        <td>${r.user.name}</td>
+        <td class="mono">${r.user.phone}</td>
+        <td>${r.paid ? `<span class="badge-green">✅ পরিশোধ করেছেন</span>` : '<span class="badge-red">❌ বকেয়া</span>'}</td>
+        <td class="mono">${r.amount != null ? '৳' + r.amount : '-'}</td>
+        <td>${r.method || '-'}</td>
+        <td>${r.paidAt || '-'}</td>
+      </tr>
+    `).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">${style}<title>মাসিক ফি স্ট্যাটাস - ${feeCheckMonth}</title></head><body>
+      <h1>মাসিক ফি পরিশোধের তালিকা</h1>
+      <p class="meta">মাস: ${feeCheckMonth} &nbsp;|&nbsp; মোট সদস্য: ${feeStatusReport.length} জন &nbsp;|&nbsp; মুদ্রণের সময়: ${new Date().toLocaleString('bn-BD')}</p>
+      <div class="summary">
+        <span class="pill green">✅ পরিশোধ করেছেন: ${paidCount} জন</span>
+        <span class="pill red">❌ বকেয়া আছেন: ${unpaidCount} জন</span>
+      </div>
+      <table>
+        <thead><tr><th>নাম</th><th>ফোন</th><th>স্ট্যাটাস</th><th>পরিমাণ</th><th>পদ্ধতি</th><th>তারিখ</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <footer>মিল ম্যানেজার সিস্টেম — মাসিক ফি স্ট্যাটাস রিপোর্ট</footer>
+    </body></html>`;
+    const win = window.open('', '_blank');
+    if (win) { win.document.write(html); win.document.close(); win.focus(); setTimeout(() => win.print(), 400); }
+  };
 
   const handleCollectMonthlyFee = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -250,6 +327,124 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
             <Sparkles className="w-3.5 h-3.5" /> নিট অপারেটিং প্রফিট
           </p>
         </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════
+          MONTHLY FEE STATUS TRACKER
+          ═══════════════════════════════════════════════════════════ */}
+      <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-emerald-500/30 space-y-5 shadow-xl">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30">
+              <ClipboardList className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white font-display">মাসিক ফি পরিশোধের তালিকা</h3>
+              <p className="text-xs text-slate-400">কোন সদস্য ফি দিয়েছেন আর কে বকেয়া আছেন তা দেখুন</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <input
+              type="text"
+              value={feeCheckMonth}
+              onChange={e => setFeeCheckMonth(e.target.value)}
+              placeholder="যেমন: আগস্ট ২০২৬"
+              className="bg-slate-900/80 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-100 font-bold focus:border-emerald-500 focus:outline-none min-w-[150px]"
+            />
+            <button
+              onClick={handlePrintFeeReport}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-slate-100 border border-slate-600/60 font-bold text-xs transition-all shadow-md active:scale-95 whitespace-nowrap"
+            >
+              <Printer className="w-4 h-4 text-emerald-400" />
+              প্রিন্ট রিপোর্ট
+            </button>
+          </div>
+        </div>
+
+        {/* Summary Pills */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
+            <CheckCheck className="w-5 h-5 text-emerald-400 shrink-0" />
+            <div>
+              <p className="text-2xl font-extrabold text-emerald-400 font-mono">{paidCount}</p>
+              <p className="text-[10px] text-emerald-300 font-bold">ফি পরিশোধ করেছেন</p>
+            </div>
+          </div>
+          <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-3">
+            <XCircle className="w-5 h-5 text-rose-400 shrink-0" />
+            <div>
+              <p className="text-2xl font-extrabold text-rose-400 font-mono">{unpaidCount}</p>
+              <p className="text-[10px] text-rose-300 font-bold">ফি বকেয়া আছেন</p>
+            </div>
+          </div>
+          <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center gap-3 col-span-2 sm:col-span-1">
+            <Users className="w-5 h-5 text-slate-400 shrink-0" />
+            <div>
+              <p className="text-2xl font-extrabold text-slate-300 font-mono">{feeStatusReport.length}</p>
+              <p className="text-[10px] text-slate-400 font-bold">মোট সক্রিয় সদস্য</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Per-User Fee Status Table */}
+        {feeStatusReport.length > 0 ? (
+          <div className="overflow-x-auto rounded-2xl border border-slate-800/80">
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-slate-900/90 uppercase text-[10px] text-slate-400 border-b border-slate-800 font-mono">
+                <tr>
+                  <th className="p-3.5">নাম</th>
+                  <th className="p-3.5">ফোন</th>
+                  <th className="p-3.5">ওয়ালেট</th>
+                  <th className="p-3.5">ফি স্ট্যাটাস</th>
+                  <th className="p-3.5">পরিমাণ</th>
+                  <th className="p-3.5">পদ্ধতি</th>
+                  <th className="p-3.5">তারিখ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 bg-slate-950/40">
+                {feeStatusReport.map(r => (
+                  <tr key={r.user.id} className={`transition-colors ${
+                    r.paid ? 'hover:bg-emerald-500/5' : 'hover:bg-rose-500/5 bg-rose-500/[0.02]'
+                  }`}>
+                    <td className="p-3.5 font-bold text-slate-100">{r.user.name}</td>
+                    <td className="p-3.5 font-mono text-slate-300">{r.user.phone}</td>
+                    <td className="p-3.5 font-mono text-slate-300">৳{r.user.walletBalance}</td>
+                    <td className="p-3.5">
+                      {r.paid ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                          <CheckCircle2 className="w-3 h-3" /> পরিশোধ করেছেন
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 text-[10px] font-bold">
+                          <XCircle className="w-3 h-3" /> বকেয়া আছেন
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3.5 font-mono">
+                      {r.amount != null ? <span className="text-slate-200">৳{r.amount}</span> : <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="p-3.5">
+                      {r.method ? (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                          r.method === 'ওয়ালেট কর্তন'
+                            ? 'bg-sky-500/10 text-sky-300 border-sky-500/30'
+                            : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                        }`}>{r.method}</span>
+                      ) : <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="p-3.5 font-mono text-slate-400">{r.paidAt || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="py-8 text-center">
+            <ClipboardList className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+            <p className="text-slate-500 text-sm">কোনো সক্রিয় সদস্য পাওয়া যায়নি।</p>
+          </div>
+        )}
       </div>
 
       {/* Monthly Fee Collection & Management Card */}

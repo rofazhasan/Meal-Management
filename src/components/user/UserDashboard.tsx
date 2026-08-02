@@ -57,18 +57,19 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   const todayStr = getBangladeshDateStr();
   const userRates = currentUser.userType === 'PERMANENT' ? rates.permanent : rates.guest;
 
+  const todayEmergency = emergencies.find(e => todayStr >= e.date && todayStr <= (e.endDate || e.date));
+
+  // todayDec defaults: if emergency, all OFF; otherwise use wallet-safe defaults using correct user rates
   const todayDec = declarations.find(d => d.date === todayStr) || {
     id: 'temp',
     userId: currentUser.id,
     date: todayStr,
-    breakfast: true,
-    lunch: true,
-    dinner: true,
+    breakfast: !todayEmergency && currentUser.walletBalance >= userRates.breakfast,
+    lunch:     !todayEmergency && currentUser.walletBalance >= userRates.lunch,
+    dinner:    !todayEmergency && currentUser.walletBalance >= userRates.dinner,
     isAutoCopied: false,
     updatedAt: new Date().toISOString(),
   };
-
-  const todayEmergency = emergencies.find(e => todayStr >= e.date && todayStr <= (e.endDate || e.date));
 
   // Live 10 AM Deadline Calculator in Bangladesh Standard Time (UTC+6)
   useEffect(() => {
@@ -96,8 +97,27 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   }, []);
 
   const handleToggleTodayMeal = async (meal: 'breakfast' | 'lunch' | 'dinner') => {
+    // Block if emergency is active for today
+    if (todayEmergency) {
+      alert('জরুরি নোটিশ সক্রিয়! আজকের মিল বন্ধ রাখা হয়েছে। এডমিন কর্তৃক জরুরি বন্ধ চলাকালীন মিল পরিবর্তন করা সম্ভব নয়।');
+      return;
+    }
     if (isPassed10AM) {
       alert(BN.deadlinePassedWarning);
+      return;
+    }
+    // Block if globally off
+    if (
+      (meal === 'breakfast' && rates.globalMealStatus?.breakfast === false) ||
+      (meal === 'lunch' && rates.globalMealStatus?.lunch === false) ||
+      (meal === 'dinner' && rates.globalMealStatus?.dinner === false)
+    ) {
+      alert('এই মিলটি এডমিন কর্তৃক বিশ্বব্যাপী বন্ধ (Global OFF) রাখা হয়েছে।');
+      return;
+    }
+    // Block if indefinitely paused
+    if (currentUser.isIndefinitelyPaused) {
+      alert('আপনার মিল সুবিধা অনির্দিষ্টকালের জন্য স্থগিত। মিল প্ল্যান ট্যাবে গিয়ে চালু করুন।');
       return;
     }
     const newMeals = {
@@ -106,9 +126,22 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
       dinner: todayDec.dinner,
       [meal]: !todayDec[meal],
     };
+    // Wallet balance check: prevent turning ON if total cost exceeds balance
+    if (!todayDec[meal]) {
+      // User is trying to turn meal ON — check if affordable
+      const totalCost =
+        (newMeals.breakfast ? userRates.breakfast : 0) +
+        (newMeals.lunch ? userRates.lunch : 0) +
+        (newMeals.dinner ? userRates.dinner : 0);
+      if (totalCost > currentUser.walletBalance) {
+        alert(`আপনার ওয়ালেট ব্যালেন্স (৳${currentUser.walletBalance}) দিয়ে এই মিলটি চালু রাখা সম্ভব নয় (প্রয়োজন ৳${totalCost})। মেস এডমিন থেকে রিচার্জ করুন।`);
+        return;
+      }
+    }
     await MockService.updateDeclaration(currentUser.id, todayStr, newMeals);
     onRefreshData();
   };
+
 
   return (
     <div className="space-y-6 pb-24 max-w-7xl mx-auto animate-scale-in">
@@ -180,6 +213,49 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* Low-Balance Warning Banner */}
+      {!currentUser.isIndefinitelyPaused && (() => {
+        const minMealRate = Math.min(userRates.breakfast, userRates.lunch, userRates.dinner);
+        const warningThreshold = minMealRate * 2;
+        const isLowBalance = currentUser.walletBalance < warningThreshold;
+        if (!isLowBalance) return null;
+
+        const canAffordAny = currentUser.walletBalance >= minMealRate;
+        return (
+          <div className="relative overflow-hidden p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-rose-950/80 via-slate-900 to-slate-900 border border-rose-500/50 shadow-xl shadow-rose-950/30 animate-slide-up">
+            {/* Glow blob */}
+            <div className="absolute top-0 left-0 w-40 h-40 bg-rose-500/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="flex items-start gap-4 relative z-10">
+              <div className="p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/40 shrink-0 mt-0.5">
+                <AlertCircle className="w-5 h-5 text-rose-400 animate-pulse" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-extrabold text-sm font-display text-rose-300 mb-1">
+                  ⚠️ ওয়ালেট ব্যালেন্স সংকটজনক!
+                </h4>
+                <p className="text-xs text-rose-200/80 leading-relaxed font-sans">
+                  আপনার বর্তমান ব্যালেন্স{' '}
+                  <span className="font-bold text-rose-300 font-mono">৳{currentUser.walletBalance}</span>।{' '}
+                  {canAffordAny
+                    ? `মাত্র ${Math.floor(currentUser.walletBalance / minMealRate)} টি মিল বাকি। শীঘ্রই সিস্টেম স্বয়ংক্রিয়ভাবে মিল বন্ধ করে দিতে পারে।`
+                    : 'ব্যালেন্স শেষ! সিস্টেম ইতিমধ্যে নতুন মিল বরাদ্দ বন্ধ করেছে।'}
+                </p>
+                <p className="text-[11px] text-rose-300/70 mt-1.5 font-sans">
+                  মিল চালু রাখতে মেস এডমিনকে রিচার্জের অনুরোধ করুন।
+                </p>
+              </div>
+              <button
+                onClick={() => onNavigateTab('wallet')}
+                className="shrink-0 px-3.5 py-2 rounded-xl bg-rose-500/20 text-rose-200 border border-rose-500/40 hover:bg-rose-500/30 text-[11px] font-bold transition-all active:scale-95 flex items-center gap-1.5 whitespace-nowrap"
+              >
+                <Wallet className="w-3.5 h-3.5" />
+                ওয়ালেট দেখুন
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Hero Grid Cards: Wallet Balance & 10 AM Cutoff Timer */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -288,74 +364,71 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           
-          {/* Breakfast */}
-          <div
-            onClick={() => handleToggleTodayMeal('breakfast')}
-            className={`p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between group ${
-              todayDec.breakfast
-                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 shadow-lg shadow-emerald-950/20'
-                : 'bg-slate-900/60 border-slate-800/80 text-slate-400 hover:border-slate-700'
-            }`}
-          >
-            <div>
-              <p className="text-xs font-semibold text-slate-400">{BN.breakfast}</p>
-              <p className="text-xl font-bold mt-1 font-display">
-                {todayDec.breakfast ? BN.mealOn : BN.mealOff}
-              </p>
-              <p className="text-xs font-mono opacity-80 mt-1">৳{userRates.breakfast}</p>
-            </div>
-            {todayDec.breakfast ? (
-              <CheckCircle2 className="w-8 h-8 text-emerald-400 group-hover:scale-110 transition-transform" />
-            ) : (
-              <XCircle className="w-8 h-8 text-slate-600 group-hover:scale-110 transition-transform" />
-            )}
-          </div>
+          {/* Helper: Is a specific meal currently locked? */}
+          {(() => {
+            const isLocked = (meal: 'breakfast' | 'lunch' | 'dinner') =>
+              !!todayEmergency ||
+              currentUser.isIndefinitelyPaused ||
+              isPassed10AM ||
+              rates.globalMealStatus?.[meal] === false;
 
-          {/* Lunch */}
-          <div
-            onClick={() => handleToggleTodayMeal('lunch')}
-            className={`p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between group ${
-              todayDec.lunch
-                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 shadow-lg shadow-emerald-950/20'
-                : 'bg-slate-900/60 border-slate-800/80 text-slate-400 hover:border-slate-700'
-            }`}
-          >
-            <div>
-              <p className="text-xs font-semibold text-slate-400">{BN.lunch}</p>
-              <p className="text-xl font-bold mt-1 font-display">
-                {todayDec.lunch ? BN.mealOn : BN.mealOff}
-              </p>
-              <p className="text-xs font-mono opacity-80 mt-1">৳{userRates.lunch}</p>
-            </div>
-            {todayDec.lunch ? (
-              <CheckCircle2 className="w-8 h-8 text-emerald-400 group-hover:scale-110 transition-transform" />
-            ) : (
-              <XCircle className="w-8 h-8 text-slate-600 group-hover:scale-110 transition-transform" />
-            )}
-          </div>
+            const cardClass = (meal: 'breakfast' | 'lunch' | 'dinner', isOn: boolean) => {
+              if (isLocked(meal))
+                return 'p-5 rounded-2xl border cursor-not-allowed transition-all flex items-center justify-between opacity-60 bg-rose-950/30 border-rose-500/30 text-rose-400';
+              return `p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between group ${
+                isOn
+                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 shadow-lg shadow-emerald-950/20'
+                  : 'bg-slate-900/60 border-slate-800/80 text-slate-400 hover:border-slate-700'
+              }`;
+            };
 
-          {/* Dinner */}
-          <div
-            onClick={() => handleToggleTodayMeal('dinner')}
-            className={`p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between group ${
-              todayDec.dinner
-                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 shadow-lg shadow-emerald-950/20'
-                : 'bg-slate-900/60 border-slate-800/80 text-slate-400 hover:border-slate-700'
-            }`}
-          >
-            <div>
-              <p className="text-xs font-semibold text-slate-400">{BN.dinner}</p>
-              <p className="text-xl font-bold mt-1 font-display">
-                {todayDec.dinner ? BN.mealOn : BN.mealOff}
-              </p>
-              <p className="text-xs font-mono opacity-80 mt-1">৳{userRates.dinner}</p>
-            </div>
-            {todayDec.dinner ? (
-              <CheckCircle2 className="w-8 h-8 text-emerald-400 group-hover:scale-110 transition-transform" />
-            ) : (
-              <XCircle className="w-8 h-8 text-slate-600 group-hover:scale-110 transition-transform" />
-            )}
-          </div>
+            const IconFor = ({ meal, isOn }: { meal: 'breakfast' | 'lunch' | 'dinner'; isOn: boolean }) => {
+              if (isLocked(meal)) return <Lock className="w-8 h-8 text-rose-500" />;
+              return isOn
+                ? <CheckCircle2 className="w-8 h-8 text-emerald-400 group-hover:scale-110 transition-transform" />
+                : <XCircle className="w-8 h-8 text-slate-600 group-hover:scale-110 transition-transform" />;
+            };
+
+            return (
+              <>
+                {/* Breakfast */}
+                <div onClick={() => handleToggleTodayMeal('breakfast')} className={cardClass('breakfast', todayDec.breakfast)}>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-400">{BN.breakfast}</p>
+                    <p className="text-xl font-bold mt-1 font-display">
+                      {isLocked('breakfast') ? 'বন্ধ (লক)' : todayDec.breakfast ? BN.mealOn : BN.mealOff}
+                    </p>
+                    <p className="text-xs font-mono opacity-80 mt-1">৳{userRates.breakfast}</p>
+                  </div>
+                  <IconFor meal="breakfast" isOn={todayDec.breakfast} />
+                </div>
+
+                {/* Lunch */}
+                <div onClick={() => handleToggleTodayMeal('lunch')} className={cardClass('lunch', todayDec.lunch)}>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-400">{BN.lunch}</p>
+                    <p className="text-xl font-bold mt-1 font-display">
+                      {isLocked('lunch') ? 'বন্ধ (লক)' : todayDec.lunch ? BN.mealOn : BN.mealOff}
+                    </p>
+                    <p className="text-xs font-mono opacity-80 mt-1">৳{userRates.lunch}</p>
+                  </div>
+                  <IconFor meal="lunch" isOn={todayDec.lunch} />
+                </div>
+
+                {/* Dinner */}
+                <div onClick={() => handleToggleTodayMeal('dinner')} className={cardClass('dinner', todayDec.dinner)}>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-400">{BN.dinner}</p>
+                    <p className="text-xl font-bold mt-1 font-display">
+                      {isLocked('dinner') ? 'বন্ধ (লক)' : todayDec.dinner ? BN.mealOn : BN.mealOff}
+                    </p>
+                    <p className="text-xs font-mono opacity-80 mt-1">৳{userRates.dinner}</p>
+                  </div>
+                  <IconFor meal="dinner" isOn={todayDec.dinner} />
+                </div>
+              </>
+            );
+          })()}
 
         </div>
       </div>

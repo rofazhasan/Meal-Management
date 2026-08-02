@@ -3,7 +3,7 @@ import { Settings, Save, CheckCircle2, DollarSign, ToggleLeft, ToggleRight, Cloc
 import { MealRateConfig, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { MockService } from '../../services/mockStorage';
-import { getBangladeshDateStr } from '../../utils/dateUtils';
+import { getBangladeshDateStr, getDayOfWeekFromDateStr } from '../../utils/dateUtils';
 
 interface SettingsPanelProps {
   rates: MealRateConfig;
@@ -234,12 +234,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeal
             মিলের ডেডলাইন সময় নির্ধারণ (Cutoff Cut-off Time)
           </h3>
           <input
-            type="text"
+            type="time"
             value={cutoffTime}
             onChange={(e) => setCutoffTime(e.target.value)}
             className="w-full sm:w-48 bg-slate-900/80 border border-slate-700/80 rounded-xl p-3 text-base font-mono font-bold text-cyan-400 focus:border-cyan-500 focus:outline-none"
           />
-          <p className="text-xs text-slate-400 font-sans">ডিফল্ট সময়: ১০:০০ AM</p>
+          <p className="text-xs text-slate-400 font-sans">ডিফল্ট সময়: ১০:০০ AM (২৪-ঘণ্টা ফরম্যাট)</p>
         </div>
 
         {/* Save Button */}
@@ -339,7 +339,8 @@ const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshDa
               const newDate = e.target.value;
               setDate(newDate);
               if (newDate) {
-                setRepeatDayOfWeek(new Date(newDate).getDay());
+                // FIX 5: Use timezone-safe helper instead of new Date().getDay() which parses as UTC midnight
+                setRepeatDayOfWeek(getDayOfWeekFromDateStr(newDate));
               }
             }}
             className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-3 text-slate-100 font-mono"
@@ -444,7 +445,8 @@ const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshDa
           <div className="space-y-2">
             {specialMeals.map((sm) => {
               const days = ['রবিবার', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার'];
-              const dayName = days[sm.repeatDayOfWeek !== undefined ? sm.repeatDayOfWeek : new Date(sm.date).getDay()];
+              // FIX 6: Use timezone-safe helper instead of new Date(sm.date).getDay() which gives wrong weekday
+              const dayName = days[sm.repeatDayOfWeek !== undefined ? sm.repeatDayOfWeek : getDayOfWeekFromDateStr(sm.date)];
 
               return (
                 <div key={sm.id} className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">

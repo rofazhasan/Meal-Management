@@ -5,7 +5,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const connectionString = process.env.DATABASE_URL || "postgresql://neondb_owner:npg_PikgL8eCj1pX@ep-gentle-pine-ax7ory74-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error("❌ ERROR: DATABASE_URL environment variable is not set.");
+  console.error("   Please create a .env file with your DATABASE_URL and run: node -r dotenv/config scripts/seed-neon-db.js");
+  process.exit(1);
+}
 
 const client = new pg.Client({
   connectionString,
@@ -18,6 +23,9 @@ async function main() {
   console.log("✅ Connected successfully to Neon DB!");
 
   console.log("👑 Updating Real Master Superadmin Account in Neon DB...");
+  // ⚠️  SECURITY WARNING: 'password_hash' below stores a PLAINTEXT password.
+  // Before going to production, replace this with a properly bcrypt-hashed value.
+  // Example: const hash = await bcrypt.hash('your-secure-password', 12);
   const adminQuery = `
     INSERT INTO users (id, phone_number, password_hash, full_name, role, user_type, approval_status, is_active)
     VALUES 
