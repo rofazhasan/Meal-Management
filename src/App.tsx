@@ -203,6 +203,7 @@ const MainApplication: React.FC = () => {
               users={users}
               declarations={declarations}
               rates={rates}
+              specialMeals={specialMeals}
               onNavigateToLogin={() => setUnauthView('login')}
             />
           ) : (
@@ -324,6 +325,7 @@ const MainApplication: React.FC = () => {
                     users={users}
                     declarations={declarations}
                     rates={rates}
+                    specialMeals={specialMeals}
                     currentUser={currentUser}
                     onNavigateToLogin={() => setActiveTab('dashboard')}
                   />

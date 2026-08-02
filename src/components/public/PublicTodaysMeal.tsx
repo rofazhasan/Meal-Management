@@ -19,29 +19,43 @@ import {
   ArrowRight,
   Banknote,
   Coins,
-  TrendingUp
+  TrendingUp,
+  Clock,
+  Timer,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  DollarSign,
+  Gift
 } from 'lucide-react';
-import { User, MealDeclaration, MealRateConfig } from '../../types';
+import { User, MealDeclaration, MealRateConfig, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AppLogo } from '../common/AppLogo';
-import { getBangladeshDateStr } from '../../utils/dateUtils';
+import { getBangladeshDateStr, getBangladeshNow } from '../../utils/dateUtils';
 
 interface PublicTodaysMealProps {
   users: User[];
   declarations: MealDeclaration[];
   rates?: MealRateConfig;
+  specialMeals?: SpecialMeal[];
   onNavigateToLogin: () => void;
   currentUser?: User | null;
 }
+
+export type StatusFilterType = 'ALL' | 'ALL_ON' | 'PARTIAL' | 'ALL_OFF';
 
 export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
   users,
   declarations,
   rates,
+  specialMeals = [],
   onNavigateToLogin,
   currentUser,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilterType>('ALL');
+  const [showRatesCard, setShowRatesCard] = useState(false);
   const [selectedUserForModal, setSelectedUserForModal] = useState<User | null>(null);
 
   const todayStr = getBangladeshDateStr();
@@ -71,6 +85,30 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
       .forEach((d) => map.set(d.userId, d));
     return map;
   }, [declarations, todayStr]);
+
+  // Today's Special Meals list
+  const todaysSpecialMeals = useMemo(() => {
+    return specialMeals.filter((sm) => sm.date === todayStr);
+  }, [specialMeals, todayStr]);
+
+  // Cutoff Deadline & Time Remaining Calculation
+  const cutoffInfo = useMemo(() => {
+    const cutoffStr = rates?.cutoffTime || '10:00';
+    const [cHour, cMin] = cutoffStr.split(':').map(Number);
+    const bdNow = getBangladeshNow();
+    const currentHour = bdNow.getHours();
+    const currentMin = bdNow.getMinutes();
+    
+    const nowMinutes = currentHour * 60 + currentMin;
+    const cutoffMinutes = cHour * 60 + cMin;
+    
+    const isPassed = nowMinutes >= cutoffMinutes;
+    const diffMinutes = Math.max(0, cutoffMinutes - nowMinutes);
+    const hoursLeft = Math.floor(diffMinutes / 60);
+    const minsLeft = diffMinutes % 60;
+    
+    return { cutoffStr, isPassed, hoursLeft, minsLeft };
+  }, [rates?.cutoffTime]);
 
   // Overall Statistics for Today (Counts & Financial Amounts)
   const stats = useMemo(() => {
@@ -121,16 +159,51 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
     };
   }, [approvedUsers, todayDeclarationsMap, rates]);
 
-  // Filtered Users based on Search
+  // Status Counts for Filter Pills
+  const statusCounts = useMemo(() => {
+    let allOn = 0;
+    let partial = 0;
+    let allOff = 0;
+
+    approvedUsers.forEach((u) => {
+      const dec = todayDeclarationsMap.get(u.id);
+      const b = dec ? dec.breakfast : false;
+      const l = dec ? dec.lunch : false;
+      const d = dec ? dec.dinner : false;
+
+      if (b && l && d) allOn++;
+      else if (!b && !l && !d) allOff++;
+      else partial++;
+    });
+
+    return { all: approvedUsers.length, allOn, partial, allOff };
+  }, [approvedUsers, todayDeclarationsMap]);
+
+  // Filtered Users based on Search & Status Filter
   const filteredUsers = useMemo(() => {
-    if (!searchTerm.trim()) return approvedUsers;
-    const term = searchTerm.toLowerCase();
-    return approvedUsers.filter((u) => 
-      u.name.toLowerCase().includes(term) ||
-      u.phone.includes(term) ||
-      (u.profile?.department && u.profile.department.toLowerCase().includes(term))
-    );
-  }, [approvedUsers, searchTerm]);
+    return approvedUsers.filter((u) => {
+      // 1. Search term match
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        const matchName = u.name.toLowerCase().includes(term);
+        const matchPhone = u.phone.includes(term);
+        const matchDept = u.profile?.department && u.profile.department.toLowerCase().includes(term);
+        if (!matchName && !matchPhone && !matchDept) return false;
+      }
+
+      // 2. Status filter match
+      const dec = todayDeclarationsMap.get(u.id);
+      const b = dec ? dec.breakfast : false;
+      const l = dec ? dec.lunch : false;
+      const d = dec ? dec.dinner : false;
+
+      if (statusFilter === 'ALL_ON' && !(b && l && d)) return false;
+      if (statusFilter === 'ALL_OFF' && (b || l || d)) return false;
+      if (statusFilter === 'PARTIAL' && ((b && l && d) || (!b && !l && !d))) return false;
+
+      return true;
+    });
+  }, [approvedUsers, searchTerm, statusFilter, todayDeclarationsMap]);
 
   // Phone masking function: e.g., 017000000***
   const maskPhone = (phone: string): string => {
@@ -152,6 +225,9 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
     const maskIdx = amountStr.length - 2;
     return `৳ ${amountStr.substring(0, maskIdx)}*${amountStr.substring(maskIdx + 1)}`;
   };
+
+  const permRates = rates?.permanent || { breakfast: 40, lunch: 70, dinner: 70, monthlyCharge: 500 };
+  const guestRates = rates?.guest || { breakfast: 50, lunch: 85, dinner: 85, monthlyCharge: 0 };
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-24 animate-fade-in font-sans">
@@ -195,20 +271,101 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
           )}
         </div>
 
-        {/* Security Notice Pill */}
-        <div className="mt-6 p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800/80 flex items-center gap-3 text-slate-300 text-xs font-medium">
-          <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
-            <Lock className="w-4 h-4" />
+        {/* Security Notice & Meal Rate Toggle Pill */}
+        <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-slate-800/80">
+          <div className="flex items-center gap-3 text-slate-300 text-xs font-medium">
+            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
+              <Lock className="w-4 h-4" />
+            </div>
+            <p className="leading-relaxed">
+              {BN.publicNoticeBanner}
+            </p>
           </div>
-          <p className="leading-relaxed">
-            {BN.publicNoticeBanner}
-          </p>
+
+          <button
+            onClick={() => setShowRatesCard((prev) => !prev)}
+            className="px-4 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-cyan-300 text-xs font-bold transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95 font-display"
+          >
+            <DollarSign className="w-4 h-4 text-cyan-400" />
+            <span>হোস্টেল মিল রেট তালিকা</span>
+            {showRatesCard ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
         </div>
       </div>
 
-      {/* Today's Meal & Financial Grand Breakdown Card */}
-      <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-slate-900/90 via-emerald-950/20 to-slate-900/90 shadow-2xl relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+      {/* Feature 1: Today's Special Meal Banner (if any) */}
+      {todaysSpecialMeals.length > 0 && (
+        <div className="glass-panel p-5 rounded-3xl border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-slate-900/90 to-amber-950/30 shadow-2xl space-y-3 relative overflow-hidden animate-scale-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5 text-amber-400 font-bold text-sm font-display">
+              <Gift className="w-5 h-5 text-amber-400 animate-bounce" />
+              <span>আজকের বিশেষ স্পেশাল মেনু নোটিশ</span>
+            </div>
+            <span className="px-3 py-1 rounded-full text-[11px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono">
+              SPECIAL MEAL
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            {todaysSpecialMeals.map((sm) => (
+              <div key={sm.id} className="p-3.5 rounded-2xl bg-slate-900/90 border border-amber-500/30 flex items-center justify-between gap-3">
+                <div>
+                  <h4 className="font-extrabold text-amber-200 text-sm font-display">{sm.title}</h4>
+                  <p className="text-xs text-slate-400 font-sans mt-0.5">{sm.description || 'স্পেশাল মিল আয়োজন'}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs text-amber-300/80 block uppercase font-mono">স্পেশাল রেট</span>
+                  <span className="text-lg font-black text-amber-400 font-mono">৳ {sm.customRate}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Feature 2: Meal Cutoff Deadline & Schedule Card */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Cutoff Deadline Card */}
+        <div className={`glass-card p-5 rounded-2xl border transition-all ${
+          cutoffInfo.isPassed 
+            ? 'border-rose-500/30 bg-rose-500/5' 
+            : 'border-emerald-500/30 bg-emerald-500/5'
+        }`}>
+          <div className="flex items-center justify-between text-xs font-bold mb-2">
+            <div className="flex items-center gap-2">
+              <Clock className={`w-4 h-4 ${cutoffInfo.isPassed ? 'text-rose-400' : 'text-emerald-400'}`} />
+              <span className="font-display">দৈনিক মিল পরিবর্তন ডেডলাইন</span>
+            </div>
+            <span className="font-mono text-white bg-slate-900 px-2 py-0.5 rounded-md border border-slate-800">
+              {cutoffInfo.cutoffStr} AM
+            </span>
+          </div>
+
+          {cutoffInfo.isPassed ? (
+            <div className="space-y-1">
+              <div className="text-xs font-bold text-rose-400 flex items-center gap-1.5">
+                <XCircle className="w-4 h-4 shrink-0" />
+                <span>আজকের ডেডলাইন পার হয়েছে ({cutoffInfo.cutoffStr} AM)</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+                আজকের মিল পরিবর্তন সময় শেষ। যেকোনো নতুন মিল আপডেট আগামীকাল থেকে কার্যকর হবে।
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                <Timer className="w-4 h-4 shrink-0 animate-spin" />
+                <span>পরিবর্তনের সময় বাকি: {cutoffInfo.hoursLeft} ঘণ্টা {cutoffInfo.minsLeft} মিনিট</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+                সকাল {cutoffInfo.cutoffStr} টার পূর্বে আপনার আজকের মিল চালুকরণ বা বন্ধ করার অপশন খোলা রয়েছে।
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Today's Grand Total Money Card */}
+        <div className="md:col-span-2 glass-panel p-5 rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-slate-900/90 via-emerald-950/20 to-slate-900/90 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
               <Banknote className="w-6 h-6" />
@@ -230,67 +387,132 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Meal Numbers & Money Breakdown Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-          {/* Breakfast Breakdown */}
-          <div className="glass-card p-3.5 rounded-2xl border border-amber-500/20 bg-amber-500/5 space-y-1">
-            <div className="flex items-center justify-between text-amber-300 text-xs font-medium">
-              <span>সকালের নাস্তা</span>
-              <Coffee className="w-3.5 h-3.5 text-amber-400" />
-            </div>
-            <div className="text-xl font-extrabold text-white font-mono">{stats.breakfast} টি</div>
-            <div className="text-xs font-bold text-amber-400 font-mono flex items-center gap-1">
-              <span>৳ {stats.breakfastMoney}</span>
-              <span className="text-[10px] font-normal text-amber-300/70 font-sans">(মোট খরচ)</span>
-            </div>
+      {/* Feature 3: Transparent Meal Rate Card (Expandable) */}
+      {showRatesCard && (
+        <div className="glass-panel p-6 rounded-3xl border border-cyan-500/30 bg-slate-900/95 space-y-4 animate-scale-in">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 className="text-base font-bold text-white font-display flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-cyan-400" />
+              <span>হোস্টেল মিল রেট ও মাসিক সার্ভিস চার্জ তালিকা</span>
+            </h3>
+            <span className="text-xs text-cyan-400 font-mono">অফিসিয়াল রেটকার্ড</span>
           </div>
 
-          {/* Lunch Breakdown */}
-          <div className="glass-card p-3.5 rounded-2xl border border-sky-500/20 bg-sky-500/5 space-y-1">
-            <div className="flex items-center justify-between text-sky-300 text-xs font-medium">
-              <span>দুপুরের খাবার</span>
-              <Sun className="w-3.5 h-3.5 text-sky-400" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Permanent Member Rates */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+              <div className="text-xs font-bold text-cyan-400 uppercase tracking-wider font-mono">
+                স্থায়ী রেসিডেন্ট রেট
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="text-slate-400 block text-[10px]">সকাল</span>
+                  <span className="font-bold text-white font-mono">৳ {permRates.breakfast}</span>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="text-slate-400 block text-[10px]">দুপুর</span>
+                  <span className="font-bold text-white font-mono">৳ {permRates.lunch}</span>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="text-slate-400 block text-[10px]">রাত</span>
+                  <span className="font-bold text-white font-mono">৳ {permRates.dinner}</span>
+                </div>
+              </div>
+              <div className="text-[11px] text-slate-400 flex justify-between pt-1 border-t border-slate-900">
+                <span>মাসিক ফিক্সড সার্ভিস ফি:</span>
+                <span className="font-mono text-cyan-300 font-bold">৳ {permRates.monthlyCharge} / মাস</span>
+              </div>
             </div>
-            <div className="text-xl font-extrabold text-white font-mono">{stats.lunch} টি</div>
-            <div className="text-xs font-bold text-sky-400 font-mono flex items-center gap-1">
-              <span>৳ {stats.lunchMoney}</span>
-              <span className="text-[10px] font-normal text-sky-300/70 font-sans">(মোট খরচ)</span>
+
+            {/* Guest Member Rates */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+              <div className="text-xs font-bold text-amber-400 uppercase tracking-wider font-mono">
+                গেস্ট মেম্বার রেট
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="text-slate-400 block text-[10px]">সকাল</span>
+                  <span className="font-bold text-white font-mono">৳ {guestRates.breakfast}</span>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="text-slate-400 block text-[10px]">দুপুর</span>
+                  <span className="font-bold text-white font-mono">৳ {guestRates.lunch}</span>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="text-slate-400 block text-[10px]">রাত</span>
+                  <span className="font-bold text-white font-mono">৳ {guestRates.dinner}</span>
+                </div>
+              </div>
+              <div className="text-[11px] text-slate-400 flex justify-between pt-1 border-t border-slate-900">
+                <span>মাসিক চার্জ:</span>
+                <span className="font-mono text-amber-300 font-bold">প্রযোজ্য নয় (৳০)</span>
+              </div>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Dinner Breakdown */}
-          <div className="glass-card p-3.5 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 space-y-1">
-            <div className="flex items-center justify-between text-indigo-300 text-xs font-medium">
-              <span>রাতের খাবার</span>
-              <Moon className="w-3.5 h-3.5 text-indigo-400" />
-            </div>
-            <div className="text-xl font-extrabold text-white font-mono">{stats.dinner} টি</div>
-            <div className="text-xs font-bold text-indigo-400 font-mono flex items-center gap-1">
-              <span>৳ {stats.dinnerMoney}</span>
-              <span className="text-[10px] font-normal text-indigo-300/70 font-sans">(মোট খরচ)</span>
-            </div>
+      {/* Meal Numbers Breakdown Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Breakfast Breakdown */}
+        <div className="glass-card p-3.5 rounded-2xl border border-amber-500/20 bg-amber-500/5 space-y-1">
+          <div className="flex items-center justify-between text-amber-300 text-xs font-medium">
+            <span>সকালের নাস্তা</span>
+            <Coffee className="w-3.5 h-3.5 text-amber-400" />
           </div>
+          <div className="text-xl font-extrabold text-white font-mono">{stats.breakfast} টি</div>
+          <div className="text-xs font-bold text-amber-400 font-mono flex items-center gap-1">
+            <span>৳ {stats.breakfastMoney}</span>
+            <span className="text-[10px] font-normal text-amber-300/70 font-sans">(মোট খরচ)</span>
+          </div>
+        </div>
 
-          {/* Active Members Count */}
-          <div className="glass-card p-3.5 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 space-y-1">
-            <div className="flex items-center justify-between text-cyan-300 text-xs font-medium">
-              <span>সক্রিয় মেম্বার</span>
-              <Users className="w-3.5 h-3.5 text-cyan-400" />
-            </div>
-            <div className="text-xl font-extrabold text-white font-mono">{stats.totalUsers} জন</div>
-            <div className="text-xs font-bold text-cyan-400 font-mono flex items-center gap-1">
-              <span>{stats.totalMeals} টি মিল</span>
-              <span className="text-[10px] font-normal text-cyan-300/70 font-sans">(আজ)</span>
-            </div>
+        {/* Lunch Breakdown */}
+        <div className="glass-card p-3.5 rounded-2xl border border-sky-500/20 bg-sky-500/5 space-y-1">
+          <div className="flex items-center justify-between text-sky-300 text-xs font-medium">
+            <span>দুপুরের খাবার</span>
+            <Sun className="w-3.5 h-3.5 text-sky-400" />
+          </div>
+          <div className="text-xl font-extrabold text-white font-mono">{stats.lunch} টি</div>
+          <div className="text-xs font-bold text-sky-400 font-mono flex items-center gap-1">
+            <span>৳ {stats.lunchMoney}</span>
+            <span className="text-[10px] font-normal text-sky-300/70 font-sans">(মোট খরচ)</span>
+          </div>
+        </div>
+
+        {/* Dinner Breakdown */}
+        <div className="glass-card p-3.5 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 space-y-1">
+          <div className="flex items-center justify-between text-indigo-300 text-xs font-medium">
+            <span>রাতের খাবার</span>
+            <Moon className="w-3.5 h-3.5 text-indigo-400" />
+          </div>
+          <div className="text-xl font-extrabold text-white font-mono">{stats.dinner} টি</div>
+          <div className="text-xs font-bold text-indigo-400 font-mono flex items-center gap-1">
+            <span>৳ {stats.dinnerMoney}</span>
+            <span className="text-[10px] font-normal text-indigo-300/70 font-sans">(মোট খরচ)</span>
+          </div>
+        </div>
+
+        {/* Active Members Count */}
+        <div className="glass-card p-3.5 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 space-y-1">
+          <div className="flex items-center justify-between text-cyan-300 text-xs font-medium">
+            <span>সক্রিয় মেম্বার</span>
+            <Users className="w-3.5 h-3.5 text-cyan-400" />
+          </div>
+          <div className="text-xl font-extrabold text-white font-mono">{stats.totalUsers} জন</div>
+          <div className="text-xs font-bold text-cyan-400 font-mono flex items-center gap-1">
+            <span>{stats.totalMeals} টি মিল</span>
+            <span className="text-[10px] font-normal text-cyan-300/70 font-sans">(আজ)</span>
           </div>
         </div>
       </div>
 
-      {/* Search & Resident List Section */}
+      {/* Feature 4: Search & Resident Status Filter Section */}
       <div className="space-y-4">
         {/* Search Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-lg sm:text-xl font-bold text-white font-display flex items-center gap-2">
               <Utensils className="w-5 h-5 text-cyan-400" />
@@ -299,16 +521,75 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
           </div>
 
           {/* Search Input Box */}
-          <div className="relative w-full sm:w-72">
+          <div className="relative w-full md:w-72">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="নাম বা ফোন দিয়ে খুঁজুন..."
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-200 text-xs placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-200 text-xs placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
             />
           </div>
+        </div>
+
+        {/* Status Filter Pills (Feature 4) */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+          <button
+            onClick={() => setStatusFilter('ALL')}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap active:scale-95 font-display flex items-center gap-1.5 ${
+              statusFilter === 'ALL'
+                ? 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow-md shadow-cyan-500/20'
+                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span>🌟 সকল মেম্বার</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-slate-950/40 text-[10px] font-mono">
+              {statusCounts.all}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setStatusFilter('ALL_ON')}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap active:scale-95 font-display flex items-center gap-1.5 ${
+              statusFilter === 'ALL_ON'
+                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                : 'bg-slate-900 border border-slate-800 text-emerald-400 hover:bg-slate-800'
+            }`}
+          >
+            <span>🟢 ৩টি মিলই চালু</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-slate-950/40 text-[10px] font-mono">
+              {statusCounts.allOn}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setStatusFilter('PARTIAL')}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap active:scale-95 font-display flex items-center gap-1.5 ${
+              statusFilter === 'PARTIAL'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'bg-slate-900 border border-slate-800 text-amber-400 hover:bg-slate-800'
+            }`}
+          >
+            <span>🟡 আংশিক চালু</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-slate-950/40 text-[10px] font-mono">
+              {statusCounts.partial}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setStatusFilter('ALL_OFF')}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap active:scale-95 font-display flex items-center gap-1.5 ${
+              statusFilter === 'ALL_OFF'
+                ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
+                : 'bg-slate-900 border border-slate-800 text-rose-400 hover:bg-slate-800'
+            }`}
+          >
+            <span>🔴 সব বন্ধ</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-slate-950/40 text-[10px] font-mono">
+              {statusCounts.allOff}
+            </span>
+          </button>
         </div>
 
         {/* Cards Grid */}
@@ -318,7 +599,6 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
             const bOn = dec ? dec.breakfast : false;
             const lOn = dec ? dec.lunch : false;
             const dOn = dec ? dec.dinner : false;
-            const userTotalMeals = (bOn ? 1 : 0) + (lOn ? 1 : 0) + (dOn ? 1 : 0);
 
             return (
               <div
@@ -425,7 +705,7 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
           <div className="glass-panel p-12 rounded-3xl border border-slate-800 text-center space-y-3">
             <Users className="w-10 h-10 text-slate-600 mx-auto" />
             <h3 className="text-lg font-bold text-slate-300 font-display">কোনো মেম্বার পাওয়া যায়নি</h3>
-            <p className="text-xs text-slate-500 font-sans">আপনার কাঙ্ক্ষিত অনুসন্ধানের সাথে কোনো রেকর্ড মিলছে না</p>
+            <p className="text-xs text-slate-500 font-sans">আপনার ফিল্টার বা অনুসন্ধানের সাথে কোনো রেকর্ড মিলছে না</p>
           </div>
         )}
       </div>
