@@ -162,6 +162,18 @@ export class MockService {
   }
 
   static async getUsers(): Promise<User[]> {
+    try {
+      const res = await fetch('/api/users');
+      if (res.ok) {
+        const users = await res.json();
+        if (Array.isArray(users) && users.length > 0) {
+          localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+          return users;
+        }
+      }
+    } catch (e) {
+      console.warn('API fetch failed for getUsers, using storage fallback:', e);
+    }
     const data = localStorage.getItem(this.STORAGE_KEY_USERS);
     if (!data) {
       localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(INITIAL_USERS));
@@ -1071,6 +1083,21 @@ export class MockService {
       throw new Error('ফোন নম্বর এবং পাসওয়ার্ড উভয়ই প্রদান করুন');
     }
 
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: cleanPhone, password: cleanPass })
+      });
+      if (res.ok) {
+        const user = await res.json();
+        await this.setCurrentUser(user);
+        return user;
+      }
+    } catch (e) {
+      console.warn('API login error, trying local fallback:', e);
+    }
+
     // Rate Limiting Check
     const failedDataStr = localStorage.getItem(this.FAILED_LOGINS_KEY);
     const failedData = failedDataStr ? JSON.parse(failedDataStr) : {};
@@ -1101,7 +1128,6 @@ export class MockService {
       throw new Error(`পাসওয়ার্ড সঠিক নয় (${record.count}/৫ বার চেষ্টা)`);
     }
 
-    // Reset failed counter on success
     delete failedData[cleanPhone];
     localStorage.setItem(this.FAILED_LOGINS_KEY, JSON.stringify(failedData));
 
