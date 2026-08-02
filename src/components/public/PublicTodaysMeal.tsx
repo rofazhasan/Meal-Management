@@ -205,13 +205,22 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
     });
   }, [approvedUsers, searchTerm, statusFilter, todayDeclarationsMap]);
 
-  // Phone masking function: e.g., 017000000***
+  // Phone masking function: e.g., 01794678***
   const maskPhone = (phone: string): string => {
-    if (!phone) return '017000000***';
-    if (phone.length >= 8) {
-      return phone.substring(0, 4) + '00000***';
+    if (!phone) return '01700000***';
+    let clean = phone.trim();
+    if (clean.startsWith('+88')) {
+      clean = clean.substring(3);
+    } else if (clean.startsWith('88') && clean.length > 11) {
+      clean = clean.substring(2);
     }
-    return phone.substring(0, 3) + '***';
+    if (clean.length >= 11) {
+      return clean.substring(0, 8) + '***';
+    }
+    if (clean.length >= 8) {
+      return clean.substring(0, clean.length - 3) + '***';
+    }
+    return clean.substring(0, 3) + '***';
   };
 
   // Money balance masking function: e.g., 2000 -> ৳ 20*0, 500 -> ৳ 5*0
