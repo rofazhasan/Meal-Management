@@ -1,10 +1,12 @@
 {
-  "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/api/users", "destination": "/api/users.js" },
+    { "source": "/api/rates", "destination": "/api/rates.js" },
+    { "source": "/api/declarations", "destination": "/api/declarations.js" },
+    { "source": "/api/transactions", "destination": "/api/transactions.js" },
     { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/api", "destination": "/api/index.js" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
