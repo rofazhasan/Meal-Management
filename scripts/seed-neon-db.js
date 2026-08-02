@@ -23,15 +23,12 @@ async function main() {
   console.log("✅ Connected successfully to Neon DB!");
 
   console.log("👑 Updating Real Master Superadmin Account in Neon DB...");
-  // ⚠️  SECURITY WARNING: 'password_hash' below stores a PLAINTEXT password.
-  // Before going to production, replace this with a properly bcrypt-hashed value.
-  // Example: const hash = await bcrypt.hash('your-secure-password', 12);
   const adminQuery = `
     INSERT INTO users (id, phone_number, password_hash, full_name, role, user_type, approval_status, is_active)
     VALUES 
-      ('11111111-1111-1111-1111-111111111111', '01822222222', 'admin', 'মেস সুপার অ্যাডমিন (Master Admin)', 'ADMIN', 'PERMANENT', 'APPROVED', true)
+      ('11111111-1111-1111-1111-111111111111', '01794678595', 'admin', 'Mas Manager', 'ADMIN', 'PERMANENT', 'APPROVED', true)
     ON CONFLICT (id) DO UPDATE 
-    SET phone_number = '01822222222', password_hash = 'admin', full_name = 'মেস সুপার অ্যাডমিন (Master Admin)', role = 'ADMIN', approval_status = 'APPROVED', is_active = true;
+    SET phone_number = '01794678595', password_hash = 'admin', full_name = 'Mas Manager', role = 'ADMIN', approval_status = 'APPROVED', is_active = true;
   `;
   await client.query(adminQuery);
 
@@ -50,7 +47,7 @@ async function main() {
   await client.query(walletQuery);
 
   console.log("🎉 REAL SUPERADMIN ACCOUNT CREATED AND CONFIRMED IN NEON DB!");
-  console.log("📱 Mobile: 01822222222 | Password: admin | Role: ADMIN | Balance: ৳5,000");
+  console.log("📱 Mobile: 01794678595 | Password: admin | Role: ADMIN | Balance: ৳5,000");
 
   const res = await client.query("SELECT id, phone_number, full_name, role, approval_status FROM users;");
   console.log("\n📊 ALL USERS CURRENTLY IN NEON CLOUD DATABASE:");
