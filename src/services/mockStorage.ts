@@ -18,39 +18,19 @@ const INITIAL_SPECIAL_MEALS: SpecialMeal[] = [];
 
 const INITIAL_USERS: User[] = [
   {
-    id: 'u1',
-    name: 'তানভীর আহমেদ',
-    phone: '01711111111',
-    password: 'user',
-    role: 'USER',
-    userType: 'PERMANENT',
-    status: 'APPROVED',
-    walletBalance: 1000,
-    isDualMode: false,
-    activeMode: 'USER',
-    createdAt: new Date().toISOString(),
-    profile: {
-      studentId: 'STU-2026-001',
-      department: 'কম্পিউটার সায়েন্স',
-      bloodGroup: 'B+',
-      emergencyContact: '01700000000',
-      hostelName: 'মেস ভবন',
-    },
-  },
-  {
-    id: 'u2',
-    name: 'হাসান আবদুল্লাহ (অ্যাডমিন)',
+    id: 'u_admin_default',
+    name: 'মেস অ্যাডমিন',
     phone: '01822222222',
     password: 'admin',
     role: 'SUPERADMIN',
     userType: 'PERMANENT',
     status: 'APPROVED',
-    walletBalance: 2000,
+    walletBalance: 0,
     isDualMode: true,
     activeMode: 'ADMIN',
     createdAt: new Date().toISOString(),
     profile: {
-      studentId: 'ADM-2026-001',
+      studentId: 'ADM-001',
       department: 'ইনফরমেশন টেকনোলজি',
       bloodGroup: 'O+',
       emergencyContact: '01800000000',
@@ -83,14 +63,27 @@ const INITIAL_RATES: MealRateConfig = {
 const INITIAL_TRANSACTIONS: WalletTransaction[] = [];
 
 export class MockService {
-  private static STORAGE_KEY_USERS = 'meal_app_v5_prod_users';
-  private static STORAGE_KEY_RATES = 'meal_app_v5_prod_rates';
-  private static STORAGE_KEY_DECLARATIONS = 'meal_app_v5_prod_declarations';
-  private static STORAGE_KEY_TRANSACTIONS = 'meal_app_v5_prod_transactions';
-  private static STORAGE_KEY_EMERGENCIES = 'meal_app_v5_prod_emergencies';
-  private static STORAGE_KEY_AUDITS = 'meal_app_v5_prod_audits';
-  private static STORAGE_KEY_SPECIAL_MEALS = 'meal_app_v5_prod_specials';
-  private static STORAGE_KEY_ARCHIVES = 'meal_app_v5_prod_archives';
+  private static STORAGE_KEY_USERS = 'meal_app_v6_clean_users';
+  private static STORAGE_KEY_RATES = 'meal_app_v6_clean_rates';
+  private static STORAGE_KEY_DECLARATIONS = 'meal_app_v6_clean_declarations';
+  private static STORAGE_KEY_TRANSACTIONS = 'meal_app_v6_clean_transactions';
+  private static STORAGE_KEY_EMERGENCIES = 'meal_app_v6_clean_emergencies';
+  private static STORAGE_KEY_AUDITS = 'meal_app_v6_clean_audits';
+  private static STORAGE_KEY_SPECIAL_MEALS = 'meal_app_v6_clean_specials';
+  private static STORAGE_KEY_ARCHIVES = 'meal_app_v6_clean_archives';
+
+  static async clearAllData(): Promise<void> {
+    localStorage.removeItem(this.STORAGE_KEY_USERS);
+    localStorage.removeItem(this.STORAGE_KEY_RATES);
+    localStorage.removeItem(this.STORAGE_KEY_DECLARATIONS);
+    localStorage.removeItem(this.STORAGE_KEY_TRANSACTIONS);
+    localStorage.removeItem(this.STORAGE_KEY_EMERGENCIES);
+    localStorage.removeItem(this.STORAGE_KEY_AUDITS);
+    localStorage.removeItem(this.STORAGE_KEY_SPECIAL_MEALS);
+    localStorage.removeItem(this.STORAGE_KEY_ARCHIVES);
+    localStorage.removeItem('meal_app_active_user_id');
+    localStorage.removeItem('meal_app_current_user_v2');
+  }
 
   static async getArchivedReplicas(): Promise<ArchivedUserReplica[]> {
     const data = localStorage.getItem(this.STORAGE_KEY_ARCHIVES);
