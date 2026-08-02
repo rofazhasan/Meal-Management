@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- 1. Custom PostgreSQL ENUM Types
 DO $$ BEGIN
-    CREATE TYPE user_role AS ENUM ('USER', 'ADMIN');
+    CREATE TYPE user_role AS ENUM ('USER', 'ADMIN', 'SUPERADMIN');
 EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 DO $$ BEGIN

@@ -26,9 +26,9 @@ async function main() {
   const adminQuery = `
     INSERT INTO users (id, phone_number, password_hash, full_name, role, user_type, approval_status, is_active)
     VALUES 
-      ('11111111-1111-1111-1111-111111111111', '01794678595', 'admin', 'Mas Manager', 'ADMIN', 'PERMANENT', 'APPROVED', true)
+      ('11111111-1111-1111-1111-111111111111', '01794678595', 'admin', 'Mas Manager', 'SUPERADMIN', 'PERMANENT', 'APPROVED', true)
     ON CONFLICT (id) DO UPDATE 
-    SET phone_number = '01794678595', password_hash = 'admin', full_name = 'Mas Manager', role = 'ADMIN', approval_status = 'APPROVED', is_active = true;
+    SET phone_number = '01794678595', password_hash = 'admin', full_name = 'Mas Manager', role = 'SUPERADMIN', approval_status = 'APPROVED', is_active = true;
   `;
   await client.query(adminQuery);
 
