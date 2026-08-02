@@ -510,6 +510,26 @@ export class MockService {
     return user;
   }
 
+  static async setUserIndefinitePause(userId: string, isPaused: boolean): Promise<User> {
+    const users = await this.getUsers();
+    const user = users.find((u) => u.id === userId);
+    if (!user) throw new Error('মেম্বার পাওয়া যায়নি');
+
+    if (user.isIndefinitelyPaused !== isPaused) {
+      user.isIndefinitelyPaused = isPaused;
+      if (isPaused) {
+        for (let i = 0; i < 7; i++) {
+          const d = getBangladeshNow();
+          d.setDate(d.getDate() + i);
+          const dateStr = getBangladeshDateStr(d);
+          await this.updateDeclaration(userId, dateStr, { breakfast: false, lunch: false, dinner: false });
+        }
+      }
+      localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+    }
+    return user;
+  }
+
   static async getDeclarations(): Promise<MealDeclaration[]> {
     const todayStr = getBangladeshDateStr();
     const tomorrowStr = getBangladeshTomorrowStr();
@@ -794,33 +814,7 @@ export class MockService {
     emergencies.unshift(newEm);
     localStorage.setItem(this.STORAGE_KEY_EMERGENCIES, JSON.stringify(emergencies));
 
-    // 🔒 Immediately zero ALL existing declarations for every day in the emergency range
-    // This ensures active declarations don't linger until someone opens CookReport
-    const [sy, sm, sd] = startDate.split('-').map(Number);
-    const [ey, em, ed] = resolvedEnd.split('-').map(Number);
-    const startDt = new Date(sy, sm - 1, sd);
-    const endDt = new Date(ey, em - 1, ed);
-
-    const rawDecs = localStorage.getItem(this.STORAGE_KEY_DECLARATIONS);
-    const decs: MealDeclaration[] = rawDecs ? JSON.parse(rawDecs) : [];
-    let changed = false;
-
-    for (let dt = new Date(startDt); dt <= endDt; dt.setDate(dt.getDate() + 1)) {
-      const dateStr = getBangladeshDateStr(new Date(dt));
-      decs.forEach((dec) => {
-        if (dec.date === dateStr && (dec.breakfast || dec.lunch || dec.dinner)) {
-          dec.breakfast = false;
-          dec.lunch = false;
-          dec.dinner = false;
-          dec.updatedAt = new Date().toISOString();
-          changed = true;
-        }
-      });
-    }
-
-    if (changed) {
-      localStorage.setItem(this.STORAGE_KEY_DECLARATIONS, JSON.stringify(decs));
-    }
+    // Emergency closure is applied dynamically across reports and UI screens based on emergencies list.
 
     await this.logAudit(adminId, 'EMERGENCY_OFF', undefined, `Emergency off from ${startDate} to ${resolvedEnd}: ${reason}`);
     return newEm;

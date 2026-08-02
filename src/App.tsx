@@ -17,6 +17,7 @@ import { AdminUserDetail } from './components/admin/AdminUserDetail';
 import { SettingsPanel } from './components/admin/SettingsPanel';
 import { AuditLogScreen } from './components/admin/AuditLogScreen';
 import { FinancialDashboard } from './components/admin/FinancialDashboard';
+import { PublicTodaysMeal } from './components/public/PublicTodaysMeal';
 import { MockService } from './services/mockStorage';
 import { User } from './types';
 
@@ -39,6 +40,7 @@ const MainApplication: React.FC = () => {
   const qc = useQueryClient();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [unauthView, setUnauthView] = useState<'public-meals' | 'login'>('public-meals');
   const [selectedUserForDetail, setSelectedUserForDetail] = useState<User | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
@@ -166,15 +168,55 @@ const MainApplication: React.FC = () => {
 
   if (!currentUser || currentUser.status === 'PENDING') {
     return (
-      <>
+      <div className="min-h-screen bg-slate-950 text-slate-100 relative selection:bg-cyan-500 selection:text-white">
         <AmbientBackground />
-        <AuthScreen onLoginSuccess={(u) => {
-          setCurrentUser(u);
-          if (ADMIN_ROLES.has(u.role)) setActiveTab('admin-dashboard');
-          else setActiveTab('dashboard');
-          handleRefreshAll();
-        }} />
-      </>
+        
+        {/* Top persistent mode switcher bar for guest/unauthenticated users */}
+        <div className="relative z-30 pt-4 px-4 max-w-7xl mx-auto flex justify-center">
+          <div className="inline-flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-xl">
+            <button
+              onClick={() => setUnauthView('public-meals')}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all active:scale-95 flex items-center gap-2 font-display ${
+                unauthView === 'public-meals'
+                  ? 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow-lg shadow-cyan-500/25'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              🌐 আজকের মিল (পাবলিক)
+            </button>
+            <button
+              onClick={() => setUnauthView('login')}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all active:scale-95 flex items-center gap-2 font-display ${
+                unauthView === 'login'
+                  ? 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow-lg shadow-cyan-500/25'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              🔐 অ্যাকাউন্টে লগইন
+            </button>
+          </div>
+        </div>
+
+        <div className="px-4 py-6">
+          {unauthView === 'public-meals' ? (
+            <PublicTodaysMeal
+              users={users}
+              declarations={declarations}
+              rates={rates}
+              onNavigateToLogin={() => setUnauthView('login')}
+            />
+          ) : (
+            <AuthScreen
+              onLoginSuccess={(u) => {
+                setCurrentUser(u);
+                if (ADMIN_ROLES.has(u.role)) setActiveTab('admin-dashboard');
+                else setActiveTab('dashboard');
+                handleRefreshAll();
+              }}
+            />
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -276,6 +318,16 @@ const MainApplication: React.FC = () => {
                 {activeTab === 'reports' && (
                   <UserReports currentUser={currentUser} declarations={declarations} rates={rates} specialMeals={specialMeals} />
                 )}
+
+                {activeTab === 'public-meals' && (
+                  <PublicTodaysMeal
+                    users={users}
+                    declarations={declarations}
+                    rates={rates}
+                    currentUser={currentUser}
+                    onNavigateToLogin={() => setActiveTab('dashboard')}
+                  />
+                )}
               </>
             )}
 
@@ -300,6 +352,7 @@ const MainApplication: React.FC = () => {
                     declarations={declarations}
                     rates={rates}
                     specialMeals={specialMeals}
+                    emergencies={emergencies}
                   />
                 )}
 
@@ -340,7 +393,7 @@ const MainApplication: React.FC = () => {
                 )}
 
                 {activeTab === 'reports' && (
-                  <UserReports currentUser={currentUser} declarations={declarations} rates={rates} />
+                  <UserReports currentUser={currentUser} declarations={declarations} rates={rates} specialMeals={specialMeals} emergencies={emergencies} />
                 )}
               </>
             )}

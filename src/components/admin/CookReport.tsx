@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChefHat, Calendar, Printer, Utensils, CheckCircle2, DollarSign, Users, Sparkles, Clock } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { User, MealDeclaration, MealRateConfig, SpecialMeal } from '../../types';
+import { User, MealDeclaration, MealRateConfig, SpecialMeal, EmergencyClosure } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { getBangladeshDateStr, getDayOfWeekFromDateStr } from '../../utils/dateUtils';
 import { MockService } from '../../services/mockStorage';
@@ -11,6 +11,7 @@ interface CookReportProps {
   declarations: MealDeclaration[];
   rates: MealRateConfig;
   specialMeals?: SpecialMeal[];
+  emergencies?: EmergencyClosure[];
 }
 
 export const CookReport: React.FC<CookReportProps> = ({
@@ -18,6 +19,7 @@ export const CookReport: React.FC<CookReportProps> = ({
   declarations,
   rates,
   specialMeals = [],
+  emergencies = [],
 }) => {
   const [selectedDate, setSelectedDate] = useState(() => getBangladeshDateStr());
 
@@ -48,13 +50,11 @@ export const CookReport: React.FC<CookReportProps> = ({
   const specialForDate = specB || specL || specD;
 
   // Determine if selectedDate is under emergency closure
-  const emergencyForDate = (rates as any)?.emergencies
-    ? (rates as any).emergencies.find((em: any) => {
-        const start = em.date;
-        const end = em.endDate || em.date;
-        return selectedDate >= start && selectedDate <= end;
-      })
-    : null;
+  const emergencyForDate = (emergencies || []).find((em: any) => {
+    const start = em.date;
+    const end = em.endDate || em.date;
+    return selectedDate >= start && selectedDate <= end;
+  });
 
   const isBGlobalOff = rates.globalMealStatus?.breakfast === false;
   const isLGlobalOff = rates.globalMealStatus?.lunch === false;

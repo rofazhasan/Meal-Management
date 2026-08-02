@@ -123,4 +123,14 @@ export const BN = {
   approved: "অনুমোদিত",
   pending: "অপেক্ষমাণ",
   rejected: "প্রত্যাখ্যাত",
+
+  // Public Today's Meal
+  publicTodaysMeal: "আজকের মিল (পাবলিক)",
+  publicTodaysMealTitle: "আজকের মিল ও ফিঙ্গারপ্রিন্ট সামারি",
+  publicTodaysMealSubtitle: "আজকের মিল ডিক্লেয়ারেশন ও মেম্বারদের ব্যালেন্সের সুরক্ষিত ওভারভিউ",
+  maskedPhoneLabel: "মোবাইল নম্বর",
+  maskedBalanceLabel: "ব্যালেন্স",
+  clickEyeToLogin: "সম্পূর্ণ দেখতে চোখ আইকনে ক্লিক করুন",
+  loginToSeeDetails: "বিস্তারিত তথ্য দেখতে অ্যাকাউন্টে লগইন করুন",
+  publicNoticeBanner: "সুরক্ষার জন্য মেম্বারদের মোবাইল নম্বর ও ব্যালেন্স আংশিক আবৃত রয়েছে। সম্পূর্ণ দেখতে লগইন করুন।",
 };

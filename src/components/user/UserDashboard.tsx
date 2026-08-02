@@ -396,7 +396,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   <div>
                     <p className="text-xs font-semibold text-slate-400">{BN.breakfast}</p>
                     <p className="text-xl font-bold mt-1 font-display">
-                      {isLocked('breakfast') ? 'বন্ধ (লক)' : todayDec.breakfast ? BN.mealOn : BN.mealOff}
+                      {todayEmergency ? '🚨 জরুরি বন্ধ' : isLocked('breakfast') ? 'বন্ধ (লক)' : todayDec.breakfast ? BN.mealOn : BN.mealOff}
                     </p>
                     <p className="text-xs font-mono opacity-80 mt-1">৳{userRates.breakfast}</p>
                   </div>
@@ -408,7 +408,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   <div>
                     <p className="text-xs font-semibold text-slate-400">{BN.lunch}</p>
                     <p className="text-xl font-bold mt-1 font-display">
-                      {isLocked('lunch') ? 'বন্ধ (লক)' : todayDec.lunch ? BN.mealOn : BN.mealOff}
+                      {todayEmergency ? '🚨 জরুরি বন্ধ' : isLocked('lunch') ? 'বন্ধ (লক)' : todayDec.lunch ? BN.mealOn : BN.mealOff}
                     </p>
                     <p className="text-xs font-mono opacity-80 mt-1">৳{userRates.lunch}</p>
                   </div>
@@ -420,7 +420,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   <div>
                     <p className="text-xs font-semibold text-slate-400">{BN.dinner}</p>
                     <p className="text-xl font-bold mt-1 font-display">
-                      {isLocked('dinner') ? 'বন্ধ (লক)' : todayDec.dinner ? BN.mealOn : BN.mealOff}
+                      {todayEmergency ? '🚨 জরুরি বন্ধ' : isLocked('dinner') ? 'বন্ধ (লক)' : todayDec.dinner ? BN.mealOn : BN.mealOff}
                     </p>
                     <p className="text-xs font-mono opacity-80 mt-1">৳{userRates.dinner}</p>
                   </div>

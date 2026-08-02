@@ -23,7 +23,24 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
   specialMeals = [],
   onRefreshData,
 }) => {
-  const [selectedDate, setSelectedDate] = useState(() => getBangladeshDateStr());
+  // Parse cutoff time from config (e.g. "10:00")
+  const [cutoffHour, cutoffMinute] = (rates.cutoffTime || '10:00').split(':').map(Number);
+
+  const [isPassed10AM, setIsPassed10AM] = useState(() => {
+    const now = getBangladeshNow();
+    return now.getHours() > cutoffHour || (now.getHours() === cutoffHour && now.getMinutes() >= cutoffMinute);
+  });
+
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const now = getBangladeshNow();
+    const passed = now.getHours() > cutoffHour || (now.getHours() === cutoffHour && now.getMinutes() >= cutoffMinute);
+    if (passed) {
+      const tomorrow = getBangladeshNow();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return getBangladeshDateStr(tomorrow);
+    }
+    return getBangladeshDateStr(now);
+  });
   const [togglingPause, setTogglingPause] = useState(false);
   const [breakfast, setBreakfast] = useState(false);
   const [lunch, setLunch] = useState(false);
@@ -31,7 +48,6 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState(false);
   const [balanceAlertMsg, setBalanceAlertMsg] = useState<string | null>(null);
-  const [isPassed10AM, setIsPassed10AM] = useState(false);
 
   const userRates = currentUser.userType === 'PERMANENT' ? rates.permanent : rates.guest;
 
@@ -50,8 +66,10 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
     }
   };
 
-  // Generate next 7 days list with Bangla/English day names and Special Meal badges in Bangladesh Timezone
-  const nextDays = Array.from({ length: 7 }, (_, i) => {
+  // Generate 7 days list. If deadline has passed for today, hide today and start directly from tomorrow
+  const dayOffset = isPassed10AM ? 1 : 0;
+  const nextDays = Array.from({ length: 7 }, (_, idx) => {
+    const i = idx + dayOffset;
     const d = getBangladeshNow();
     d.setDate(d.getDate() + i);
     const dateStr = getBangladeshDateStr(d);
@@ -107,20 +125,22 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
   const emergencyForDate = emergencies.find(e => selectedDate >= e.date && selectedDate <= (e.endDate || e.date));
   const isToday = selectedDate === getBangladeshDateStr();
 
-  // Parse cutoff time from config (e.g. "10:00")
-  const [cutoffHour, cutoffMinute] = (rates.cutoffTime || '10:00').split(':').map(Number);
-
   // Live 10 AM cutoff check
   useEffect(() => {
     const check = () => {
       const now = getBangladeshNow();
       const passed = now.getHours() > cutoffHour || (now.getHours() === cutoffHour && now.getMinutes() >= cutoffMinute);
       setIsPassed10AM(passed);
+      if (passed && selectedDate === getBangladeshDateStr()) {
+        const tomorrow = getBangladeshNow();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setSelectedDate(getBangladeshDateStr(tomorrow));
+      }
     };
     check();
-    const t = setInterval(check, 30000);
+    const t = setInterval(check, 10000);
     return () => clearInterval(t);
-  }, [cutoffHour, cutoffMinute]);
+  }, [cutoffHour, cutoffMinute, selectedDate]);
 
   // Calculate total daily cost estimate
   const estimatedDailyCost =

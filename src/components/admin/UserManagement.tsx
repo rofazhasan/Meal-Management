@@ -174,10 +174,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         id: 'actions',
         header: 'একশন',
         cell: (info) => (
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap min-w-[280px]">
             <button
               onClick={() => onSelectUser(info.row.original)}
-              className="px-2.5 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm"
+              className="px-2.5 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap"
               title="ডিটেইলস ও ম্যানেজমেন্ট"
             >
               <Eye className="w-3.5 h-3.5" />
@@ -185,7 +185,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             </button>
             <button
               onClick={() => setSelectedReportUser(info.row.original)}
-              className="px-2.5 py-1 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm"
+              className="px-2.5 py-1 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap"
               title="সদস্যের মিল ও ব্যালেন্স রিপোর্ট"
             >
               <FileText className="w-3.5 h-3.5" />
@@ -196,7 +196,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             {info.row.original.role === 'ADMIN' || info.row.original.role === 'SUPERADMIN' ? (
               <button
                 onClick={() => handleToggleRole(info.row.original, 'USER')}
-                className="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm"
+                className="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap"
                 title="ইউজার রোলে পরিবর্তন করুন"
               >
                 <Shield className="w-3.5 h-3.5" />
@@ -205,7 +205,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             ) : (
               <button
                 onClick={() => handleToggleRole(info.row.original, 'ADMIN')}
-                className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm"
+                className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap"
                 title="এডমিনে রূপান্তর করুন"
               >
                 <Shield className="w-3.5 h-3.5" />
@@ -216,7 +216,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             {/* Reset Password Action */}
             <button
               onClick={() => handleResetPassword(info.row.original)}
-              className={`px-2.5 py-1 rounded-xl border text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm ${
+              className={`px-2.5 py-1 rounded-xl border text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap ${
                 info.row.original.isPasswordResetRequested
                   ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30 animate-pulse'
                   : 'bg-slate-900/80 text-slate-300 border-slate-700 hover:bg-slate-800'
@@ -229,7 +229,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
             <button
               onClick={() => handleDeleteUser(info.row.original)}
-              className="px-2.5 py-1 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm"
+              className="px-2.5 py-1 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap"
               title="মেম্বার ডিলিট করুন এবং ফাইল ব্যাকআপ সেভ করুন"
             >
               <Trash2 className="w-3.5 h-3.5" />

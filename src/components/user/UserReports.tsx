@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BarChart3, Calendar, Utensils, CheckCircle2, Copy, PieChart, Printer, DollarSign } from 'lucide-react';
-import { User, MealDeclaration, MealRateConfig, SpecialMeal } from '../../types';
+import { User, MealDeclaration, MealRateConfig, SpecialMeal, EmergencyClosure } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
@@ -12,9 +12,10 @@ interface UserReportsProps {
   declarations: MealDeclaration[];
   rates?: MealRateConfig;
   specialMeals?: SpecialMeal[];
+  emergencies?: EmergencyClosure[];
 }
 
-export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarations, rates, specialMeals = [] }) => {
+export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarations, rates, specialMeals = [], emergencies = [] }) => {
   const [activeRange, setActiveRange] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
   const userDecs = declarations.filter(d => d.userId === currentUser.id);
@@ -207,31 +208,41 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
               <tbody className="divide-y divide-slate-800/60 bg-slate-950/40">
                 {userDecs.map((dec) => {
                   const spec = specialMeals.find(sm => sm.date === dec.date);
+                  const dayEm = emergencies.find(e => dec.date >= e.date && dec.date <= (e.endDate || e.date));
+
                   const bPrice = (spec && spec.mealType === 'breakfast') ? spec.customRate : userRates.breakfast;
                   const lPrice = (spec && spec.mealType === 'lunch') ? spec.customRate : userRates.lunch;
                   const dPrice = (spec && spec.mealType === 'dinner') ? spec.customRate : userRates.dinner;
 
+                  const isBEm = !!dayEm && dayEm.closedMeals.includes('breakfast');
+                  const isLEm = !!dayEm && dayEm.closedMeals.includes('lunch');
+                  const isDEm = !!dayEm && dayEm.closedMeals.includes('dinner');
+
+                  const isBOn = !isBEm && dec.breakfast;
+                  const isLOn = !isLEm && dec.lunch;
+                  const isDOn = !isDEm && dec.dinner;
+
                   const dailyCost =
-                    (dec.breakfast ? bPrice : 0) +
-                    (dec.lunch ? lPrice : 0) +
-                    (dec.dinner ? dPrice : 0);
+                    (isBOn ? bPrice : 0) +
+                    (isLOn ? lPrice : 0) +
+                    (isDOn ? dPrice : 0);
 
                   return (
                     <tr key={dec.id} className="hover:bg-slate-900/60 transition-colors">
                       <td className="p-3.5 font-bold font-mono text-slate-200">{dec.date}</td>
                       <td className="p-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${dec.breakfast ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800/80 text-slate-500'}`}>
-                          {dec.breakfast ? `${BN.mealOn} (৳${bPrice})` : BN.mealOff}
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${isBEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : isBOn ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800/80 text-slate-500'}`}>
+                          {isBEm ? '🚨 জরুরি বন্ধ' : isBOn ? `${BN.mealOn} (৳${bPrice})` : BN.mealOff}
                         </span>
                       </td>
                       <td className="p-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${dec.lunch ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800/80 text-slate-500'}`}>
-                          {dec.lunch ? `${BN.mealOn} (৳${lPrice})` : BN.mealOff}
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${isLEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : isLOn ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800/80 text-slate-500'}`}>
+                          {isLEm ? '🚨 জরুরি বন্ধ' : isLOn ? `${BN.mealOn} (৳${lPrice})` : BN.mealOff}
                         </span>
                       </td>
                       <td className="p-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${dec.dinner ? (spec?.mealType === 'dinner' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20') : 'bg-slate-800/80 text-slate-500'}`}>
-                          {dec.dinner ? `${BN.mealOn} (৳${dPrice}${spec?.mealType === 'dinner' ? ' - স্পেশাল' : ''})` : BN.mealOff}
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${isDEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : isDOn ? (spec?.mealType === 'dinner' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20') : 'bg-slate-800/80 text-slate-500'}`}>
+                          {isDEm ? '🚨 জরুরি বন্ধ' : isDOn ? `${BN.mealOn} (৳${dPrice}${spec?.mealType === 'dinner' ? ' - স্পেশাল' : ''})` : BN.mealOff}
                         </span>
                       </td>
                       <td className="p-3.5 font-bold font-mono text-cyan-300">
@@ -239,9 +250,9 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
                       </td>
                       <td className="p-3.5">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold ${
-                          dec.isAutoCopied ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                          dayEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : dec.isAutoCopied ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
                         }`}>
-                          {dec.isAutoCopied ? BN.autoCopied : BN.userDeclared}
+                          {dayEm ? '🚨 জরুরি নোটিশ' : dec.isAutoCopied ? BN.autoCopied : BN.userDeclared}
                         </span>
                       </td>
                     </tr>

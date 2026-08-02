@@ -96,7 +96,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       rates.guest.dinner,
     );
 
-    const isEmergencyOnDate = emergencies.some(em => {
+    const emergencyOnDate = emergencies.find(em => {
       const start = em.date;
       const end = em.endDate || em.date;
       return reportDate >= start && reportDate <= end;
@@ -105,7 +105,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     type ReportRow = {
       user: User;
       dec: MealDeclaration | undefined;
-      category: 'INSUFFICIENT_BALANCE' | 'VOLUNTARILY_OFF' | 'PARTIAL_OFF';
+      category: 'EMERGENCY_OFF' | 'INSUFFICIENT_BALANCE' | 'VOLUNTARILY_OFF' | 'PARTIAL_OFF';
       offMeals: string[];
     };
 
@@ -113,22 +113,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     for (const u of activeUsers) {
       const dec = reportDecs.find(d => d.userId === u.id);
-      const allOff = dec ? (!dec.breakfast && !dec.lunch && !dec.dinner) : true;
-      const someOff = dec ? (!dec.breakfast || !dec.lunch || !dec.dinner) : true;
+
+      const isBEmergency = !!emergencyOnDate && emergencyOnDate.closedMeals.includes('breakfast');
+      const isLEmergency = !!emergencyOnDate && emergencyOnDate.closedMeals.includes('lunch');
+      const isDEmergency = !!emergencyOnDate && emergencyOnDate.closedMeals.includes('dinner');
+
+      const isBOff = isBEmergency || (dec ? !dec.breakfast : true);
+      const isLOff = isLEmergency || (dec ? !dec.lunch : true);
+      const isDOff = isDEmergency || (dec ? !dec.dinner : true);
+
+      const allOff = isBOff && isLOff && isDOff;
+      const someOff = isBOff || isLOff || isDOff;
 
       if (!someOff) continue; // all meals ON — skip
 
       const offMeals: string[] = [];
-      if (dec && !dec.breakfast) offMeals.push('নাস্তা');
-      if (dec && !dec.lunch) offMeals.push('দুপুর');
-      if (dec && !dec.dinner) offMeals.push('রাত');
-      if (!dec) offMeals.push('নাস্তা', 'দুপুর', 'রাত');
+      if (isBOff) offMeals.push('নাস্তা');
+      if (isLOff) offMeals.push('দুপুর');
+      if (isDOff) offMeals.push('রাত');
 
       const minRate = u.userType === 'PERMANENT' ? minPermRate : minGuestRate;
       const balanceTooLow = u.walletBalance < minRate;
 
       let category: ReportRow['category'];
-      if (allOff && balanceTooLow && !isEmergencyOnDate) {
+      if (emergencyOnDate && (isBEmergency || isLEmergency || isDEmergency)) {
+        category = 'EMERGENCY_OFF';
+      } else if (allOff && balanceTooLow) {
         category = 'INSUFFICIENT_BALANCE';
       } else if (allOff) {
         category = 'VOLUNTARILY_OFF';
@@ -140,7 +150,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
 
     return {
-      isEmergencyOnDate,
+      isEmergencyOnDate: !!emergencyOnDate,
+      emergencyReason: emergencyOnDate?.reason || '',
+      emergencyOff: rows.filter(r => r.category === 'EMERGENCY_OFF'),
       insufficientBalance: rows.filter(r => r.category === 'INSUFFICIENT_BALANCE'),
       voluntarilyOff: rows.filter(r => r.category === 'VOLUNTARILY_OFF'),
       partialOff: rows.filter(r => r.category === 'PARTIAL_OFF'),
@@ -174,6 +186,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </style>
     `;
     const allRows = [
+      ...report.emergencyOff,
       ...report.insufficientBalance,
       ...report.voluntarilyOff,
       ...report.partialOff,
@@ -185,7 +198,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <td class="mono">৳${r.user.walletBalance}</td>
         <td>${r.offMeals.join(', ')}</td>
         <td>${
-          r.category === 'INSUFFICIENT_BALANCE'
+          r.category === 'EMERGENCY_OFF'
+            ? '<span class="badge-red">🚨 জরুরি বন্ধ</span>'
+            : r.category === 'INSUFFICIENT_BALANCE'
             ? '<span class="badge-red">ব্যালেন্স স্বল্পতা</span>'
             : r.category === 'VOLUNTARILY_OFF'
             ? `<span class="badge-yellow">${r.user.isIndefinitelyPaused ? 'অনির্দিষ্ট বিরতি' : 'স্বেচ্ছায় বন্ধ'}</span>`
@@ -303,12 +318,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="glass-panel p-5 rounded-3xl border border-slate-800/80 flex items-center justify-between shadow-xl">
           <div>
             <p className="text-xs font-semibold text-slate-400 font-display">আজকের খাবার কাউন্ট</p>
-            <p className="text-xl font-extrabold text-emerald-400 font-mono mt-1">
-              নাস্তা: {todayBreakfasts} | দুপুর: {todayLunches} | রাত: {todayDinners}
-            </p>
-            <p className="text-[11px] text-slate-400 mt-1 font-sans">সক্রিয় ডিক্লারেশন</p>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1 font-mono text-xs sm:text-sm font-bold text-emerald-400">
+              <span className="bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">নাস্তা: {todayBreakfasts}</span>
+              <span className="bg-sky-500/10 px-2 py-0.5 rounded-lg border border-sky-500/20 text-sky-400">দুপুর: {todayLunches}</span>
+              <span className="bg-purple-500/10 px-2 py-0.5 rounded-lg border border-purple-500/20 text-purple-400">রাত: {todayDinners}</span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1.5 font-sans">সক্রিয় ডিক্লারেশন</p>
           </div>
-          <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
             <Utensils className="w-6 h-6" />
           </div>
         </div>
@@ -322,7 +339,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </p>
             <p className="text-[11px] text-slate-400 mt-1 font-sans">মোট মেস ফান্ড ব্যালেন্স</p>
           </div>
-          <div className="p-3 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+          <div className="p-3 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shrink-0">
             <Wallet className="w-6 h-6" />
           </div>
         </div>
@@ -346,8 +363,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-slate-800/80">
-            <table className="w-full text-left text-xs text-slate-300">
+          <div className="overflow-x-auto touch-pan-x rounded-2xl border border-slate-800/80">
+            <table className="w-full text-left text-xs text-slate-300 min-w-[500px]">
               <thead className="bg-slate-900/90 uppercase text-[10px] text-slate-400 border-b border-slate-800 font-mono">
                 <tr>
                   <th className="p-3.5">সদস্যের নাম</th>
@@ -359,12 +376,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <tbody className="divide-y divide-slate-800/60 bg-slate-950/40 font-sans">
                 {passwordResetUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-900/60 transition-colors">
-                    <td className="p-3.5 font-bold text-slate-100">{u.name}</td>
-                    <td className="p-3.5 font-mono text-cyan-300">{u.phone}</td>
-                    <td className="p-3.5 font-mono text-slate-400">
+                    <td className="p-3.5 font-bold text-slate-100 whitespace-nowrap">{u.name}</td>
+                    <td className="p-3.5 font-mono text-cyan-300 whitespace-nowrap">{u.phone}</td>
+                    <td className="p-3.5 font-mono text-slate-400 whitespace-nowrap">
                       {u.passwordResetRequestedAt ? new Date(u.passwordResetRequestedAt).toLocaleTimeString('bn-BD') : 'অনুরোধ করা হয়েছে'}
                     </td>
-                    <td className="p-3.5 text-right space-x-2">
+                    <td className="p-3.5 text-right whitespace-nowrap space-x-2">
                       <button
                         onClick={() => handleApproveReset(u.id)}
                         className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm"
@@ -403,8 +420,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-slate-800/80">
-            <table className="w-full text-left text-xs text-slate-300">
+          <div className="overflow-x-auto touch-pan-x rounded-2xl border border-slate-800/80">
+            <table className="w-full text-left text-xs text-slate-300 min-w-[450px]">
               <thead className="bg-slate-900/90 uppercase text-[10px] text-slate-400 border-b border-slate-800 font-mono">
                 <tr>
                   <th className="p-3.5">নাম</th>
@@ -416,10 +433,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <tbody className="divide-y divide-slate-800/60 bg-slate-950/40">
                 {pendingUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-900/60 transition-colors">
-                    <td className="p-3.5 font-bold text-slate-100">{u.name}</td>
-                    <td className="p-3.5 font-mono text-slate-300">{u.phone}</td>
-                    <td className="p-3.5"><StatusBadge userType={u.userType} /></td>
-                    <td className="p-3.5 text-right space-x-2">
+                    <td className="p-3.5 font-bold text-slate-100 whitespace-nowrap">{u.name}</td>
+                    <td className="p-3.5 font-mono text-slate-300 whitespace-nowrap">{u.phone}</td>
+                    <td className="p-3.5 whitespace-nowrap"><StatusBadge userType={u.userType} /></td>
+                    <td className="p-3.5 text-right whitespace-nowrap space-x-2">
                       <button
                         onClick={() => handleApprove(u.id)}
                         className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm"
@@ -629,7 +646,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         {/* Summary Pills */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center">
+            <p className="text-2xl font-extrabold text-rose-400 font-mono">{report.emergencyOff.length}</p>
+            <p className="text-[10px] text-rose-300 font-bold mt-0.5">🚨 জরুরি বন্ধ</p>
+          </div>
           <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center">
             <p className="text-2xl font-extrabold text-rose-400 font-mono">{report.insufficientBalance.length}</p>
             <p className="text-[10px] text-rose-300 font-bold mt-0.5">ব্যালেন্স স্বল্পতা</p>
@@ -645,9 +666,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         {report.isEmergencyOnDate && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold">
-            <TriangleAlert className="w-4 h-4 shrink-0" />
-            নির্বাচিত তারিখটি জরুরি বন্ধের আওতায় — সকল মিল বন্ধ ছিল, তাই তালিকা নির্ভরযোগ্য নয়।
+          <div className="flex items-center gap-2 p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs font-bold animate-pulse">
+            <TriangleAlert className="w-5 h-5 text-rose-400 shrink-0" />
+            <span>
+              🚨 নির্বাচিত তারিখটিতে অ্যাডমিন কর্তৃক জরুরি বন্ধ জারি ছিল: <strong>{report.emergencyReason || 'জরুরি বন্ধ নোটিশ'}</strong>। জরুরি নোটিশের আওতায় বন্ধ থাকা মিলগুলো জরুরি নোটিশ ক্যাটাগরিতে অন্তর্ভুক্ত।
+            </span>
+          </div>
+        )}
+
+        {/* Category: Emergency Off */}
+        {report.emergencyOff.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 text-[11px] font-bold">
+                🚨 জরুরি নোটিশের কারণে বন্ধ ({report.emergencyOff.length} জন)
+              </span>
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-rose-500/20">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-rose-500/5 text-[10px] text-rose-400 uppercase border-b border-rose-500/20 font-mono">
+                  <tr>
+                    <th className="p-3">নাম</th>
+                    <th className="p-3">ফোন</th>
+                    <th className="p-3">ওয়ালেট</th>
+                    <th className="p-3">কারণ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-rose-500/10 bg-slate-950/30">
+                  {report.emergencyOff.map(r => (
+                    <tr key={r.user.id} className="hover:bg-rose-500/5 transition-colors">
+                      <td className="p-3 font-bold text-slate-100">{r.user.name}</td>
+                      <td className="p-3 font-mono text-slate-300">{r.user.phone}</td>
+                      <td className="p-3 font-mono text-slate-300">৳{r.user.walletBalance}</td>
+                      <td className="p-3">
+                        <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold">
+                          🚨 জরুরি বন্ধ ({report.emergencyReason || 'নোটিশ'})
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -756,7 +816,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         )}
 
         {/* Empty State */}
-        {report.insufficientBalance.length === 0 && report.voluntarilyOff.length === 0 && report.partialOff.length === 0 && (
+        {report.emergencyOff.length === 0 && report.insufficientBalance.length === 0 && report.voluntarilyOff.length === 0 && report.partialOff.length === 0 && (
           <div className="py-8 text-center">
             <Utensils className="w-10 h-10 text-emerald-400 mx-auto mb-3 opacity-60" />
             <p className="text-slate-400 font-sans text-sm">এই তারিখে সকল সদস্যের সব মিল চালু আছে।</p>
