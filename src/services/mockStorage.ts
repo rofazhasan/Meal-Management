@@ -258,6 +258,15 @@ export class MockService {
   }
 
   static async getMealRates(): Promise<MealRateConfig> {
+    try {
+      const res = await fetch('/api/rates');
+      if (res.ok) {
+        const rates = await res.json();
+        return rates;
+      }
+    } catch (e) {
+      console.warn('API rates fetch failed, using fallback:', e);
+    }
     const data = localStorage.getItem(this.STORAGE_KEY_RATES);
     if (!data) {
       localStorage.setItem(this.STORAGE_KEY_RATES, JSON.stringify(INITIAL_RATES));
@@ -273,6 +282,18 @@ export class MockService {
   }
 
   static async getTransactions(): Promise<WalletTransaction[]> {
+    try {
+      const res = await fetch('/api/transactions');
+      if (res.ok) {
+        const txs = await res.json();
+        if (Array.isArray(txs)) {
+          localStorage.setItem(this.STORAGE_KEY_TRANSACTIONS, JSON.stringify(txs));
+          return txs;
+        }
+      }
+    } catch (e) {
+      console.warn('API transactions fetch failed, using fallback:', e);
+    }
     const data = localStorage.getItem(this.STORAGE_KEY_TRANSACTIONS);
     if (!data) {
       localStorage.setItem(this.STORAGE_KEY_TRANSACTIONS, JSON.stringify(INITIAL_TRANSACTIONS));
@@ -550,13 +571,18 @@ export class MockService {
   }
 
   static async getDeclarations(): Promise<MealDeclaration[]> {
-    const todayStr = getBangladeshDateStr();
-    const tomorrowStr = getBangladeshTomorrowStr();
-
-    // Auto-trigger copying previous day's declaration for today and tomorrow
-    await this.ensureAutoCopiedDeclarationsForDate(todayStr);
-    await this.ensureAutoCopiedDeclarationsForDate(tomorrowStr);
-
+    try {
+      const res = await fetch('/api/declarations');
+      if (res.ok) {
+        const decs = await res.json();
+        if (Array.isArray(decs)) {
+          localStorage.setItem(this.STORAGE_KEY_DECLARATIONS, JSON.stringify(decs));
+          return decs;
+        }
+      }
+    } catch (e) {
+      console.warn('API declarations fetch failed, using fallback:', e);
+    }
     const data = localStorage.getItem(this.STORAGE_KEY_DECLARATIONS);
     if (!data) return [];
     return JSON.parse(data);
