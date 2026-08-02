@@ -6,6 +6,8 @@
     { "source": "/api/rates", "destination": "/api/rates.js" },
     { "source": "/api/declarations", "destination": "/api/declarations.js" },
     { "source": "/api/transactions", "destination": "/api/transactions.js" },
+    { "source": "/api/emergencies", "destination": "/api/emergencies.js" },
+    { "source": "/api/audits", "destination": "/api/audits.js" },
     { "source": "/api/(.*)", "destination": "/api/index.js" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]

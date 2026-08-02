@@ -346,6 +346,80 @@ export default async function handler(req, res) {
       return res.status(200).json(result.rows[0]);
     }
 
+    // --------------------------------------------------------------------------
+    // 10. GET /api/emergencies
+    // --------------------------------------------------------------------------
+    if (pathname === '/api/emergencies' && req.method === 'GET') {
+      const result = await pool.query(`
+        SELECT 
+          id, 
+          TO_CHAR(meal_date, 'YYYY-MM-DD') AS date, 
+          emergency_off AS "emergencyOff", 
+          emergency_reason AS reason, 
+          created_at AS "createdAt"
+        FROM meal_settings
+        WHERE emergency_off = true
+        ORDER BY meal_date DESC;
+      `);
+
+      return res.status(200).json(result.rows);
+    }
+
+    // --------------------------------------------------------------------------
+    // 11. POST /api/emergencies
+    // --------------------------------------------------------------------------
+    if (pathname === '/api/emergencies' && req.method === 'POST') {
+      const { date, emergencyOff, reason } = req.body || {};
+
+      const result = await pool.query(`
+        INSERT INTO meal_settings (meal_date, emergency_off, emergency_reason)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (meal_date) 
+        DO UPDATE SET 
+          emergency_off = EXCLUDED.emergency_off,
+          emergency_reason = EXCLUDED.emergency_reason,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING id, TO_CHAR(meal_date, 'YYYY-MM-DD') AS date, emergency_off AS "emergencyOff", emergency_reason AS reason;
+      `, [date, emergencyOff ?? true, reason || 'Emergency off']);
+
+      return res.status(200).json(result.rows[0]);
+    }
+
+    // --------------------------------------------------------------------------
+    // 12. GET /api/audits
+    // --------------------------------------------------------------------------
+    if (pathname === '/api/audits' && req.method === 'GET') {
+      const result = await pool.query(`
+        SELECT 
+          id, 
+          actor_user_id AS "adminId", 
+          action, 
+          entity_id AS "targetUserId", 
+          entity_type AS details, 
+          created_at AS timestamp
+        FROM audit_logs
+        ORDER BY created_at DESC
+        LIMIT 100;
+      `);
+
+      return res.status(200).json(result.rows);
+    }
+
+    // --------------------------------------------------------------------------
+    // 13. POST /api/audits
+    // --------------------------------------------------------------------------
+    if (pathname === '/api/audits' && req.method === 'POST') {
+      const { adminId, action, targetUserId, details } = req.body || {};
+
+      const result = await pool.query(`
+        INSERT INTO audit_logs (actor_user_id, action, entity_id, entity_type)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, actor_user_id AS "adminId", action, entity_id AS "targetUserId", entity_type AS details, created_at AS timestamp;
+      `, [adminId || null, action || 'LOG', targetUserId || null, details || '']);
+
+      return res.status(200).json(result.rows[0]);
+    }
+
     // Default fallback route
     return res.status(404).json({ error: `Route ${pathname} not found` });
   } catch (error) {

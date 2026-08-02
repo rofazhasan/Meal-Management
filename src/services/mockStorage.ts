@@ -522,6 +522,18 @@ export class MockService {
   }
 
   static async getAudits(): Promise<AuditLog[]> {
+    try {
+      const res = await fetch('/api/audits');
+      if (res.ok) {
+        const audits = await res.json();
+        if (Array.isArray(audits)) {
+          localStorage.setItem(this.STORAGE_KEY_AUDITS, JSON.stringify(audits));
+          return audits;
+        }
+      }
+    } catch (e) {
+      console.warn('API audits fetch failed, using fallback:', e);
+    }
     const data = localStorage.getItem(this.STORAGE_KEY_AUDITS);
     if (!data) return [];
     return JSON.parse(data);
@@ -937,6 +949,18 @@ export class MockService {
   }
 
   static async getEmergencies(): Promise<EmergencyClosure[]> {
+    try {
+      const res = await fetch('/api/emergencies');
+      if (res.ok) {
+        const emergencies = await res.json();
+        if (Array.isArray(emergencies)) {
+          localStorage.setItem(this.STORAGE_KEY_EMERGENCIES, JSON.stringify(emergencies));
+          return emergencies;
+        }
+      }
+    } catch (e) {
+      console.warn('API emergencies fetch failed, using fallback:', e);
+    }
     const data = localStorage.getItem(this.STORAGE_KEY_EMERGENCIES);
     if (!data) return [];
     return JSON.parse(data);
