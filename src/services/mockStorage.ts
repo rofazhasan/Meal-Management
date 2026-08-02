@@ -274,8 +274,9 @@ export class MockService {
     const user = users.find((u) => u.id === targetUserId);
     if (!user) throw new Error('মেম্বার খুঁজে পাওয়া যায়নি');
 
-    const balanceBefore = user.walletBalance;
-    const balanceAfter = balanceBefore + amount;
+    const cleanAmount = Math.round(amount * 100) / 100;
+    const balanceBefore = Math.round(user.walletBalance * 100) / 100;
+    const balanceAfter = Math.round((balanceBefore + cleanAmount) * 100) / 100;
     user.walletBalance = balanceAfter;
 
     localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
@@ -285,7 +286,7 @@ export class MockService {
       id: 'tx_' + Date.now(),
       userId: targetUserId,
       type: 'RECHARGE',
-      amount,
+      amount: cleanAmount,
       balanceBefore,
       balanceAfter,
       description: note || 'অ্যাডমিন রিচার্জ',
@@ -295,7 +296,7 @@ export class MockService {
     transactions.unshift(newTx);
     localStorage.setItem(this.STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
 
-    await this.logAudit(adminId, 'WALLET_TOPUP', targetUserId, `Topup ৳${amount}. Reason: ${reason}`);
+    await this.logAudit(adminId, 'WALLET_TOPUP', targetUserId, `Topup ৳${cleanAmount}. Reason: ${reason}`);
     return newTx;
   }
 
@@ -319,28 +320,29 @@ export class MockService {
     if (targetUsers.length === 0) throw new Error('কোনো উপযুক্ত সদস্য পাওয়া যায়নি');
 
     let processedCount = 0;
+    const cleanFeeAmount = Math.round(amount * 100) / 100;
 
     for (const user of targetUsers) {
-      // FIX 12: Skip GUEST users whose configured monthlyCharge is 0 when collecting ALL
-      // (Guest members typically don't have a monthly service charge)
       if (targetUserId === 'ALL' && user.userType === 'GUEST' && rates.guest.monthlyCharge === 0) {
         continue;
       }
 
-      const balanceBefore = user.walletBalance;
+      const balanceBefore = Math.round(user.walletBalance * 100) / 100;
       let balanceAfter = balanceBefore;
       let desc = '';
-      let actualAmount = amount;
+      let actualAmount = cleanFeeAmount;
 
       if (method === 'WALLET_DEDUCTION') {
-        // FIX 2: Wallet floor guard — never allow balance to go below 0
-        actualAmount = Math.min(amount, Math.max(0, balanceBefore));
-        balanceAfter = balanceBefore - actualAmount;
+        actualAmount = Math.round(Math.min(cleanFeeAmount, Math.max(0, balanceBefore)) * 100) / 100;
+        if (actualAmount === 0 && balanceBefore === 0) {
+          // Skip zero-deduction transaction if wallet balance is 0
+          continue;
+        }
+        balanceAfter = Math.round((balanceBefore - actualAmount) * 100) / 100;
         user.walletBalance = balanceAfter;
         desc = `মাসিক ফি (৳${actualAmount}) কর্তন - ${monthYear} (ওয়ালেট থেকে সরাসরি কর্তন)`
-          + (actualAmount < amount ? ` [আংশিক: পূর্ণ ৳${amount} এর মধ্যে ৳${actualAmount} কর্তন করা হয়েছে, ব্যালেন্স অপর্যাপ্ত]` : '');
+          + (actualAmount < cleanFeeAmount ? ` [আংশিক: পূর্ণ ৳${cleanFeeAmount} এর মধ্যে ৳${actualAmount} কর্তন করা হয়েছে, ব্যালেন্স অপর্যাপ্ত]` : '');
       } else {
-        // CASH_HAND_TO_HAND: wallet balance remains untouched!
         desc = `মাসিক ফি (৳${actualAmount}) পরিশোধ - ${monthYear} (হাতে হাতে ক্যাশ প্রদান করা হয়েছে, ওয়ালেট থেকে কর্তন নয়)`;
       }
 
@@ -367,7 +369,7 @@ export class MockService {
       adminId,
       'COLLECT_MONTHLY_FEE',
       targetUserId === 'ALL' ? undefined : targetUserId,
-      `Monthly fee ৳${amount} collected via ${method} for ${monthYear} (${processedCount} members)`
+      `Monthly fee ৳${cleanFeeAmount} collected via ${method} for ${monthYear} (${processedCount} members)`
     );
 
     return processedCount;
@@ -377,38 +379,50 @@ export class MockService {
     const users = await this.getUsers();
     const txs = await this.getTransactions();
 
-    const totalWalletBalance = users.reduce((sum, u) => sum + u.walletBalance, 0);
+    const totalWalletBalance = Math.round(users.reduce((sum, u) => sum + u.walletBalance, 0) * 100) / 100;
     const lowBalanceUsersCount = users.filter((u) => u.walletBalance < 150).length;
 
     const todayStr = new Date().toISOString().split('T')[0];
 
-    const todayCollection = txs
-      .filter((t) => t.type === 'RECHARGE' && t.date.startsWith(todayStr))
-      .reduce((sum, t) => sum + t.amount, 0);
+    const todayCollection = Math.round(
+      txs
+        .filter((t) => t.type === 'RECHARGE' && t.date.startsWith(todayStr))
+        .reduce((sum, t) => sum + t.amount, 0) * 100
+    ) / 100;
 
-    const totalRecharges = txs
-      .filter((t) => t.type === 'RECHARGE')
-      .reduce((sum, t) => sum + t.amount, 0);
+    const totalRecharges = Math.round(
+      txs
+        .filter((t) => t.type === 'RECHARGE')
+        .reduce((sum, t) => sum + t.amount, 0) * 100
+    ) / 100;
 
-    const permanentRevenue = txs
-      .filter((t) => t.type === 'MEAL_DEDUCTION')
-      .reduce((sum, t) => sum + t.amount, 0);
+    const permanentRevenue = Math.round(
+      txs
+        .filter((t) => t.type === 'MEAL_DEDUCTION')
+        .reduce((sum, t) => sum + t.amount, 0) * 100
+    ) / 100;
 
-    const totalRefunds = txs
-      .filter((t) => t.type === 'REFUND')
-      .reduce((sum, t) => sum + t.amount, 0);
+    const totalRefunds = Math.round(
+      txs
+        .filter((t) => t.type === 'REFUND')
+        .reduce((sum, t) => sum + t.amount, 0) * 100
+    ) / 100;
 
-    const todayExpenses = txs
-      .filter((t) => t.type === 'MEAL_DEDUCTION' && t.date.startsWith(todayStr))
-      .reduce((sum, t) => sum + t.amount, 0);
+    const todayExpenses = Math.round(
+      txs
+        .filter((t) => t.type === 'MEAL_DEDUCTION' && t.date.startsWith(todayStr))
+        .reduce((sum, t) => sum + t.amount, 0) * 100
+    ) / 100;
 
-    const netProfit = totalRecharges - permanentRevenue;
+    const netProfit = Math.round((totalRecharges - permanentRevenue) * 100) / 100;
 
     const topSpenders = users
       .map((u) => {
-        const spent = txs
-          .filter((t) => t.userId === u.id && t.type === 'MEAL_DEDUCTION')
-          .reduce((s, t) => s + t.amount, 0);
+        const spent = Math.round(
+          txs
+            .filter((t) => t.userId === u.id && t.type === 'MEAL_DEDUCTION')
+            .reduce((s, t) => s + t.amount, 0) * 100
+        ) / 100;
         return {
           name: u.name,
           amount: spent,
@@ -546,6 +560,9 @@ export class MockService {
     const rawData = localStorage.getItem(this.STORAGE_KEY_DECLARATIONS);
     let decs: MealDeclaration[] = rawData ? JSON.parse(rawData) : [];
 
+    const decMap = new Map<string, MealDeclaration>();
+    decs.forEach((d) => decMap.set(`${d.userId}_${d.date}`, d));
+
     const users = await this.getUsers();
     const approvedUsers = users.filter((u) => u.status === 'APPROVED');
     const rates = await this.getMealRates();
@@ -563,7 +580,7 @@ export class MockService {
     for (const u of approvedUsers) {
       if (u.isIndefinitelyPaused) continue;
 
-      const existing = decs.find((dec) => dec.userId === u.id && dec.date === targetDate);
+      const existing = decMap.get(`${u.id}_${targetDate}`);
 
       // 1. If target date is an emergency closure day, force all meals OFF
       if (targetEmergency) {
@@ -576,7 +593,7 @@ export class MockService {
             hasChanges = true;
           }
         } else {
-          decs.push({
+          const newDec: MealDeclaration = {
             id: 'auto_dec_' + u.id + '_' + targetDate + '_' + Date.now(),
             userId: u.id,
             date: targetDate,
@@ -585,7 +602,9 @@ export class MockService {
             dinner: false,
             isAutoCopied: true,
             updatedAt: new Date().toISOString(),
-          });
+          };
+          decs.push(newDec);
+          decMap.set(`${u.id}_${targetDate}`, newDec);
           hasChanges = true;
         }
         continue;
@@ -626,7 +645,7 @@ export class MockService {
             });
             if (wasEmergency) continue;
 
-            const prevDec = decs.find((dec) => dec.userId === u.id && dec.date === checkStr);
+            const prevDec = decMap.get(`${u.id}_${checkStr}`);
             if (prevDec && (prevDec.breakfast || prevDec.lunch || prevDec.dinner)) {
               foundMeals = { breakfast: prevDec.breakfast, lunch: prevDec.lunch, dinner: prevDec.dinner };
               break;
@@ -680,6 +699,7 @@ export class MockService {
         };
 
         decs.push(newDec);
+        decMap.set(`${u.id}_${targetDate}`, newDec);
         hasChanges = true;
       }
     }
@@ -779,6 +799,103 @@ export class MockService {
 
     localStorage.setItem(this.STORAGE_KEY_DECLARATIONS, JSON.stringify(decs));
     return updated;
+  }
+
+  static async bulkUpdateDeclarations(
+    updates: { userId: string; date: string; meals: { breakfast: boolean; lunch: boolean; dinner: boolean } }[]
+  ): Promise<void> {
+    const decs = await this.getDeclarations();
+    const map = new Map<string, number>();
+    decs.forEach((d, idx) => map.set(`${d.userId}_${d.date}`, idx));
+
+    for (const update of updates) {
+      const key = `${update.userId}_${update.date}`;
+      const idx = map.get(key);
+      const updatedDec: MealDeclaration = {
+        id: idx !== undefined ? decs[idx].id : 'dec_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        userId: update.userId,
+        date: update.date,
+        breakfast: update.meals.breakfast,
+        lunch: update.meals.lunch,
+        dinner: update.meals.dinner,
+        isAutoCopied: false,
+        updatedAt: new Date().toISOString(),
+      };
+      if (idx !== undefined) {
+        decs[idx] = updatedDec;
+      } else {
+        map.set(key, decs.length);
+        decs.push(updatedDec);
+      }
+    }
+
+    localStorage.setItem(this.STORAGE_KEY_DECLARATIONS, JSON.stringify(decs));
+  }
+
+  static async seed300TestUsers(): Promise<number> {
+    const users = await this.getUsers();
+    const existingPhones = new Set(users.map((u) => u.phone));
+    const newUsers: User[] = [];
+    const todayStr = getBangladeshDateStr();
+
+    for (let i = 1; i <= 300; i++) {
+      const phone = `01799${String(i).padStart(6, '0')}`;
+      if (existingPhones.has(phone)) continue;
+
+      const userType: UserType = i % 5 === 0 ? 'GUEST' : 'PERMANENT';
+      const balance = Math.round((Math.random() * 2000 + 150) * 100) / 100;
+
+      const user: User = {
+        id: `u_test_300_${i}_${Date.now()}`,
+        name: `টেস্ট সদস্য ${i}`,
+        phone,
+        password: 'user',
+        role: 'USER',
+        userType,
+        status: 'APPROVED',
+        walletBalance: balance,
+        isDualMode: false,
+        activeMode: 'USER',
+        createdAt: new Date().toISOString(),
+        profile: {
+          studentId: `STU-${1000 + i}`,
+          department: i % 3 === 0 ? 'ইনফরমেশন টেকনোলজি' : i % 3 === 1 ? 'কম্পিউটার সায়েন্স' : 'ইলেকট্রিক্যাল',
+          bloodGroup: i % 4 === 0 ? 'A+' : i % 4 === 1 ? 'B+' : i % 4 === 2 ? 'O+' : 'AB+',
+          hostelName: 'মেস ভবন ব্লক ' + ((i % 4) + 1),
+        },
+      };
+      newUsers.push(user);
+    }
+
+    users.push(...newUsers);
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+
+    // Ensure initial meal declarations for today exist
+    await this.ensureAutoCopiedDeclarationsForDate(todayStr);
+
+    await this.logAudit('admin', 'SEED_300_USERS', undefined, `সিস্টেমে ${newUsers.length} জন টেস্ট মেম্বার সফলভাবে তৈরি ও যুক্ত করা হয়েছে।`);
+    return newUsers.length;
+  }
+
+  static async deleteAllTestUsersExceptAdmin(): Promise<number> {
+    const users = await this.getUsers();
+    const adminUsers = users.filter((u) => u.role === 'SUPERADMIN' || u.phone === '01822222222');
+    const deletedCount = users.length - adminUsers.length;
+
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(adminUsers));
+
+    // Clean declarations & transactions for deleted users
+    const adminIds = new Set(adminUsers.map((u) => u.id));
+    const decs = await this.getDeclarations();
+    const cleanDecs = decs.filter((d) => adminIds.has(d.userId));
+    localStorage.setItem(this.STORAGE_KEY_DECLARATIONS, JSON.stringify(cleanDecs));
+
+    const txs = await this.getTransactions();
+    const cleanTxs = txs.filter((t) => adminIds.has(t.userId));
+    localStorage.setItem(this.STORAGE_KEY_TRANSACTIONS, JSON.stringify(cleanTxs));
+
+    await this.logAudit('admin', 'PURGE_300_TEST_USERS', undefined, `মোট ${deletedCount} জন টেস্ট ইউজার সিস্টেম থেকে স্থায়ীভাবে মুছে ফেলা হয়েছে। শুধু অ্যাডমিন একাউন্ট অবশিষ্ট রয়েছে।`);
+    return deletedCount;
   }
 
   static async getEmergencies(): Promise<EmergencyClosure[]> {

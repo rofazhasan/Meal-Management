@@ -9,12 +9,14 @@ interface FinancialDashboardProps {
   metrics: FinancialMetrics;
   transactions?: WalletTransaction[];
   users?: User[];
+  onRefreshData?: () => void;
 }
 
 export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   metrics,
   transactions = [],
   users = [],
+  onRefreshData,
 }) => {
   const [filterPeriod, setFilterPeriod] = useState<'today' | 'monthly' | 'yearly'>('monthly');
 
@@ -116,7 +118,11 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
       );
       const methodText = feeMethod === 'WALLET_DEDUCTION' ? 'ওয়ালেট থেকে সরাসরি কর্তন করা হয়েছে' : 'হাতে হাতে ক্যাশ রেকর্ড হিসাবে ট্রানজেকশন তৈরি হয়েছে (ওয়ালেট ব্যালেন্স অপরিবর্তিত)';
       alert(`মোট ${count} জন মেম্বারের ${feeMonthYear} তারিখের মাসিক ফি (৳${feeAmount}) ${methodText}!`);
-      window.location.reload();
+      if (onRefreshData) {
+        onRefreshData();
+      } else {
+        window.location.reload();
+      }
     } catch (err: any) {
       alert(err.message || 'মাসিক ফি সংগ্রহ করতে সমস্যা হয়েছে');
     } finally {

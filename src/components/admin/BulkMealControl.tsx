@@ -255,17 +255,19 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
     setSuccessBanner(false);
     setAlertMsg(null);
     try {
-      // Save all declarations for all approved users
-      for (const u of approvedUsers) {
+      const updates = approvedUsers.map((u) => {
         const meals = mealMap[u.id] || { breakfast: true, lunch: true, dinner: true };
-        // Enforce emergency closure
-        const safeMeals = {
-          breakfast: isBEmergencyOff ? false : meals.breakfast,
-          lunch: isLEmergencyOff ? false : meals.lunch,
-          dinner: isDEmergencyOff ? false : meals.dinner,
+        return {
+          userId: u.id,
+          date: selectedDate,
+          meals: {
+            breakfast: isBEmergencyOff ? false : meals.breakfast,
+            lunch: isLEmergencyOff ? false : meals.lunch,
+            dinner: isDEmergencyOff ? false : meals.dinner,
+          },
         };
-        await MockService.updateDeclaration(u.id, selectedDate, safeMeals);
-      }
+      });
+      await MockService.bulkUpdateDeclarations(updates);
       setSuccessBanner(true);
       onRefreshData();
       setTimeout(() => setSuccessBanner(false), 5000);

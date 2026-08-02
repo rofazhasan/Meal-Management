@@ -374,6 +374,7 @@ const MainApplication: React.FC = () => {
                     metrics={financialMetrics}
                     transactions={transactions}
                     users={users}
+                    onRefreshData={handleRefreshAll}
                   />
                 )}
 

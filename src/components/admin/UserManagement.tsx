@@ -4,6 +4,7 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
+  getPaginationRowModel,
   flexRender,
   createColumnHelper,
 } from '@tanstack/react-table';
@@ -126,6 +127,39 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
   const handlePrintMasterReport = () => {
     window.print();
+  };
+
+  const [seeding, setSeeding] = useState(false);
+  const [purging, setPurging] = useState(false);
+
+  const handleSeed300Users = async () => {
+    if (confirm('আপনি কি টেস্ট করার জন্য সিস্টেমে ৩০০ জন টেস্ট মেম্বার এক সাথে তৈরি করতে চান?')) {
+      setSeeding(true);
+      try {
+        const count = await MockService.seed300TestUsers();
+        alert(`সফলভাবে ${count} জন টেস্ট ইউজার তৈরি হয়েছে!`);
+        onRefreshData();
+      } catch (err: any) {
+        alert(err.message || 'টেস্ট ইউজার তৈরি করতে সমস্যা হয়েছে');
+      } finally {
+        setSeeding(false);
+      }
+    }
+  };
+
+  const handleDelete300Users = async () => {
+    if (confirm('⚠️ সাবধান! আপনি কি নিশ্চিত যে অ্যাডমিন একাউন্ট ছাড়া বাকি সকল (৩০০ জন) টেস্ট ইউজার মুছে ফেলতে চান?\n\nমেসের শুধুমাত্র মেস অ্যাডমিন একাউন্টই অবশিষ্ট থাকবে।')) {
+      setPurging(true);
+      try {
+        const count = await MockService.deleteAllTestUsersExceptAdmin();
+        alert(`সফলভাবে ${count} জন টেস্ট ইউজার মুছে ফেলা হয়েছে! এখন শুধু অ্যাডমিন একাউন্ট রয়েছে।`);
+        onRefreshData();
+      } catch (err: any) {
+        alert(err.message || 'ইউজার ডিলিট করতে সমস্যা হয়েছে');
+      } finally {
+        setPurging(false);
+      }
+    }
   };
 
   const columns = useMemo(
@@ -252,9 +286,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 25,
+      },
+    },
   });
 
-  const totalWalletSum = users.reduce((sum, u) => sum + u.walletBalance, 0);
+  const totalWalletSum = Math.round(users.reduce((sum, u) => sum + u.walletBalance, 0) * 100) / 100;
 
   return (
     <div className="space-y-6 pb-24 max-w-7xl mx-auto animate-scale-in">
@@ -275,6 +315,28 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
         {/* Action Buttons & Search */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Seed 300 Test Users */}
+          <button
+            onClick={handleSeed300Users}
+            disabled={seeding}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-indigo-600/80 hover:bg-indigo-500 text-white font-bold text-xs transition-all shadow-md active:scale-95 font-display border border-indigo-400/40 disabled:opacity-50"
+            title="ইনস্পেকশনের জন্য ৩০০ জন টেস্ট ইউজার তৈরি করুন"
+          >
+            <PlusCircle className="w-4 h-4 text-indigo-300" />
+            <span>{seeding ? 'তৈরি হচ্ছে...' : '৩০০ টেস্ট ইউজার সেটিং'}</span>
+          </button>
+
+          {/* Delete 300 Test Users */}
+          <button
+            onClick={handleDelete300Users}
+            disabled={purging}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-rose-600/80 hover:bg-rose-500 text-white font-bold text-xs transition-all shadow-md active:scale-95 font-display border border-rose-400/40 disabled:opacity-50"
+            title="শুধু অ্যাডমিন রেখে বাকি ৩০০ ইউজার মুছে ফেলুন"
+          >
+            <Trash2 className="w-4 h-4 text-rose-200" />
+            <span>{purging ? 'ডিলিট হচ্ছে...' : '৩০০ ইউজার ডিলিট (শুধু অ্যাডমিন)'}</span>
+          </button>
+
           {/* Create User Button */}
           <button
             onClick={() => setShowCreateModal(true)}
@@ -328,31 +390,76 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             description="আপনার সার্চ কোয়েরি অনুযায়ী কোনো ইউজারের ডাটা মিলছে না।"
           />
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-slate-800/80">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-900/90 uppercase text-[10px] text-slate-400 border-b border-slate-800 font-mono">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <th key={header.id} className="p-3.5 font-bold">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
+          <div className="space-y-4">
+            <div className="overflow-x-auto rounded-2xl border border-slate-800/80">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-900/90 uppercase text-[10px] text-slate-400 border-b border-slate-800 font-mono">
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <tr key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <th key={header.id} className="p-3.5 font-bold">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 bg-slate-950/40">
+                  {table.getRowModel().rows.map((row) => (
+                    <tr key={row.id} className="hover:bg-slate-900/60 transition-colors">
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="p-3.5">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Bar */}
+            {table.getPageCount() > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-slate-800/80">
+                <div className="text-xs text-slate-400 font-mono">
+                  দেখানো হচ্ছে <span className="font-bold text-cyan-300">{table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}</span> - <span className="font-bold text-cyan-300">{Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length)}</span> (মোট <span className="font-bold text-cyan-300">{table.getFilteredRowModel().rows.length}</span> জন সদস্য)
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={table.getState().pagination.pageSize}
+                    onChange={(e) => table.setPageSize(Number(e.target.value))}
+                    className="bg-slate-900 border border-slate-700 text-xs rounded-xl px-2.5 py-1.5 text-slate-200 focus:outline-none font-mono"
+                  >
+                    {[10, 25, 50, 100].map((pageSize) => (
+                      <option key={pageSize} value={pageSize}>
+                        প্রতি পেজে {pageSize} জন
+                      </option>
                     ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 bg-slate-950/40">
-                {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-900/60 transition-colors">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="p-3.5">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </select>
+
+                  <button
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
+                    className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed font-bold transition-all active:scale-95"
+                  >
+                    পূর্ববর্তী
+                  </button>
+
+                  <span className="text-xs text-slate-400 font-mono font-bold px-2">
+                    পেজ {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
+                  </span>
+
+                  <button
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage()}
+                    className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed font-bold transition-all active:scale-95"
+                  >
+                    পরবর্তী
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
