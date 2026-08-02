@@ -412,39 +412,42 @@ export class MockService {
     const users = await this.getUsers();
     const txs = await this.getTransactions();
 
-    const totalWalletBalance = Math.round(users.reduce((sum, u) => sum + u.walletBalance, 0) * 100) / 100;
-    const lowBalanceUsersCount = users.filter((u) => u.walletBalance < 150).length;
+    const totalWalletBalance = Math.round(users.reduce((sum, u) => sum + (u.walletBalance || 0), 0) * 100) / 100;
+    const lowBalanceUsersCount = users.filter((u) => (u.walletBalance || 0) < 150).length;
 
     const todayStr = new Date().toISOString().split('T')[0];
 
+    const getTxDate = (t: WalletTransaction) => String(t.timestamp || t.date || '');
+    const getTxType = (t: WalletTransaction) => String(t.type || '').toUpperCase();
+
     const todayCollection = Math.round(
       txs
-        .filter((t) => t.type === 'RECHARGE' && t.date.startsWith(todayStr))
-        .reduce((sum, t) => sum + t.amount, 0) * 100
+        .filter((t) => (getTxType(t) === 'RECHARGE' || getTxType(t) === 'ADMIN_TOPUP') && getTxDate(t).startsWith(todayStr))
+        .reduce((sum, t) => sum + (t.amount || 0), 0) * 100
     ) / 100;
 
     const totalRecharges = Math.round(
       txs
-        .filter((t) => t.type === 'RECHARGE')
-        .reduce((sum, t) => sum + t.amount, 0) * 100
+        .filter((t) => getTxType(t) === 'RECHARGE' || getTxType(t) === 'ADMIN_TOPUP')
+        .reduce((sum, t) => sum + (t.amount || 0), 0) * 100
     ) / 100;
 
     const permanentRevenue = Math.round(
       txs
-        .filter((t) => t.type === 'MEAL_DEDUCTION')
-        .reduce((sum, t) => sum + t.amount, 0) * 100
+        .filter((t) => getTxType(t) === 'MEAL_DEDUCTION')
+        .reduce((sum, t) => sum + (t.amount || 0), 0) * 100
     ) / 100;
 
     const totalRefunds = Math.round(
       txs
-        .filter((t) => t.type === 'REFUND')
-        .reduce((sum, t) => sum + t.amount, 0) * 100
+        .filter((t) => getTxType(t) === 'REFUND')
+        .reduce((sum, t) => sum + (t.amount || 0), 0) * 100
     ) / 100;
 
     const todayExpenses = Math.round(
       txs
-        .filter((t) => t.type === 'MEAL_DEDUCTION' && t.date.startsWith(todayStr))
-        .reduce((sum, t) => sum + t.amount, 0) * 100
+        .filter((t) => getTxType(t) === 'MEAL_DEDUCTION' && getTxDate(t).startsWith(todayStr))
+        .reduce((sum, t) => sum + (t.amount || 0), 0) * 100
     ) / 100;
 
     const netProfit = Math.round((totalRecharges - permanentRevenue) * 100) / 100;
@@ -453,8 +456,8 @@ export class MockService {
       .map((u) => {
         const spent = Math.round(
           txs
-            .filter((t) => t.userId === u.id && t.type === 'MEAL_DEDUCTION')
-            .reduce((s, t) => s + t.amount, 0) * 100
+            .filter((t) => t.userId === u.id && getTxType(t) === 'MEAL_DEDUCTION')
+            .reduce((s, t) => s + (t.amount || 0), 0) * 100
         ) / 100;
         return {
           name: u.name,

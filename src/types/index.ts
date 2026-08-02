@@ -122,6 +122,7 @@ export interface WalletTransaction {
   balanceAfter: number;
   description: string;
   date: string; // ISO String or YYYY-MM-DD
+  timestamp?: string;
   adminId?: string;
 }
 
