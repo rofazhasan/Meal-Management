@@ -141,13 +141,16 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
     return phone.substring(0, 3) + '***';
   };
 
-  // Money balance masking function: e.g., ৳ *00 or ৳ 1*00
+  // Money balance masking function: e.g., 2000 -> ৳ 20*0, 500 -> ৳ 5*0
   const maskMoney = (amount: number): string => {
-    if (isNaN(amount)) return '৳ *00';
+    if (isNaN(amount)) return '৳ *0';
     const amountStr = Math.max(0, Math.floor(amount)).toString();
-    if (amountStr.length <= 2) return '৳ *00';
-    const firstPart = amountStr.substring(0, amountStr.length - 2);
-    return `৳ ${firstPart}*00`;
+    if (amountStr.length <= 2) {
+      if (amountStr.length === 1) return `৳ *${amountStr}`;
+      return `৳ ${amountStr[0]}*`;
+    }
+    const maskIdx = amountStr.length - 2;
+    return `৳ ${amountStr.substring(0, maskIdx)}*${amountStr.substring(maskIdx + 1)}`;
   };
 
   return (
