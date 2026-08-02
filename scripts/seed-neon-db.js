@@ -41,13 +41,13 @@ async function main() {
 
   const walletQuery = `
     INSERT INTO wallets (user_id, current_balance, currency)
-    VALUES ('11111111-1111-1111-1111-111111111111', 5000.00, 'BDT')
+    VALUES ('11111111-1111-1111-1111-111111111111', 0.00, 'BDT')
     ON CONFLICT (user_id) DO NOTHING;
   `;
   await client.query(walletQuery);
 
   console.log("🎉 REAL SUPERADMIN ACCOUNT CREATED AND CONFIRMED IN NEON DB!");
-  console.log("📱 Mobile: 01794678595 | Password: admin | Role: ADMIN | Balance: ৳5,000");
+  console.log("📱 Mobile: 01794678595 | Password: admin | Role: SUPERADMIN | Balance: ৳0");
 
   const res = await client.query("SELECT id, phone_number, full_name, role, approval_status FROM users;");
   console.log("\n📊 ALL USERS CURRENTLY IN NEON CLOUD DATABASE:");
