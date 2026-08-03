@@ -258,6 +258,64 @@ export default async function handler(req, res) {
     }
 
     // --------------------------------------------------------------------------
+    // 6b. POST /api/declarations/bulk
+    // --------------------------------------------------------------------------
+    if (pathname === '/api/declarations/bulk' && req.method === 'POST') {
+      const { updates, isAdminOverride } = req.body || {};
+      if (!Array.isArray(updates)) {
+        return res.status(400).json({ error: 'Invalid updates payload' });
+      }
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const sourceType = isAdminOverride ? 'ADMIN_OVERRIDE' : 'ADMIN_BULK';
+
+        for (const update of updates) {
+          await client.query(`
+            INSERT INTO meal_declarations (user_id, declaration_date, breakfast_selected, lunch_selected, dinner_selected, source_type)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (user_id, declaration_date) 
+            DO UPDATE SET 
+              breakfast_selected = EXCLUDED.breakfast_selected,
+              lunch_selected = EXCLUDED.lunch_selected,
+              dinner_selected = EXCLUDED.dinner_selected,
+              source_type = EXCLUDED.source_type,
+              updated_at = CURRENT_TIMESTAMP;
+          `, [update.userId, update.date, !!update.meals?.breakfast, !!update.meals?.lunch, !!update.meals?.dinner, sourceType]);
+        }
+
+        await client.query('COMMIT');
+        return res.status(200).json({ success: true, count: updates.length });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Bulk declarations error:', err);
+        return res.status(500).json({ error: 'Bulk declaration update failed' });
+      } finally {
+        client.release();
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 6c. POST /api/users/pause
+    // --------------------------------------------------------------------------
+    if (pathname === '/api/users/pause' && req.method === 'POST') {
+      const { userId, isPaused } = req.body || {};
+      try {
+        await pool.query(`
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS is_indefinitely_paused BOOLEAN DEFAULT FALSE;
+        `);
+        await pool.query(`
+          UPDATE users SET is_indefinitely_paused = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2;
+        `, [!!isPaused, userId]);
+        return res.status(200).json({ success: true, userId, isPaused: !!isPaused });
+      } catch (err) {
+        console.error('Pause user error:', err);
+        return res.status(500).json({ error: 'Failed to update user pause status' });
+      }
+    }
+
+    // --------------------------------------------------------------------------
     // 7. GET /api/transactions
     // --------------------------------------------------------------------------
     if (pathname === '/api/transactions' && req.method === 'GET') {

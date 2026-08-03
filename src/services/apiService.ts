@@ -139,10 +139,20 @@ export class ApiService {
   }
 
   static async setUserIndefinitePause(userId: string, isPaused: boolean): Promise<User> {
+    try {
+      await fetch(`${API_BASE}/users/pause`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, isPaused }),
+      });
+    } catch (err) {
+      console.warn('Backend pause user failed, updating local state:', err);
+    }
     const users = await this.getUsers();
     const user = users.find((u) => u.id === userId);
     if (!user) throw new Error('User not found');
     user.isIndefinitelyPaused = isPaused;
+    localStorage.setItem('meal_app_v5_users', JSON.stringify(users));
     return user;
   }
 
@@ -150,8 +160,8 @@ export class ApiService {
     const users = await this.getUsers();
     const user = users.find((u) => u.id === userId);
     if (!user) throw new Error('User not found');
-    user.isIndefinitelyPaused = !user.isIndefinitelyPaused;
-    return user;
+    const nextState = !user.isIndefinitelyPaused;
+    return this.setUserIndefinitePause(userId, nextState);
   }
 
   static async deleteUserWithArchive(adminId: string, userId: string): Promise<void> {
