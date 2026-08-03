@@ -188,6 +188,20 @@ CREATE TABLE IF NOT EXISTS wallet_transactions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS recharge_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
+    payment_method VARCHAR(30) NOT NULL,
+    trx_id VARCHAR(100),
+    note TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    requested_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMPTZ,
+    processed_by_admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    rejection_reason TEXT
+);
+
 CREATE TABLE IF NOT EXISTS approval_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -272,6 +286,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_meal_consumptions_user_date_type ON meal_c
 CREATE INDEX IF NOT EXISTS idx_meal_consumptions_date_type ON meal_consumptions(meal_date, meal_type, status);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_wallets_user ON wallets(user_id);
 CREATE INDEX IF NOT EXISTS idx_wallet_tx_wallet_date ON wallet_transactions(wallet_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_recharge_requests_status_date ON recharge_requests(status, requested_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_meal_settings_date ON meal_settings(meal_date);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, created_at DESC) WHERE status = 'UNREAD';
 CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_events(status, next_retry_at) WHERE status IN ('PENDING', 'PROCESSING');

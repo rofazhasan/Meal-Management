@@ -419,7 +419,6 @@ export class ApiService {
     trxId?: string;
     note?: string;
   }): Promise<RechargeRequest> {
-    const reqs = await this.getRechargeRequests();
     const newReq: RechargeRequest = {
       id: 'rr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       userId: data.userId,
@@ -432,13 +431,45 @@ export class ApiService {
       status: 'PENDING',
       requestedAt: new Date().toISOString(),
     };
-    reqs.unshift(newReq);
-    localStorage.setItem('meal_app_v5_recharge_requests', JSON.stringify(reqs));
+
+    try {
+      const res = await fetch(`${API_BASE}/recharge-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to create recharge request');
+      const created = await res.json();
+      await this.logAudit('user', 'RECHARGE_REQUEST_CREATED', data.userId, `Requested ৳${data.amount} via ${data.paymentMethod} (TrxID: ${data.trxId || 'N/A'})`);
+      return created;
+    } catch {
+      const reqs = await this.getRechargeRequests();
+      reqs.unshift(newReq);
+      localStorage.setItem('meal_app_v5_recharge_requests', JSON.stringify(reqs));
+    }
+
     await this.logAudit('user', 'RECHARGE_REQUEST_CREATED', data.userId, `Requested ৳${data.amount} via ${data.paymentMethod} (TrxID: ${data.trxId || 'N/A'})`);
     return newReq;
   }
 
   static async approveRechargeRequest(requestId: string, adminId: string): Promise<{ request: RechargeRequest; transaction: WalletTransaction }> {
+    try {
+      const res = await fetch(`${API_BASE}/recharge-requests`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, adminId, status: 'APPROVED' }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to approve recharge request');
+      }
+      const result = await res.json();
+      await this.logAudit(adminId, 'RECHARGE_REQUEST_APPROVED', result.request.userId, `Approved ৳${result.request.amount} for ${result.request.userName}`);
+      return result;
+    } catch (error) {
+      if (error instanceof Error && /already been processed|not found/i.test(error.message)) throw error;
+    }
+
     const reqs = await this.getRechargeRequests();
     const req = reqs.find((r) => r.id === requestId);
     if (!req) throw new Error('রিচার্জ রিকুয়েস্ট পাওয়া যায়নি');
@@ -467,6 +498,23 @@ export class ApiService {
   }
 
   static async rejectRechargeRequest(requestId: string, adminId: string, reason?: string): Promise<RechargeRequest> {
+    try {
+      const res = await fetch(`${API_BASE}/recharge-requests`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, adminId, status: 'REJECTED', rejectionReason: reason }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to reject recharge request');
+      }
+      const result = await res.json();
+      await this.logAudit(adminId, 'RECHARGE_REQUEST_REJECTED', result.request.userId, `Rejected recharge request of ৳${result.request.amount}. Reason: ${result.request.rejectionReason}`);
+      return result.request;
+    } catch (error) {
+      if (error instanceof Error && /already been processed|not found/i.test(error.message)) throw error;
+    }
+
     const reqs = await this.getRechargeRequests();
     const req = reqs.find((r) => r.id === requestId);
     if (!req) throw new Error('রিচার্জ রিকুয়েস্ট পাওয়া যায়নি');

@@ -214,6 +214,67 @@ export default async function handler(req, res) {
     }
 
     // --------------------------------------------------------------------------
+    // 4b. PUT /api/rates
+    // --------------------------------------------------------------------------
+    if (pathname === '/api/rates' && req.method === 'PUT') {
+      const { permanent, guest } = req.body || {};
+      const priceGroups = [
+        ['PERMANENT', permanent],
+        ['GUEST', guest],
+      ];
+      const mealTypes = ['breakfast', 'lunch', 'dinner'];
+
+      if (!priceGroups.every(([, rates]) => rates && mealTypes.every((meal) => Number.isFinite(Number(rates[meal])) && Number(rates[meal]) >= 0))) {
+        return res.status(400).json({ error: 'Valid non-negative meal rates are required.' });
+      }
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        for (const [userType, rates] of priceGroups) {
+          for (const meal of mealTypes) {
+            await client.query(`
+              UPDATE meal_prices
+              SET price = $1, updated_at = CURRENT_TIMESTAMP
+              WHERE user_type = $2 AND meal_type = $3 AND effective_to IS NULL;
+            `, [Number(rates[meal]), userType, meal.toUpperCase()]);
+
+            const existing = await client.query(`
+              SELECT 1 FROM meal_prices
+              WHERE user_type = $1 AND meal_type = $2 AND effective_to IS NULL
+              LIMIT 1;
+            `, [userType, meal.toUpperCase()]);
+
+            if (existing.rowCount === 0) {
+              await client.query(`
+                INSERT INTO meal_prices (user_type, meal_type, price, effective_from)
+                VALUES ($1, $2, $3, CURRENT_DATE);
+              `, [userType, meal.toUpperCase(), Number(rates[meal])]);
+            }
+          }
+
+          if (Number.isFinite(Number(rates.monthlyCharge)) && Number(rates.monthlyCharge) >= 0) {
+            await client.query(`
+              INSERT INTO monthly_charges (user_type, month, year, monthly_amount)
+              VALUES ($1, EXTRACT(MONTH FROM CURRENT_DATE), EXTRACT(YEAR FROM CURRENT_DATE), $2)
+              ON CONFLICT (user_type, month, year)
+              DO UPDATE SET monthly_amount = EXCLUDED.monthly_amount, updated_at = CURRENT_TIMESTAMP;
+            `, [userType, Number(rates.monthlyCharge)]);
+          }
+        }
+
+        await client.query('COMMIT');
+        return res.status(200).json(req.body);
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
+    // --------------------------------------------------------------------------
     // 5. GET /api/declarations
     // --------------------------------------------------------------------------
     if (pathname === '/api/declarations' && req.method === 'GET') {
@@ -383,6 +444,133 @@ export default async function handler(req, res) {
         await client.query('ROLLBACK');
         console.error('Wallet topup failed:', err);
         return res.status(500).json({ error: 'Topup failed' });
+      } finally {
+        client.release();
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 8b. Recharge requests
+    // --------------------------------------------------------------------------
+    if (pathname === '/api/recharge-requests' && req.method === 'GET') {
+      const result = await pool.query(`
+        SELECT
+          rr.id,
+          rr.user_id AS "userId",
+          u.full_name AS "userName",
+          u.phone_number AS "userPhone",
+          rr.amount::float,
+          rr.payment_method AS "paymentMethod",
+          rr.trx_id AS "trxId",
+          rr.note,
+          rr.status,
+          rr.requested_at AS "requestedAt",
+          rr.processed_at AS "processedAt",
+          rr.processed_by_admin_id AS "processedByAdminId",
+          rr.rejection_reason AS "rejectionReason"
+        FROM recharge_requests rr
+        JOIN users u ON u.id = rr.user_id
+        ORDER BY rr.requested_at DESC;
+      `);
+      return res.status(200).json(result.rows);
+    }
+
+    if (pathname === '/api/recharge-requests' && req.method === 'POST') {
+      const { userId, amount, paymentMethod, trxId, note } = req.body || {};
+      const numericAmount = Number(amount);
+      if (!userId || !Number.isFinite(numericAmount) || numericAmount <= 0 || !paymentMethod) {
+        return res.status(400).json({ error: 'userId, a positive amount, and paymentMethod are required.' });
+      }
+
+      const result = await pool.query(`
+        INSERT INTO recharge_requests (user_id, amount, payment_method, trx_id, note)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING
+          id,
+          user_id AS "userId",
+          amount::float,
+          payment_method AS "paymentMethod",
+          trx_id AS "trxId",
+          note,
+          status,
+          requested_at AS "requestedAt";
+      `, [userId, numericAmount, paymentMethod, trxId || null, note || null]);
+
+      const userResult = await pool.query('SELECT full_name AS "userName", phone_number AS "userPhone" FROM users WHERE id = $1;', [userId]);
+      return res.status(201).json({ ...result.rows[0], ...userResult.rows[0] });
+    }
+
+    if (pathname === '/api/recharge-requests' && req.method === 'PATCH') {
+      const { requestId, status, adminId, rejectionReason } = req.body || {};
+      if (!requestId || !adminId || !['APPROVED', 'REJECTED'].includes(status)) {
+        return res.status(400).json({ error: 'requestId, adminId, and an APPROVED or REJECTED status are required.' });
+      }
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const requestResult = await client.query(`
+          SELECT rr.*, u.full_name AS "userName", u.phone_number AS "userPhone"
+          FROM recharge_requests rr
+          JOIN users u ON u.id = rr.user_id
+          WHERE rr.id = $1
+          FOR UPDATE;
+        `, [requestId]);
+        const request = requestResult.rows[0];
+
+        if (!request) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Recharge request not found.' });
+        }
+        if (request.status !== 'PENDING') {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'This recharge request has already been processed.' });
+        }
+
+        let transaction = null;
+        if (status === 'APPROVED') {
+          const walletResult = await client.query('SELECT id, current_balance FROM wallets WHERE user_id = $1 FOR UPDATE;', [request.user_id]);
+          let walletId;
+          let balanceBefore = 0;
+
+          if (walletResult.rows.length === 0) {
+            const wallet = await client.query(`
+              INSERT INTO wallets (user_id, current_balance, currency)
+              VALUES ($1, $2, 'BDT')
+              RETURNING id, current_balance;
+            `, [request.user_id, request.amount]);
+            walletId = wallet.rows[0].id;
+          } else {
+            walletId = walletResult.rows[0].id;
+            balanceBefore = Number(walletResult.rows[0].current_balance);
+            await client.query('UPDATE wallets SET current_balance = current_balance + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2;', [request.amount, walletId]);
+          }
+
+          const balanceAfter = balanceBefore + Number(request.amount);
+          const txResult = await client.query(`
+            INSERT INTO wallet_transactions
+              (wallet_id, user_id, transaction_type, amount, balance_before, balance_after, reference_type, reference_id, created_by, note)
+            VALUES ($1, $2, 'ADMIN_TOPUP', $3, $4, $5, 'RECHARGE_REQUEST', $6, $7, $8)
+            RETURNING id, user_id AS "userId", transaction_type AS type, amount::float, balance_before::float AS "balanceBefore", balance_after::float AS "balanceAfter", note AS description, created_at AS timestamp, created_by AS "adminId";
+          `, [walletId, request.user_id, request.amount, balanceBefore, balanceAfter, request.id, adminId, `Recharge request (${request.payment_method}${request.trx_id ? ` TrxID: ${request.trx_id}` : ''})`]);
+          transaction = txResult.rows[0];
+        }
+
+        const updatedResult = await client.query(`
+          UPDATE recharge_requests
+          SET status = $1, processed_at = CURRENT_TIMESTAMP, processed_by_admin_id = $2, rejection_reason = $3
+          WHERE id = $4
+          RETURNING id, user_id AS "userId", amount::float, payment_method AS "paymentMethod", trx_id AS "trxId", note, status, requested_at AS "requestedAt", processed_at AS "processedAt", processed_by_admin_id AS "processedByAdminId", rejection_reason AS "rejectionReason";
+        `, [status, adminId, status === 'REJECTED' ? rejectionReason || 'তথ্য সঠিক পাওয়া যায়নি' : null, requestId]);
+
+        await client.query('COMMIT');
+        return res.status(200).json({
+          request: { ...updatedResult.rows[0], userName: request.userName, userPhone: request.userPhone },
+          transaction,
+        });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
       } finally {
         client.release();
       }
