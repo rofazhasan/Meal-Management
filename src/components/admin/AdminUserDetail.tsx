@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { ArrowLeft, User, Phone, Home, Wallet, Shield, History, PlusCircle, Check, X, Calendar, Sparkles, UtensilsCrossed, KeyRound } from 'lucide-react';
-import { User as UserType, WalletTransaction, MealDeclaration, UserType as MemberType } from '../../types';
+import { ArrowLeft, User, Phone, Home, Wallet, Shield, History, PlusCircle, Check, X, Calendar, Sparkles, UtensilsCrossed, KeyRound, Printer } from 'lucide-react';
+import { User as UserType, WalletTransaction, MealDeclaration, UserType as MemberType, MealRateConfig } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
+import { ReceiptModal } from '../common/ReceiptModal';
 import { MockService } from '../../services/mockStorage';
 import { getBangladeshDateStr } from '../../utils/dateUtils';
 
@@ -13,6 +14,7 @@ interface AdminUserDetailProps {
   adminId: string;
   transactions: WalletTransaction[];
   declarations: MealDeclaration[];
+  rates?: MealRateConfig;
   onBack: () => void;
   onRefreshData: () => void;
 }
@@ -22,12 +24,14 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
   adminId,
   transactions,
   declarations,
+  rates,
   onBack,
   onRefreshData,
 }) => {
   const [topUpAmount, setTopUpAmount] = useState<number>(500);
   const [topUpNote, setTopUpNote] = useState('ক্যাশ রিচার্জ');
   const [submitting, setSubmitting] = useState(false);
+  const [selectedTxForReceipt, setSelectedTxForReceipt] = useState<WalletTransaction | null>(null);
 
   const todayStr = getBangladeshDateStr();
   const [overrideDate, setOverrideDate] = useState(todayStr);
@@ -43,8 +47,8 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
     if (topUpAmount <= 0) return;
     setSubmitting(true);
     try {
-      await MockService.addWalletBalance(user.id, topUpAmount, adminId, topUpNote);
-      alert(`৳${topUpAmount} রিচার্জ যোগ করা হয়েছে!`);
+      const createdTx = await MockService.addWalletBalance(user.id, topUpAmount, adminId, topUpNote);
+      setSelectedTxForReceipt(createdTx);
       onRefreshData();
     } finally {
       setSubmitting(false);
@@ -206,9 +210,10 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-extrabold text-sm transition-all shadow-lg shadow-emerald-500/25 active:scale-95 font-display"
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-extrabold text-sm transition-all shadow-lg shadow-emerald-500/25 active:scale-95 font-display flex items-center justify-center gap-2"
             >
-              {submitting ? 'রিচার্জ হচ্ছে...' : BN.confirmTopUp}
+              <Printer className="w-4 h-4" />
+              <span>{submitting ? 'রিচার্জ হচ্ছে...' : `${BN.confirmTopUp} ও রসিদ তৈরি`}</span>
             </button>
           </form>
         </div>
@@ -308,9 +313,16 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
         ) : (
           <div className="space-y-2.5">
             {userTx.map((tx) => (
-              <div key={tx.id} className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 text-xs flex justify-between items-center hover:border-slate-700 transition-colors">
+              <div
+                key={tx.id}
+                onClick={() => setSelectedTxForReceipt(tx)}
+                className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 text-xs flex justify-between items-center hover:border-cyan-500/40 hover:bg-slate-900 cursor-pointer transition-all group"
+              >
                 <div>
-                  <p className="font-bold text-slate-200 font-sans">{tx.description}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-slate-200 group-hover:text-cyan-300 transition-colors font-sans">{tx.description}</p>
+                    <Printer className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition-all" />
+                  </div>
                   <p className="text-[11px] text-slate-400 font-mono mt-0.5">{tx.date}</p>
                 </div>
                 <div className="text-right font-mono font-bold">
@@ -325,6 +337,16 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
         )}
       </div>
 
+      {/* Digital Receipt Modal */}
+      <ReceiptModal
+        transaction={selectedTxForReceipt}
+        user={user}
+        declarations={declarations}
+        rates={rates}
+        onClose={() => setSelectedTxForReceipt(null)}
+      />
+
     </div>
   );
 };
+

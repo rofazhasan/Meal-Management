@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Wallet, ArrowDownRight, ArrowUpRight, History, CreditCard, AlertTriangle, Printer, Sparkles, ChevronRight } from 'lucide-react';
-import { User, WalletTransaction } from '../../types';
+import { User, WalletTransaction, MealDeclaration, MealRateConfig } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { ReceiptModal } from '../common/ReceiptModal';
 import { AnimatedNumber } from '../common/AnimatedNumber';
@@ -9,9 +9,11 @@ import { EmptyState } from '../common/EmptyState';
 interface WalletScreenProps {
   currentUser: User;
   transactions: WalletTransaction[];
+  declarations?: MealDeclaration[];
+  rates?: MealRateConfig;
 }
 
-export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transactions }) => {
+export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transactions, declarations, rates }) => {
   const [filterType, setFilterType] = useState<'ALL' | 'RECHARGE' | 'MEAL_DEDUCTION'>('ALL');
   const [selectedTxForReceipt, setSelectedTxForReceipt] = useState<WalletTransaction | null>(null);
 
@@ -166,7 +168,10 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-bold text-slate-200 group-hover:text-cyan-300 transition-colors font-sans">{tx.description}</p>
-                      <Printer className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition-all" />
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 flex items-center gap-1 font-mono group-hover:bg-cyan-500/20">
+                        <Printer className="w-3 h-3 text-cyan-400" />
+                        রসিদ
+                      </span>
                     </div>
                     <p className="text-xs text-slate-400 font-mono mt-0.5">{tx.date}</p>
                   </div>
@@ -193,9 +198,12 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
       <ReceiptModal
         transaction={selectedTxForReceipt}
         user={currentUser}
+        declarations={declarations}
+        rates={rates}
         onClose={() => setSelectedTxForReceipt(null)}
       />
 
     </div>
   );
 };
+

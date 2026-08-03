@@ -4,6 +4,7 @@ import { ShieldAlert } from 'lucide-react';
 import { Header } from './components/common/Header';
 import { Navigation, TabType } from './components/common/Navigation';
 import { AmbientBackground } from './components/common/AmbientBackground';
+import { Footer } from './components/common/Footer';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { UserDashboard } from './components/user/UserDashboard';
 import { MealDeclaration } from './components/user/MealDeclaration';
@@ -261,6 +262,7 @@ const MainApplication: React.FC = () => {
             adminId={currentUser.id}
             transactions={transactions}
             declarations={declarations}
+            rates={rates}
             onBack={() => setSelectedUserForDetail(null)}
             onRefreshData={handleRefreshAll}
           />
@@ -313,6 +315,8 @@ const MainApplication: React.FC = () => {
                   <WalletScreen
                     currentUser={currentUser}
                     transactions={transactions.filter((t) => t.userId === currentUser.id)}
+                    declarations={declarations}
+                    rates={rates}
                   />
                 )}
 
@@ -404,6 +408,7 @@ const MainApplication: React.FC = () => {
         )}
 
       </main>
+      <Footer />
     </div>
   );
 };
