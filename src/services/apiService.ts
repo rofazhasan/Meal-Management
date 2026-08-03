@@ -163,7 +163,18 @@ export class ApiService {
   }
 
   static async createAccountByAdmin(adminId: string, data: any): Promise<User> {
-    return this.register(data);
+    const newUser = await this.register({
+      name: data.name,
+      phone: data.phone,
+      password: data.password || '123456',
+      userType: data.userType || 'PERMANENT',
+      role: data.role || 'USER',
+    });
+    if (data.initialBalance && data.initialBalance > 0) {
+      await this.addWalletBalance(adminId, newUser.id, data.initialBalance, 'RECHARGE', 'প্রারম্ভিক অ্যাকাউন্ট ব্যালেন্স জমা');
+      newUser.walletBalance = data.initialBalance;
+    }
+    return newUser;
   }
 
   static async seed300TestUsers(): Promise<number> {
@@ -436,7 +447,32 @@ export class ApiService {
   }
 
   static async collectMonthlyFee(...args: any[]): Promise<number> {
-    return 1;
+    const adminId = String(args[0] || 'admin');
+    const targetUser = String(args[1] || 'ALL');
+    const method = String(args[2] || 'WALLET_DEDUCTION');
+    const amount = typeof args[3] === 'number' ? args[3] : parseFloat(args[3] || '500');
+    const monthYear = String(args[4] || 'মাসিক ফি');
+
+    const users = await this.getUsers();
+    const approvedUsers = users.filter((u) => u.status === 'APPROVED');
+    const targets = targetUser === 'ALL' ? approvedUsers : approvedUsers.filter((u) => u.id === targetUser);
+
+    let count = 0;
+    for (const u of targets) {
+      const txType = method === 'WALLET_DEDUCTION' ? 'MONTHLY_CHARGE' : 'CASH_PAID';
+      const desc = `মাসিক ফি (${monthYear}) - ${method === 'WALLET_DEDUCTION' ? 'ওয়ালেট কর্তন' : 'হাতে হাতে ক্যাশ'}`;
+      
+      if (method === 'WALLET_DEDUCTION') {
+        u.walletBalance = (u.walletBalance || 0) - amount;
+      }
+      
+      await this.addWalletBalance(adminId, u.id, -amount, txType, desc);
+      count++;
+    }
+
+    localStorage.setItem('meal_app_v5_users', JSON.stringify(users));
+    await this.logAudit(adminId, 'MONTHLY_FEE_COLLECTED', targetUser, `Collected ৳${amount} monthly fee for ${count} users (${monthYear})`);
+    return count;
   }
 
   // ---------------------------------------------------------------------------

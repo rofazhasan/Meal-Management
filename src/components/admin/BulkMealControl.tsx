@@ -269,7 +269,10 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
     setAlertMsg(null);
     try {
       const updates = approvedUsers.map((u) => {
-        const meals = mealMap[u.id] || { breakfast: true, lunch: true, dinner: true };
+        const userRates = u.userType === 'GUEST' ? (rates?.guest || { breakfast: 40, lunch: 80, dinner: 80 }) : (rates?.permanent || { breakfast: 30, lunch: 60, dinner: 60 });
+        const minMealCost = Math.min(userRates.breakfast, userRates.lunch, userRates.dinner);
+        const defaultActive = !u.isIndefinitelyPaused && u.walletBalance >= minMealCost;
+        const meals = mealMap[u.id] || { breakfast: defaultActive, lunch: defaultActive, dinner: defaultActive };
         return {
           userId: u.id,
           date: selectedDate,
