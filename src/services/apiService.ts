@@ -588,19 +588,67 @@ export class ApiService {
   // SYSTEM & AUDIT LOGS
   // ---------------------------------------------------------------------------
   static async getFinancialMetrics(): Promise<FinancialMetrics> {
+    const users = await this.getUsers();
+    const approvedUsers = users.filter((u) => u.status === 'APPROVED');
+    const txs = await this.getTransactions();
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const currentMonthStr = todayStr.substring(0, 7);
+    const currentYearStr = todayStr.substring(0, 4);
+
+    const totalWalletBalance = approvedUsers.reduce((sum, u) => sum + (u.walletBalance || 0), 0);
+    const lowBalanceUsersCount = approvedUsers.filter((u) => (u.walletBalance || 0) < 200).length;
+
+    let todayCollection = 0;
+    let monthlyCollection = 0;
+    let yearlyCollection = 0;
+    let todayExpenses = 0;
+    let permanentRevenue = 0;
+    let guestRevenue = 0;
+    let totalRefunds = 0;
+
+    txs.forEach((tx) => {
+      const txDate = tx.date ? tx.date.split('T')[0] : '';
+      const isRecharge = (tx.type as string) === 'RECHARGE' || (tx.type as string) === 'CREDIT' || (tx.type as string) === 'CASH_PAID';
+      const isDeduction = tx.type === 'MEAL_DEDUCTION' || tx.type === 'MONTHLY_CHARGE';
+      const isRefund = tx.type === 'REFUND';
+
+      if (isRecharge) {
+        if (txDate === todayStr) todayCollection += tx.amount;
+        if (txDate.startsWith(currentMonthStr)) monthlyCollection += tx.amount;
+        if (txDate.startsWith(currentYearStr)) yearlyCollection += tx.amount;
+      }
+
+      if (isDeduction) {
+        if (txDate === todayStr) todayExpenses += tx.amount;
+        const txUser = users.find((u) => u.id === tx.userId);
+        if (txUser?.userType === 'GUEST') {
+          guestRevenue += tx.amount;
+        } else {
+          permanentRevenue += tx.amount;
+        }
+      }
+
+      if (isRefund) {
+        totalRefunds += tx.amount;
+      }
+    });
+
+    const netProfit = monthlyCollection - (permanentRevenue + guestRevenue);
+
     return {
-      todayCollection: 0,
-      monthlyCollection: 0,
-      yearlyCollection: 0,
-      todayExpenses: 0,
-      netProfit: 0,
-      outstandingBalance: 0,
-      totalWalletBalance: 0,
-      totalRefunds: 0,
-      permanentRevenue: 0,
-      guestRevenue: 0,
+      todayCollection,
+      monthlyCollection,
+      yearlyCollection,
+      todayExpenses,
+      netProfit,
+      outstandingBalance: Math.abs(approvedUsers.filter((u) => u.walletBalance < 0).reduce((sum, u) => sum + u.walletBalance, 0)),
+      totalWalletBalance,
+      totalRefunds,
+      permanentRevenue,
+      guestRevenue,
       topSpenders: [],
-      lowBalanceUsersCount: 0,
+      lowBalanceUsersCount,
     };
   }
 
