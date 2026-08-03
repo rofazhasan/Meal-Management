@@ -405,6 +405,30 @@ export default async function handler(req, res) {
     }
 
     // --------------------------------------------------------------------------
+    // 9b. POST /api/users/role
+    // --------------------------------------------------------------------------
+    if (pathname === '/api/users/role' && req.method === 'POST') {
+      const { userId, role } = req.body || {};
+      const result = await pool.query(`
+        UPDATE users SET role = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2
+        RETURNING id, full_name AS name, role;
+      `, [role, userId]);
+      return res.status(200).json(result.rows[0]);
+    }
+
+    // --------------------------------------------------------------------------
+    // 9c. POST /api/users/type
+    // --------------------------------------------------------------------------
+    if (pathname === '/api/users/type' && req.method === 'POST') {
+      const { userId, userType } = req.body || {};
+      const result = await pool.query(`
+        UPDATE users SET user_type = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2
+        RETURNING id, full_name AS name, user_type AS "userType";
+      `, [userType, userId]);
+      return res.status(200).json(result.rows[0]);
+    }
+
+    // --------------------------------------------------------------------------
     // 10. GET /api/emergencies
     // --------------------------------------------------------------------------
     if (pathname === '/api/emergencies' && req.method === 'GET') {

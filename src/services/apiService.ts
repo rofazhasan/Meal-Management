@@ -121,20 +121,45 @@ export class ApiService {
   }
 
   static async updateUserRole(adminId: string, targetUserId: string, newRole: UserRole): Promise<User> {
+    try {
+      await fetch(`${API_BASE}/users/role`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: targetUserId, role: newRole, adminId }),
+      });
+    } catch (err) {
+      console.warn('Backend role update failed, updating local state:', err);
+    }
     const users = await this.getUsers();
     const user = users.find((u) => u.id === targetUserId);
     if (!user) throw new Error('User not found');
     user.role = newRole;
+    localStorage.setItem('meal_app_v5_users', JSON.stringify(users));
+    await this.logAudit(adminId, 'USER_ROLE_CHANGED', targetUserId, `Changed user role to ${newRole}`);
     return user;
   }
 
   static async updateUserType(arg1: string, arg2: string, arg3?: string): Promise<User> {
+    const adminId = arg3 ? arg1 : 'admin';
     const targetId = arg3 ? arg2 : arg1;
     const newType = (arg3 || arg2) as UserType;
+
+    try {
+      await fetch(`${API_BASE}/users/type`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: targetId, userType: newType, adminId }),
+      });
+    } catch (err) {
+      console.warn('Backend type update failed, updating local state:', err);
+    }
+
     const users = await this.getUsers();
     const user = users.find((u) => u.id === targetId);
     if (!user) throw new Error('User not found');
     user.userType = newType;
+    localStorage.setItem('meal_app_v5_users', JSON.stringify(users));
+    await this.logAudit(adminId, 'USER_TYPE_CHANGED', targetId, `Changed user type to ${newType}`);
     return user;
   }
 
