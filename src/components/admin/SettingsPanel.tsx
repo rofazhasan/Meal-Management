@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Settings, Save, CheckCircle2, DollarSign, ToggleLeft, ToggleRight, Clock, Sparkles } from 'lucide-react';
-import { MealRateConfig, SpecialMeal } from '../../types';
+import { MealRateConfig, SpecialMeal, User } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { MockService } from '../../services/mockStorage';
 import { getBangladeshDateStr, getDayOfWeekFromDateStr } from '../../utils/dateUtils';
@@ -9,9 +9,10 @@ interface SettingsPanelProps {
   rates: MealRateConfig;
   specialMeals?: SpecialMeal[];
   onRefreshData: () => void;
+  currentUser: User;
 }
 
-export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeals, onRefreshData }) => {
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeals, onRefreshData, currentUser }) => {
   const [permBreakfast, setPermBreakfast] = useState(rates.permanent.breakfast);
   const [permLunch, setPermLunch] = useState(rates.permanent.lunch);
   const [permDinner, setPermDinner] = useState(rates.permanent.dinner);
@@ -53,7 +54,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeal
           dinner: globalDinner,
         },
         cutoffTime,
-      });
+      }, currentUser.id);
+      await MockService.logAudit(currentUser.id, 'SETTINGS_UPDATED', '', 'Meal rates, global meal switches, and cutoff time updated.');
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2500);
@@ -254,7 +256,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeal
       </form>
 
       {/* Special Meal Entry & Recurring Management */}
-      <SpecialMealScheduler specialMeals={specialMeals} onRefreshData={onRefreshData} />
+      <SpecialMealScheduler specialMeals={specialMeals} onRefreshData={onRefreshData} currentUser={currentUser} />
 
       {/* Production System Reset Danger Zone */}
       <div className="p-6 rounded-3xl bg-rose-950/20 border border-rose-500/30 space-y-3 shadow-xl">
@@ -266,7 +268,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeal
           type="button"
           onClick={async () => {
             if (window.confirm('আপনি কি নিশ্চিত যে সমস্ত টেস্ট ডাটা রিসেট করে প্রোডাকশন মেস ক্লিন করতে চান?')) {
-              await MockService.purgeSystemData();
+              await MockService.purgeSystemData(currentUser.id);
               alert('সিস্টেম সফলভাবে রিসেট করা হয়েছে!');
               onRefreshData();
             }
@@ -282,7 +284,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeal
 };
 
 
-const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshData: () => void }> = ({ specialMeals, onRefreshData }) => {
+const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshData: () => void; currentUser: User }> = ({ specialMeals, onRefreshData, currentUser }) => {
   const [date, setDate] = useState(() => getBangladeshDateStr());
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner'>('dinner');
   const [title, setTitle] = useState('🎉 স্পেশাল বিরিয়ানি ও ডেজার্ট নাইট');
@@ -300,7 +302,8 @@ const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshDa
     }
     setSaving(true);
     try {
-      await MockService.addSpecialMeal('admin', date, mealType, title, customRate, description, isRecurring, repeatDayOfWeek);
+      await MockService.addSpecialMeal(currentUser.id, date, mealType, title, customRate, description, isRecurring, repeatDayOfWeek);
+      await MockService.logAudit(currentUser.id, 'SPECIAL_MEAL_CREATED', '', `Created special meal: ${title}`);
       setMsg(true);
       setTimeout(() => setMsg(false), 2500);
       setTitle('');
@@ -473,7 +476,8 @@ const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshDa
                     <button
                       type="button"
                       onClick={async () => {
-                        await MockService.toggleSpecialMealActive('admin', sm.id);
+                        await MockService.toggleSpecialMealActive(currentUser.id, sm.id, sm.isActive !== false);
+                        await MockService.logAudit(currentUser.id, 'SPECIAL_MEAL_STATUS_CHANGED', sm.id, `Set special meal "${sm.title}" to ${sm.isActive !== false ? 'inactive' : 'active'}.`);
                         onRefreshData();
                       }}
                       className={`px-3 py-1 rounded-xl text-[11px] font-bold border transition ${
@@ -489,7 +493,8 @@ const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshDa
                       type="button"
                       onClick={async () => {
                         if (confirm(`আপনি কি সত্যিই "${sm.title}" মুছে ফেলতে চান?`)) {
-                          await MockService.deleteSpecialMeal('admin', sm.id);
+                          await MockService.deleteSpecialMeal(currentUser.id, sm.id);
+                          await MockService.logAudit(currentUser.id, 'SPECIAL_MEAL_DELETED', sm.id, `Deleted special meal: ${sm.title}`);
                           onRefreshData();
                         }
                       }}

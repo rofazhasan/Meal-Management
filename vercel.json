@@ -5,6 +5,8 @@
     { "source": "/api/users", "destination": "/api/users.js" },
     { "source": "/api/rates", "destination": "/api/rates.js" },
     { "source": "/api/recharge-requests", "destination": "/api/recharge-requests.js" },
+    { "source": "/api/special-meals", "destination": "/api/special-meals.js" },
+    { "source": "/api/system/reset", "destination": "/api/system/reset.js" },
     { "source": "/api/declarations", "destination": "/api/declarations.js" },
     { "source": "/api/transactions", "destination": "/api/transactions.js" },
     { "source": "/api/emergencies", "destination": "/api/emergencies.js" },

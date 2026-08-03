@@ -108,6 +108,28 @@ CREATE TABLE IF NOT EXISTS meal_settings (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS system_settings (
+    setting_key VARCHAR(100) PRIMARY KEY,
+    setting_value JSONB NOT NULL,
+    updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS special_meals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    meal_date DATE NOT NULL,
+    meal_type meal_type NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    custom_rate NUMERIC(12, 2) NOT NULL CHECK (custom_rate >= 0),
+    description TEXT,
+    is_recurring BOOLEAN NOT NULL DEFAULT FALSE,
+    repeat_day_of_week SMALLINT CHECK (repeat_day_of_week BETWEEN 0 AND 6),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS meal_prices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_type user_type NOT NULL,
@@ -230,8 +252,9 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     actor_role user_role,
     entity_type VARCHAR(50) NOT NULL,
-    entity_id UUID NOT NULL,
+    entity_id UUID,
     action VARCHAR(50) NOT NULL,
+    details TEXT,
     before_json JSONB,
     after_json JSONB,
     ip_address VARCHAR(45),
@@ -288,5 +311,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_wallets_user ON wallets(user_id);
 CREATE INDEX IF NOT EXISTS idx_wallet_tx_wallet_date ON wallet_transactions(wallet_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_recharge_requests_status_date ON recharge_requests(status, requested_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_meal_settings_date ON meal_settings(meal_date);
+CREATE INDEX IF NOT EXISTS idx_special_meals_date_type ON special_meals(meal_date, meal_type, is_active);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, created_at DESC) WHERE status = 'UNREAD';
 CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_events(status, next_retry_at) WHERE status IN ('PENDING', 'PROCESSING');

@@ -246,12 +246,12 @@ export class ApiService {
     }
   }
 
-  static async updateMealRates(rates: MealRateConfig): Promise<MealRateConfig> {
+  static async updateMealRates(rates: MealRateConfig, adminId?: string): Promise<MealRateConfig> {
     try {
       const res = await fetch(`${API_BASE}/rates`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(rates),
+        body: JSON.stringify({ ...rates, adminId }),
       });
       if (!res.ok) throw new Error('Failed to update rates');
       return await res.json();
@@ -620,41 +620,46 @@ export class ApiService {
   }
 
   static async getSpecialMeals(): Promise<SpecialMeal[]> {
-    return [];
+    const res = await fetch(`${API_BASE}/special-meals`);
+    if (!res.ok) throw new Error('Failed to fetch special meals');
+    return await res.json();
   }
 
   static async getSpecialMealForDate(date: string, type: 'breakfast' | 'lunch' | 'dinner'): Promise<SpecialMeal | null> {
-    return null;
+    const meals = await this.getSpecialMeals();
+    const meal = meals.find((item) => item.isActive !== false && item.mealType === type && (item.date === date || (item.isRecurring && item.repeatDayOfWeek === new Date(`${date}T12:00:00`).getDay())));
+    return meal || null;
   }
 
   static async addSpecialMeal(...args: any[]): Promise<SpecialMeal> {
-    const data = args[0] || {};
-    return {
-      id: 'sm_' + Date.now(),
-      title: data.title || 'Special Meal',
-      date: data.date || '',
-      mealType: data.mealType || 'lunch',
-      customRate: data.customRate || 100,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    };
+    const data = typeof args[0] === 'object'
+      ? args[0]
+      : { adminId: args[0], date: args[1], mealType: args[2], title: args[3], customRate: args[4], description: args[5], isRecurring: args[6], repeatDayOfWeek: args[7] };
+    const res = await fetch(`${API_BASE}/special-meals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to create special meal');
+    return await res.json();
   }
 
   static async toggleSpecialMealActive(...args: any[]): Promise<SpecialMeal> {
-    const id = args[0] || '';
-    return {
-      id,
-      title: 'Special Meal',
-      date: '',
-      mealType: 'lunch',
-      customRate: 100,
-      isActive: false,
-      createdAt: new Date().toISOString(),
-    };
+    const id = args.length > 1 ? args[1] : args[0];
+    const current = args.length > 2 ? args[2] : undefined;
+    const res = await fetch(`${API_BASE}/special-meals`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, isActive: current === undefined ? false : !current }),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to update special meal');
+    return await res.json();
   }
 
   static async deleteSpecialMeal(...args: any[]): Promise<void> {
-    return;
+    const id = args.length > 1 ? args[1] : args[0];
+    const res = await fetch(`${API_BASE}/special-meals?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to delete special meal');
   }
 
   // ---------------------------------------------------------------------------
@@ -741,13 +746,14 @@ export class ApiService {
 
   static async logAudit(adminId: string, action: string, targetUserId: string, details: string): Promise<void> {
     try {
-      await fetch(`${API_BASE}/audits`, {
+      const res = await fetch(`${API_BASE}/audits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminId, action, targetUserId, details }),
       });
+      if (!res.ok) console.warn('Audit log write failed:', await res.text());
     } catch {
-      // Ignore
+      console.warn('Audit log request failed');
     }
   }
 
@@ -755,7 +761,13 @@ export class ApiService {
     return [];
   }
 
-  static async purgeSystemData(): Promise<void> {
+  static async purgeSystemData(adminId?: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/system/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminId, confirmReset: true }),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'System reset failed');
     localStorage.clear();
   }
 }

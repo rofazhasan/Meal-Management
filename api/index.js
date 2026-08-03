@@ -1,5 +1,7 @@
 import { pool } from './db.js';
 
+const isUuid = (value) => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
 export default async function handler(req, res) {
   // Enable CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -182,8 +184,20 @@ export default async function handler(req, res) {
     // 4. GET /api/rates
     // --------------------------------------------------------------------------
     if (pathname === '/api/rates' && req.method === 'GET') {
-      const pricesRes = await pool.query(`SELECT user_type, meal_type, price FROM meal_prices;`);
-      const monthlyRes = await pool.query(`SELECT user_type, monthly_amount FROM monthly_charges LIMIT 2;`);
+      const pricesRes = await pool.query(`
+        SELECT DISTINCT ON (user_type, meal_type) user_type, meal_type, price
+        FROM meal_prices
+        WHERE effective_from <= CURRENT_DATE AND (effective_to IS NULL OR effective_to >= CURRENT_DATE)
+        ORDER BY user_type, meal_type, effective_from DESC, updated_at DESC;
+      `);
+      const monthlyRes = await pool.query(`
+        SELECT user_type, monthly_amount FROM monthly_charges
+        WHERE month = EXTRACT(MONTH FROM CURRENT_DATE) AND year = EXTRACT(YEAR FROM CURRENT_DATE);
+      `);
+      const settingsRes = await pool.query(`
+        SELECT setting_key, setting_value FROM system_settings
+        WHERE setting_key IN ('global_meal_status', 'cutoff_time');
+      `);
 
       const permPrices = { breakfast: 40, lunch: 70, dinner: 70 };
       const guestPrices = { breakfast: 50, lunch: 85, dinner: 85 };
@@ -205,11 +219,12 @@ export default async function handler(req, res) {
         if (r.user_type === 'GUEST') guestMonthly = parseFloat(r.monthly_amount);
       });
 
+      const settings = Object.fromEntries(settingsRes.rows.map((row) => [row.setting_key, row.setting_value]));
       return res.status(200).json({
         permanent: { ...permPrices, monthlyCharge: permMonthly },
         guest: { ...guestPrices, monthlyCharge: guestMonthly },
-        globalMealStatus: { breakfast: true, lunch: true, dinner: true },
-        cutoffTime: '10:00'
+        globalMealStatus: { breakfast: true, lunch: true, dinner: true, ...(settings.global_meal_status || {}) },
+        cutoffTime: typeof settings.cutoff_time === 'string' ? settings.cutoff_time : '10:00'
       });
     }
 
@@ -217,7 +232,7 @@ export default async function handler(req, res) {
     // 4b. PUT /api/rates
     // --------------------------------------------------------------------------
     if (pathname === '/api/rates' && req.method === 'PUT') {
-      const { permanent, guest } = req.body || {};
+      const { permanent, guest, globalMealStatus, cutoffTime, adminId } = req.body || {};
       const priceGroups = [
         ['PERMANENT', permanent],
         ['GUEST', guest],
@@ -264,8 +279,102 @@ export default async function handler(req, res) {
           }
         }
 
+        if (globalMealStatus && ['breakfast', 'lunch', 'dinner'].every((meal) => typeof globalMealStatus[meal] === 'boolean')) {
+          await client.query(`
+            INSERT INTO system_settings (setting_key, setting_value, updated_by)
+            VALUES ('global_meal_status', $1::jsonb, $2)
+            ON CONFLICT (setting_key)
+            DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_by = EXCLUDED.updated_by, updated_at = CURRENT_TIMESTAMP;
+          `, [JSON.stringify(globalMealStatus), isUuid(adminId) ? adminId : null]);
+        }
+
+        if (typeof cutoffTime === 'string' && /^([01]\\d|2[0-3]):[0-5]\\d$/.test(cutoffTime)) {
+          await client.query(`
+            INSERT INTO system_settings (setting_key, setting_value, updated_by)
+            VALUES ('cutoff_time', $1::jsonb, $2)
+            ON CONFLICT (setting_key)
+            DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_by = EXCLUDED.updated_by, updated_at = CURRENT_TIMESTAMP;
+          `, [JSON.stringify(cutoffTime), isUuid(adminId) ? adminId : null]);
+        }
+
         await client.query('COMMIT');
         return res.status(200).json(req.body);
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 4c. Special meals
+    // --------------------------------------------------------------------------
+    if (pathname === '/api/special-meals' && req.method === 'GET') {
+      const result = await pool.query(`
+        SELECT id, TO_CHAR(meal_date, 'YYYY-MM-DD') AS date, LOWER(meal_type::text) AS "mealType",
+               title, custom_rate::float AS "customRate", description, is_recurring AS "isRecurring",
+               repeat_day_of_week AS "repeatDayOfWeek", is_active AS "isActive", created_at AS "createdAt"
+        FROM special_meals
+        ORDER BY is_active DESC, meal_date ASC, created_at DESC;
+      `);
+      return res.status(200).json(result.rows);
+    }
+
+    if (pathname === '/api/special-meals' && req.method === 'POST') {
+      const { adminId, date, mealType, title, customRate, description, isRecurring, repeatDayOfWeek } = req.body || {};
+      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date || '') || !['breakfast', 'lunch', 'dinner'].includes(mealType) || !title?.trim() || !Number.isFinite(Number(customRate)) || Number(customRate) < 0) {
+        return res.status(400).json({ error: 'A valid date, meal type, title, and non-negative rate are required.' });
+      }
+      if (isRecurring && (!Number.isInteger(repeatDayOfWeek) || repeatDayOfWeek < 0 || repeatDayOfWeek > 6)) {
+        return res.status(400).json({ error: 'A recurring special meal requires a weekday from 0 to 6.' });
+      }
+
+      const result = await pool.query(`
+        INSERT INTO special_meals (meal_date, meal_type, title, custom_rate, description, is_recurring, repeat_day_of_week, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id, TO_CHAR(meal_date, 'YYYY-MM-DD') AS date, LOWER(meal_type::text) AS "mealType",
+                  title, custom_rate::float AS "customRate", description, is_recurring AS "isRecurring",
+                  repeat_day_of_week AS "repeatDayOfWeek", is_active AS "isActive", created_at AS "createdAt";
+      `, [date, mealType.toUpperCase(), title.trim(), Number(customRate), description?.trim() || null, !!isRecurring, isRecurring ? repeatDayOfWeek : null, isUuid(adminId) ? adminId : null]);
+      return res.status(201).json(result.rows[0]);
+    }
+
+    if (pathname === '/api/special-meals' && req.method === 'PATCH') {
+      const { id, isActive } = req.body || {};
+      if (!isUuid(id) || typeof isActive !== 'boolean') return res.status(400).json({ error: 'A special-meal id and isActive boolean are required.' });
+      const result = await pool.query(`
+        UPDATE special_meals SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2
+        RETURNING id, TO_CHAR(meal_date, 'YYYY-MM-DD') AS date, LOWER(meal_type::text) AS "mealType",
+                  title, custom_rate::float AS "customRate", description, is_recurring AS "isRecurring",
+                  repeat_day_of_week AS "repeatDayOfWeek", is_active AS "isActive", created_at AS "createdAt";
+      `, [isActive, id]);
+      if (!result.rows[0]) return res.status(404).json({ error: 'Special meal not found.' });
+      return res.status(200).json(result.rows[0]);
+    }
+
+    if (pathname === '/api/special-meals' && req.method === 'DELETE') {
+      const id = new URL(req.url || '', 'http://localhost').searchParams.get('id');
+      if (!isUuid(id)) return res.status(400).json({ error: 'A valid special-meal id is required.' });
+      const result = await pool.query('DELETE FROM special_meals WHERE id = $1 RETURNING id;', [id]);
+      if (!result.rows[0]) return res.status(404).json({ error: 'Special meal not found.' });
+      return res.status(204).end();
+    }
+
+    // --------------------------------------------------------------------------
+    // 4d. Production data reset (users and system configuration are retained)
+    // --------------------------------------------------------------------------
+    if (pathname === '/api/system/reset' && req.method === 'POST') {
+      const { adminId, confirmReset } = req.body || {};
+      if (!confirmReset) return res.status(400).json({ error: 'confirmReset must be true.' });
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('DELETE FROM wallet_transactions; DELETE FROM meal_consumptions; DELETE FROM meal_declarations; DELETE FROM recharge_requests; DELETE FROM special_meals; DELETE FROM audit_logs;');
+        await client.query(`UPDATE meal_settings SET emergency_off = FALSE, emergency_reason = NULL, updated_at = CURRENT_TIMESTAMP; UPDATE wallets SET current_balance = 0, updated_at = CURRENT_TIMESTAMP;`);
+        await client.query(`INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, details) VALUES ($1, 'SYSTEM_RESET', 'SYSTEM', NULL, 'Transaction, meal, recharge, special-meal, audit, and wallet-balance data reset.');`, [isUuid(adminId) ? adminId : null]);
+        await client.query('COMMIT');
+        return res.status(200).json({ success: true });
       } catch (err) {
         await client.query('ROLLBACK');
         throw err;
@@ -665,7 +774,7 @@ export default async function handler(req, res) {
           actor_user_id AS "adminId", 
           action, 
           entity_id AS "targetUserId", 
-          entity_type AS details, 
+          COALESCE(details, entity_type) AS details,
           created_at AS timestamp
         FROM audit_logs
         ORDER BY created_at DESC
@@ -682,10 +791,10 @@ export default async function handler(req, res) {
       const { adminId, action, targetUserId, details } = req.body || {};
 
       const result = await pool.query(`
-        INSERT INTO audit_logs (actor_user_id, action, entity_id, entity_type)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, actor_user_id AS "adminId", action, entity_id AS "targetUserId", entity_type AS details, created_at AS timestamp;
-      `, [adminId || null, action || 'LOG', targetUserId || null, details || '']);
+        INSERT INTO audit_logs (actor_user_id, action, entity_id, entity_type, details)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, actor_user_id AS "adminId", action, entity_id AS "targetUserId", COALESCE(details, entity_type) AS details, created_at AS timestamp;
+      `, [isUuid(adminId) ? adminId : null, action || 'LOG', isUuid(targetUserId) ? targetUserId : null, 'SYSTEM', details || '']);
 
       return res.status(200).json(result.rows[0]);
     }

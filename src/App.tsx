@@ -392,7 +392,7 @@ const MainApplication: React.FC = () => {
                 )}
 
                 {activeTab === 'admin-settings' && (
-                  <SettingsPanel rates={rates} specialMeals={specialMeals} onRefreshData={handleRefreshAll} />
+                  <SettingsPanel rates={rates} specialMeals={specialMeals} onRefreshData={handleRefreshAll} currentUser={currentUser} />
                 )}
 
                 {activeTab === 'admin-audit' && (
