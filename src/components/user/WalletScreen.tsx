@@ -88,7 +88,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
 
   return (
     <div className="space-y-6 pb-24 max-w-4xl mx-auto animate-scale-in">
-      
+
       {/* Low Balance Warning Alert */}
       {isLowBalance && (
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex items-center justify-between gap-3 shadow-lg shadow-amber-950/20 backdrop-blur-md">
@@ -157,7 +157,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
 
       {/* Transaction Ledger & History Table */}
       <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-slate-800/80 space-y-5 shadow-xl">
-        
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
@@ -182,25 +182,22 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
             <div className="flex items-center gap-1 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 text-xs print:hidden">
               <button
                 onClick={() => setFilterType('ALL')}
-                className={`px-3 py-1 rounded-xl font-bold transition-all active:scale-95 ${
-                  filterType === 'ALL' ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20' : 'text-slate-400 hover:text-slate-200'
-                }`}
+                className={`px-3 py-1 rounded-xl font-bold transition-all active:scale-95 ${filterType === 'ALL' ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20' : 'text-slate-400 hover:text-slate-200'
+                  }`}
               >
                 সবগুলো
               </button>
               <button
                 onClick={() => setFilterType('RECHARGE')}
-                className={`px-3.5 py-1.5 rounded-xl font-bold transition-all active:scale-95 ${
-                  filterType === 'RECHARGE' ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-200'
-                }`}
+                className={`px-3.5 py-1.5 rounded-xl font-bold transition-all active:scale-95 ${filterType === 'RECHARGE' ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-200'
+                  }`}
               >
                 রিচার্জ
               </button>
               <button
                 onClick={() => setFilterType('MEAL_DEDUCTION')}
-                className={`px-3.5 py-1.5 rounded-xl font-bold transition-all active:scale-95 ${
-                  filterType === 'MEAL_DEDUCTION' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'text-slate-400 hover:text-slate-200'
-                }`}
+                className={`px-3.5 py-1.5 rounded-xl font-bold transition-all active:scale-95 ${filterType === 'MEAL_DEDUCTION' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'text-slate-400 hover:text-slate-200'
+                  }`}
               >
                 কাটা
               </button>
@@ -223,9 +220,8 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
                 className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-cyan-500/40 hover:bg-slate-900 cursor-pointer transition-all flex items-center justify-between gap-4 group shadow-sm"
               >
                 <div className="flex items-center gap-3.5">
-                  <div className={`p-3 rounded-2xl ${
-                    tx.type === 'RECHARGE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                  }`}>
+                  <div className={`p-3 rounded-2xl ${tx.type === 'RECHARGE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                    }`}>
                     {tx.type === 'RECHARGE' ? <ArrowDownRight className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
                   </div>
                   <div>
@@ -241,9 +237,8 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
                 </div>
 
                 <div className="text-right shrink-0">
-                  <p className={`text-base font-extrabold font-mono ${
-                    tx.type === 'RECHARGE' ? 'text-emerald-400' : 'text-rose-400'
-                  }`}>
+                  <p className={`text-base font-extrabold font-mono ${tx.type === 'RECHARGE' ? 'text-emerald-400' : 'text-rose-400'
+                    }`}>
                     {tx.type === 'RECHARGE' ? '+' : '-'} ৳{tx.amount}
                   </p>
                   <p className="text-[11px] text-slate-400 font-mono mt-0.5">
@@ -319,7 +314,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
       {showRechargeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
           <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 w-full max-w-md space-y-6 shadow-2xl relative">
-            
+
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
@@ -339,7 +334,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
             </div>
 
             <form onSubmit={handleSendRechargeRequest} className="space-y-4 text-xs font-sans">
-              
+
               {/* Payment Method Selector */}
               <div>
                 <label className="block text-slate-300 font-bold mb-1.5">পেমেন্ট মেথড বা মাধ্যম নির্বাচন করুন</label>
@@ -349,11 +344,10 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
                       type="button"
                       key={method}
                       onClick={() => setReqMethod(method)}
-                      className={`py-2 px-2 rounded-xl border text-center font-bold text-xs transition-all ${
-                        reqMethod === method
+                      className={`py-2 px-2 rounded-xl border text-center font-bold text-xs transition-all ${reqMethod === method
                           ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-md'
                           : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-slate-200'
-                      }`}
+                        }`}
                     >
                       {method === 'BKASH' ? 'বিকাশ' : method === 'NAGAD' ? 'নগদ' : method === 'ROCKET' ? 'রকেট' : method === 'CASH' ? 'ক্যাশ (নগদ টাকা)' : 'ব্যাংক'}
                     </button>
@@ -397,7 +391,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
                   type="text"
                   value={reqNote}
                   onChange={(e) => setReqNote(e.target.value)}
-                  placeholder="যেমন: মেস ম্যানেজার আংকেলকে নগদ ৫০০ টাকা দিয়েছি"
+                  placeholder="যেমন: মেস ম্যানেজার কে নগদ ৫০০ টাকা দিয়েছি"
                   className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 font-sans text-xs focus:outline-none focus:border-emerald-500/60 transition-all"
                 />
               </div>

@@ -60,7 +60,11 @@ export const CookReport: React.FC<CookReportProps> = ({
   const isLGlobalOff = rates.globalMealStatus?.lunch === false;
   const isDGlobalOff = rates.globalMealStatus?.dinner === false;
 
-  // Group members eating each meal — only count meals from fetched declarations
+  const isBEmergencyOff = !!emergencyForDate && emergencyForDate.closedMeals.includes('breakfast');
+  const isLEmergencyOff = !!emergencyForDate && emergencyForDate.closedMeals.includes('lunch');
+  const isDEmergencyOff = !!emergencyForDate && emergencyForDate.closedMeals.includes('dinner');
+
+  // Group members eating each meal — respect emergency closures and default active balance logic
   const breakfastMembers: User[] = [];
   const lunchMembers: User[] = [];
   const dinnerMembers: User[] = [];
@@ -68,11 +72,18 @@ export const CookReport: React.FC<CookReportProps> = ({
   if (!isFetching) {
     activeUsers.forEach((user) => {
       const userDec = rawDeclarations.find((d) => d.userId === user.id);
-      if (!userDec) return; // No declaration = no meal (either not yet copied or off)
+      
+      const userRates = user.userType === 'GUEST' ? (rates?.guest || { breakfast: 40, lunch: 80, dinner: 80 }) : (rates?.permanent || { breakfast: 30, lunch: 60, dinner: 60 });
+      const minMealCost = Math.min(userRates.breakfast, userRates.lunch, userRates.dinner);
+      const defaultActive = !user.isIndefinitelyPaused && user.walletBalance >= minMealCost;
 
-      if (!isBGlobalOff && userDec.breakfast) breakfastMembers.push(user);
-      if (!isLGlobalOff && userDec.lunch)     lunchMembers.push(user);
-      if (!isDGlobalOff && userDec.dinner)    dinnerMembers.push(user);
+      const breakfastOn = userDec ? userDec.breakfast : defaultActive;
+      const lunchOn = userDec ? userDec.lunch : defaultActive;
+      const dinnerOn = userDec ? userDec.dinner : defaultActive;
+
+      if (!isBGlobalOff && !isBEmergencyOff && breakfastOn) breakfastMembers.push(user);
+      if (!isLGlobalOff && !isLEmergencyOff && lunchOn)     lunchMembers.push(user);
+      if (!isDGlobalOff && !isDEmergencyOff && dinnerOn)    dinnerMembers.push(user);
     });
   }
 
@@ -249,9 +260,11 @@ export const CookReport: React.FC<CookReportProps> = ({
               <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-200">
                 {breakfastMembers.map((m, idx) => (
                   <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black">
-                    <span className="font-medium">{idx + 1}. {m.name}</span>
-                    <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-gray-100 print:text-black print:border-gray-300">
-                      {m.phone}
+                    <span className="font-medium">
+                      {idx + 1}. {m.name} {m.profile?.roomNumber && <span className="text-[10px] text-slate-400 font-mono font-normal">({m.profile.roomNumber})</span>}
+                    </span>
+                    <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-gray-100 print:text-black print:border-gray-300 text-[11px]">
+                      {m.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'} | {m.phone}
                     </span>
                   </li>
                 ))}
@@ -274,9 +287,11 @@ export const CookReport: React.FC<CookReportProps> = ({
               <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-200">
                 {lunchMembers.map((m, idx) => (
                   <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black">
-                    <span className="font-medium">{idx + 1}. {m.name}</span>
-                    <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-gray-100 print:text-black print:border-gray-300">
-                      {m.phone}
+                    <span className="font-medium">
+                      {idx + 1}. {m.name} {m.profile?.roomNumber && <span className="text-[10px] text-slate-400 font-mono font-normal">({m.profile.roomNumber})</span>}
+                    </span>
+                    <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-gray-100 print:text-black print:border-gray-300 text-[11px]">
+                      {m.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'} | {m.phone}
                     </span>
                   </li>
                 ))}
@@ -299,9 +314,11 @@ export const CookReport: React.FC<CookReportProps> = ({
               <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-200">
                 {dinnerMembers.map((m, idx) => (
                   <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black">
-                    <span className="font-medium">{idx + 1}. {m.name}</span>
-                    <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-gray-100 print:text-black print:border-gray-300">
-                      {m.phone}
+                    <span className="font-medium">
+                      {idx + 1}. {m.name} {m.profile?.roomNumber && <span className="text-[10px] text-slate-400 font-mono font-normal">({m.profile.roomNumber})</span>}
+                    </span>
+                    <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-gray-100 print:text-black print:border-gray-300 text-[11px]">
+                      {m.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'} | {m.phone}
                     </span>
                   </li>
                 ))}
