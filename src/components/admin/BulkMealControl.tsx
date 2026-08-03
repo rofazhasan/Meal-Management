@@ -52,12 +52,16 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
   const isLEmergencyOff = !!emergencyForDate && emergencyForDate.closedMeals.includes('lunch');
   const isDEmergencyOff = !!emergencyForDate && emergencyForDate.closedMeals.includes('dinner');
 
-  // Sync state whenever selectedDate, approvedUsers, declarations, or emergencies update
+  // Sync state whenever selectedDate, approvedUsers, declarations, emergencies, or rates update
   useEffect(() => {
     const newMap: Record<string, { breakfast: boolean; lunch: boolean; dinner: boolean }> = {};
 
     approvedUsers.forEach((u) => {
       const dec = declarations.find((d) => d.userId === u.id && d.date === selectedDate);
+      const userRates = u.userType === 'GUEST' ? (rates?.guest || { breakfast: 40, lunch: 80, dinner: 80 }) : (rates?.permanent || { breakfast: 30, lunch: 60, dinner: 60 });
+      const minMealCost = Math.min(userRates.breakfast, userRates.lunch, userRates.dinner);
+      const isBalanceSufficient = u.walletBalance >= minMealCost;
+
       if (dec) {
         newMap[u.id] = {
           breakfast: isBEmergencyOff ? false : dec.breakfast,
@@ -65,16 +69,18 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
           dinner: isDEmergencyOff ? false : dec.dinner,
         };
       } else {
+        // Safe Default Rule: If user is indefinitely paused OR has insufficient balance (< min meal cost), default to false!
+        const defaultActive = !u.isIndefinitelyPaused && isBalanceSufficient;
         newMap[u.id] = {
-          breakfast: isBEmergencyOff ? false : true,
-          lunch: isLEmergencyOff ? false : true,
-          dinner: isDEmergencyOff ? false : true,
+          breakfast: isBEmergencyOff ? false : defaultActive,
+          lunch: isLEmergencyOff ? false : defaultActive,
+          dinner: isDEmergencyOff ? false : defaultActive,
         };
       }
     });
 
     setMealMap(newMap);
-  }, [selectedDate, declarations, users, emergencies, isBEmergencyOff, isLEmergencyOff, isDEmergencyOff]);
+  }, [selectedDate, declarations, users, emergencies, rates, isBEmergencyOff, isLEmergencyOff, isDEmergencyOff]);
 
   // Special meal info for selected date
   const specialObj = specialMeals.find(
@@ -148,13 +154,20 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
       return;
     }
 
+    const targetUser = approvedUsers.find((u) => u.id === userId);
+    const current = mealMap[userId] || { breakfast: false, lunch: false, dinner: false };
+    const willBeOn = !current[meal];
+
+    if (willBeOn && targetUser && targetUser.walletBalance < 30) {
+      setAlertMsg(`⚡ ${targetUser.name}-এর ব্যালেন্স ৳${targetUser.walletBalance}। এডমিন ক্রেডিট ওভাররাইড হিসেবে মিল অন করা হলো।`);
+    }
+
     setMealMap((prev) => {
-      const current = prev[userId] || { breakfast: true, lunch: true, dinner: true };
       return {
         ...prev,
         [userId]: {
           ...current,
-          [meal]: !current[meal],
+          [meal]: willBeOn,
         },
       };
     });
@@ -736,9 +749,24 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
                             >
                               {u.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'}
                             </span>
+                            {u.walletBalance < 30 && (
+                              <span className="px-1.5 py-0.2 rounded text-[8px] sm:text-[9px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 shrink-0 flex items-center gap-0.5">
+                                ⚠️ ৳{u.walletBalance}
+                              </span>
+                            )}
+                            {u.isIndefinitelyPaused && (
+                              <span className="px-1.5 py-0.2 rounded text-[8px] sm:text-[9px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0">
+                                ⏸️ পজড
+                              </span>
+                            )}
+                            {u.walletBalance < 30 && (meals.breakfast || meals.lunch || meals.dinner) && (
+                              <span className="px-1.5 py-0.2 rounded text-[8px] sm:text-[9px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 shrink-0 font-mono">
+                                ⚡ ক্রেডিট ওভাররাইড
+                              </span>
+                            )}
                           </div>
                           <p className="text-[10px] sm:text-[11px] text-slate-400 font-mono mt-0.5 whitespace-nowrap">
-                            {u.phone} &nbsp;|&nbsp; ৳{u.walletBalance}
+                            {u.phone} &nbsp;|&nbsp; <span className={u.walletBalance < 30 ? 'text-rose-400 font-bold' : 'text-slate-300'}>৳{u.walletBalance}</span>
                           </p>
                         </div>
                       </div>

@@ -282,11 +282,16 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
 
         <button
           onClick={async () => {
-            await MockService.updateDeclaration(user.id, overrideDate, {
-              breakfast: overrideB,
-              lunch: overrideL,
-              dinner: overrideD,
-            });
+            await MockService.updateDeclaration(
+              user.id,
+              overrideDate,
+              {
+                breakfast: overrideB,
+                lunch: overrideL,
+                dinner: overrideD,
+              },
+              true
+            );
             alert(`এডমিন দ্বারা ${user.name}-এর ${overrideDate} তারিখের মিল সফলভাবে অন/অফ আপডেট ও ওভাররাইড করা হয়েছে!`);
             onRefreshData();
           }}

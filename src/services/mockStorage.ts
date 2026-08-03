@@ -781,20 +781,33 @@ export class MockService {
     return updated;
   }
 
-  static async updateDeclaration(userId: string, date: string, meals: { breakfast: boolean; lunch: boolean; dinner: boolean }): Promise<MealDeclaration> {
+  static async updateDeclaration(
+    userId: string,
+    date: string,
+    meals: { breakfast: boolean; lunch: boolean; dinner: boolean },
+    isAdminOverride: boolean = false
+  ): Promise<MealDeclaration> {
     const users = await this.getUsers();
     const user = users.find((u) => u.id === userId);
     if (!user) throw new Error('মেম্বার পাওয়া যায়নি');
 
-    // 🔒 Emergency Gate: If date is under emergency closure, force all meals OFF regardless of input
+    // 🔒 Indefinite Pause Gate: If user is indefinitely paused and not an explicit admin override, force all meals OFF
+    if (user.isIndefinitelyPaused && !isAdminOverride) {
+      meals = { breakfast: false, lunch: false, dinner: false };
+    }
+
+    // 🔒 Emergency Gate: If date is under emergency closure, force specifically closed meals OFF
     const emergencies = await this.getEmergencies();
-    const isEmergencyDay = emergencies.some((em) => {
-      const start = em.date;
-      const end = em.endDate || em.date;
+    const em = emergencies.find((e) => {
+      const start = e.date;
+      const end = e.endDate || e.date;
       return date >= start && date <= end;
     });
-    if (isEmergencyDay) {
-      meals = { breakfast: false, lunch: false, dinner: false };
+
+    if (em) {
+      if (em.closedMeals.includes('breakfast')) meals.breakfast = false;
+      if (em.closedMeals.includes('lunch')) meals.lunch = false;
+      if (em.closedMeals.includes('dinner')) meals.dinner = false;
     }
 
     const rates = await this.getMealRates();
@@ -810,8 +823,8 @@ export class MockService {
 
     const totalCost = (meals.breakfast ? bPrice : 0) + (meals.lunch ? lPrice : 0) + (meals.dinner ? dPrice : 0);
 
-    // Strict balance lock: If total cost exceeds wallet balance, prune meals to fit within balance
-    if (!isEmergencyDay && totalCost > user.walletBalance) {
+    // Wallet balance lock: If total cost exceeds balance and NOT an explicit admin override, prune meals to fit balance
+    if (!em && !isAdminOverride && totalCost > user.walletBalance) {
       let sum = 0;
       let safeB = false;
       let safeL = false;
@@ -851,26 +864,55 @@ export class MockService {
     else decs.push(updated);
 
     localStorage.setItem(this.STORAGE_KEY_DECLARATIONS, JSON.stringify(decs));
+
+    if (isAdminOverride && totalCost > user.walletBalance) {
+      await this.logAudit('admin', 'ADMIN_MEAL_CREDIT_OVERRIDE', userId, `Admin credit override for ${user.name} on ${date} (Cost ৳${totalCost}, Balance ৳${user.walletBalance})`);
+    }
+
     return updated;
   }
 
   static async bulkUpdateDeclarations(
-    updates: { userId: string; date: string; meals: { breakfast: boolean; lunch: boolean; dinner: boolean } }[]
+    updates: { userId: string; date: string; meals: { breakfast: boolean; lunch: boolean; dinner: boolean } }[],
+    isAdminOverride: boolean = true
   ): Promise<void> {
     const decs = await this.getDeclarations();
+    const users = await this.getUsers();
+    const emergencies = await this.getEmergencies();
     const map = new Map<string, number>();
     decs.forEach((d, idx) => map.set(`${d.userId}_${d.date}`, idx));
 
     for (const update of updates) {
+      const user = users.find((u) => u.id === update.userId);
+      let finalMeals = { ...update.meals };
+
+      // Indefinite pause check
+      if (user?.isIndefinitelyPaused && !isAdminOverride) {
+        finalMeals = { breakfast: false, lunch: false, dinner: false };
+      }
+
+      // Emergency closure check
+      const em = emergencies.find((e) => {
+        const start = e.date;
+        const end = e.endDate || e.date;
+        return update.date >= start && update.date <= end;
+      });
+
+      if (em) {
+        if (em.closedMeals.includes('breakfast')) finalMeals.breakfast = false;
+        if (em.closedMeals.includes('lunch')) finalMeals.lunch = false;
+        if (em.closedMeals.includes('dinner')) finalMeals.dinner = false;
+      }
+
       const key = `${update.userId}_${update.date}`;
       const idx = map.get(key);
       const updatedDec: MealDeclaration = {
         id: idx !== undefined ? decs[idx].id : 'dec_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
         userId: update.userId,
         date: update.date,
-        breakfast: update.meals.breakfast,
-        lunch: update.meals.lunch,
-        dinner: update.meals.dinner,
+        breakfast: finalMeals.breakfast,
+        lunch: finalMeals.lunch,
+        dinner: finalMeals.dinner,
         isAutoCopied: false,
         updatedAt: new Date().toISOString(),
       };
