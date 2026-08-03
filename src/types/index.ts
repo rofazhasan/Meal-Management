@@ -138,6 +138,25 @@ export interface AuditLog {
   reason?: string;
 }
 
+export type RechargeRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type PaymentMethod = 'BKASH' | 'NAGAD' | 'ROCKET' | 'CASH' | 'BANK';
+
+export interface RechargeRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhone: string;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  trxId?: string;
+  note?: string;
+  status: RechargeRequestStatus;
+  requestedAt: string;
+  processedAt?: string;
+  processedByAdminId?: string;
+  rejectionReason?: string;
+}
+
 export interface ArchivedUserReplica {
   id: string;
   originalUserId: string;

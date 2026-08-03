@@ -1,11 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import { ShieldAlert, UserCheck, Utensils, Wallet, AlertOctagon, Check, X, PlusCircle, Sparkles, ChevronRight, Printer, TriangleAlert, UserX, SlidersHorizontal, KeyRound } from 'lucide-react';
-import { User, MealRateConfig, EmergencyClosure, WalletTransaction, MealDeclaration } from '../../types';
+import React, { useState, useCallback, useEffect } from 'react';
+import { ShieldAlert, UserCheck, Utensils, Wallet, AlertOctagon, Check, X, PlusCircle, Sparkles, ChevronRight, Printer, TriangleAlert, UserX, SlidersHorizontal, KeyRound, Send, CheckCircle2, XCircle } from 'lucide-react';
+import { User, MealRateConfig, EmergencyClosure, WalletTransaction, MealDeclaration, RechargeRequest } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
-import { MockService } from '../../services/mockStorage';
+import { ApiService, MockService } from '../../services/apiService';
+import { ReceiptModal } from '../common/ReceiptModal';
 import { getBangladeshDateStr } from '../../utils/dateUtils';
 
 interface AdminDashboardProps {
@@ -27,6 +28,58 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRefreshData,
   onSelectUser,
 }) => {
+  const [rechargeRequests, setRechargeRequests] = useState<RechargeRequest[]>([]);
+  const [receiptTx, setReceiptTx] = useState<WalletTransaction | null>(null);
+  const [receiptUser, setReceiptUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    fetchRechargeRequests();
+  }, []);
+
+  const fetchRechargeRequests = async () => {
+    try {
+      const reqs = await ApiService.getRechargeRequests();
+      setRechargeRequests(reqs.filter(r => r.status === 'PENDING'));
+    } catch {
+      // Fallback
+    }
+  };
+
+  const handleApproveRecharge = async (requestId: string) => {
+    try {
+      const { request, transaction } = await ApiService.approveRechargeRequest(requestId, currentAdmin.id);
+      const targetUser = users.find(u => u.id === request.userId) || {
+        id: request.userId,
+        name: request.userName,
+        phone: request.userPhone,
+        role: 'USER',
+        userType: 'PERMANENT',
+        status: 'APPROVED',
+        walletBalance: request.amount,
+        createdAt: new Date().toISOString(),
+      } as User;
+
+      setReceiptUser(targetUser);
+      setReceiptTx(transaction);
+      alert(`✅ ৳${request.amount} মেম্বার ${request.userName}-এর ওয়ালেটে যোগ করা হয়েছে এবং ডিজিটাল রসিদ জেনারেট হয়েছে!`);
+      onRefreshData();
+      fetchRechargeRequests();
+    } catch (err: any) {
+      alert(`অনুমোদন করতে ব্যর্থ: ${err.message}`);
+    }
+  };
+
+  const handleRejectRecharge = async (requestId: string) => {
+    const reason = prompt('বাতিলের কারণ উল্লেখ করুন (ঐচ্ছিক):', 'তথ্য সঠিক পাওয়া যায়নি') || '';
+    try {
+      await ApiService.rejectRechargeRequest(requestId, currentAdmin.id, reason);
+      alert('রিকুয়েস্টটি বাতিল করা হয়েছে।');
+      fetchRechargeRequests();
+    } catch (err: any) {
+      alert(`বাতিল করতে সমস্যা হয়েছে: ${err.message}`);
+    }
+  };
+
   const pendingUsers = users.filter(u => u.status === 'PENDING');
   const activeUsers = users.filter(u => u.status === 'APPROVED');
   const passwordResetUsers = users.filter(u => u.isPasswordResetRequested);
@@ -345,6 +398,80 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
       </div>
+
+      {/* Pending User Recharge Requests Hub */}
+      {rechargeRequests.length > 0 && (
+        <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-emerald-500/40 space-y-4 shadow-xl shadow-emerald-950/20 bg-gradient-to-r from-emerald-950/20 via-slate-900 to-slate-900 animate-scale-in">
+          <div className="flex items-center justify-between gap-4 border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <Send className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-100 text-base font-display flex items-center gap-2">
+                  📥 মুলতুবি রিচার্জ রিকুয়েস্টসমূহ <span className="px-2.5 py-0.5 rounded-full text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">{rechargeRequests.length} টি</span>
+                </h3>
+                <p className="text-xs text-slate-400 font-sans">
+                  মেম্বারদের পাঠানো টাকা পাওয়ার পর অনুমোদন করুন
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {rechargeRequests.map((req) => (
+              <div
+                key={req.id}
+                className="p-4 rounded-2xl bg-slate-950/90 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-emerald-500/30 transition-all shadow-md"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center font-bold text-amber-400 font-display shrink-0">
+                    {req.userName.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-bold text-slate-100 text-sm">{req.userName}</h4>
+                      <span className="text-xs font-mono text-slate-400">({req.userPhone})</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-mono">
+                        {req.paymentMethod}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 mt-1 text-xs">
+                      <span className="text-emerald-400 font-extrabold text-base font-mono">৳{req.amount}</span>
+                      {req.trxId && <span className="text-slate-400 font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-800">TrxID: {req.trxId}</span>}
+                    </div>
+
+                    {req.note && (
+                      <p className="text-xs text-amber-300/90 italic mt-1 font-sans">
+                        💬 "{req.note}"
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <button
+                    onClick={() => handleRejectRecharge(req.id)}
+                    className="px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold text-xs transition-all active:scale-95 flex items-center gap-1"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    <span>বাতিল</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleApproveRecharge(req.id)}
+                    className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs transition-all shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center gap-1.5 font-display"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>অনুমোদন ও রসিদ তৈরি</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Password Reset Requests Section */}
       {passwordResetUsers.length > 0 && (
@@ -823,6 +950,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         )}
       </div>
+
+      {/* Digital Receipt Modal for Recharge Approval */}
+      <ReceiptModal
+        transaction={receiptTx}
+        user={receiptUser}
+        declarations={declarations}
+        rates={rates}
+        onClose={() => {
+          setReceiptTx(null);
+          setReceiptUser(null);
+        }}
+      />
 
     </div>
   );

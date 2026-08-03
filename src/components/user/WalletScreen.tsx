@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Wallet, ArrowDownRight, ArrowUpRight, History, CreditCard, AlertTriangle, Printer, Sparkles, ChevronRight } from 'lucide-react';
-import { User, WalletTransaction, MealDeclaration, MealRateConfig } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { Wallet, ArrowDownRight, ArrowUpRight, History, CreditCard, AlertTriangle, Printer, Sparkles, Send, CheckCircle2, Clock, XCircle, X } from 'lucide-react';
+import { User, WalletTransaction, MealDeclaration, MealRateConfig, RechargeRequest, PaymentMethod } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { ReceiptModal } from '../common/ReceiptModal';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
+import { ApiService } from '../../services/apiService';
 
 interface WalletScreenProps {
   currentUser: User;
@@ -16,6 +17,57 @@ interface WalletScreenProps {
 export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transactions, declarations, rates }) => {
   const [filterType, setFilterType] = useState<'ALL' | 'RECHARGE' | 'MEAL_DEDUCTION'>('ALL');
   const [selectedTxForReceipt, setSelectedTxForReceipt] = useState<WalletTransaction | null>(null);
+
+  // Recharge Request Modal States
+  const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [reqAmount, setReqAmount] = useState<number>(500);
+  const [reqMethod, setReqMethod] = useState<PaymentMethod>('BKASH');
+  const [reqTrxId, setReqTrxId] = useState('');
+  const [reqNote, setReqNote] = useState('');
+  const [submittingReq, setSubmittingReq] = useState(false);
+  const [myRequests, setMyRequests] = useState<RechargeRequest[]>([]);
+
+  useEffect(() => {
+    fetchMyRequests();
+  }, [currentUser.id]);
+
+  const fetchMyRequests = async () => {
+    try {
+      const reqs = await ApiService.getRechargeRequests();
+      setMyRequests(reqs.filter((r) => r.userId === currentUser.id));
+    } catch {
+      // Fallback
+    }
+  };
+
+  const handleSendRechargeRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (reqAmount <= 0) {
+      alert('অনুগ্রহ করে সঠিক রিচার্জ পরিমাণ উল্লেখ করুন');
+      return;
+    }
+    setSubmittingReq(true);
+    try {
+      await ApiService.createRechargeRequest({
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userPhone: currentUser.phone,
+        amount: reqAmount,
+        paymentMethod: reqMethod,
+        trxId: reqTrxId.trim(),
+        note: reqNote.trim(),
+      });
+      alert('✅ রিচার্জ রিকুয়েস্ট সফলভাবে এডমিন বরাবর পাঠানো হয়েছে! এডমিন এপ্রুভ করলে আপনার ওয়ালেট রিচার্জ হবে এবং রসিদ তৈরি হবে।');
+      setShowRechargeModal(false);
+      setReqTrxId('');
+      setReqNote('');
+      fetchMyRequests();
+    } catch (err: any) {
+      alert(`রিকুয়েস্ট পাঠাতে ব্যর্থ: ${err.message}`);
+    } finally {
+      setSubmittingReq(false);
+    }
+  };
 
   const isLowBalance = currentUser.walletBalance < 200;
 
@@ -89,6 +141,17 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
               <AnimatedNumber value={totalDeduction} prefix="- ৳" decimals={0} />
             </p>
           </div>
+        </div>
+
+        {/* Quick Recharge Request Action Button */}
+        <div className="pt-4 border-t border-cyan-500/20 z-10 flex justify-end">
+          <button
+            onClick={() => setShowRechargeModal(true)}
+            className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-2 hover:from-emerald-400 hover:to-teal-300 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 font-display"
+          >
+            <Sparkles className="w-4 h-4 text-slate-950" />
+            <span>💸 রিচার্জের জন্য এডমিনকে রিকুয়েস্ট পাঠান</span>
+          </button>
         </div>
       </div>
 
@@ -193,6 +256,174 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
         )}
 
       </div>
+
+      {/* User Sent Recharge Requests Tracking Card */}
+      {myRequests.length > 0 && (
+        <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-slate-800/80 space-y-4 shadow-xl">
+          <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
+            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <Send className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-100 text-base font-display">আমার পাঠানো রিচার্জ রিকুয়েস্ট ট্র্যাকার</h3>
+              <p className="text-xs text-slate-400 font-sans">এডমিন পর্যালোচনার স্ট্যাটাস</p>
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            {myRequests.map((req) => (
+              <div key={req.id} className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 text-xs">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-200 text-sm font-mono">৳{req.amount}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-mono">
+                      {req.paymentMethod}
+                    </span>
+                    {req.trxId && <span className="text-[10px] text-slate-400 font-mono">TrxID: {req.trxId}</span>}
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-mono mt-1">
+                    তারিখ: {new Date(req.requestedAt).toLocaleString('bn-BD')}
+                  </p>
+                  {req.rejectionReason && (
+                    <p className="text-[11px] text-rose-400 font-bold mt-0.5">কারণ: {req.rejectionReason}</p>
+                  )}
+                </div>
+
+                <div className="shrink-0">
+                  {req.status === 'PENDING' && (
+                    <span className="px-3 py-1 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold text-[11px] flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                      মুলতুবি (Pending)
+                    </span>
+                  )}
+                  {req.status === 'APPROVED' && (
+                    <span className="px-3 py-1 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold text-[11px] flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      অনুমোদিত (Approved)
+                    </span>
+                  )}
+                  {req.status === 'REJECTED' && (
+                    <span className="px-3 py-1 rounded-xl bg-rose-500/15 text-rose-300 border border-rose-500/30 font-bold text-[11px] flex items-center gap-1">
+                      <XCircle className="w-3.5 h-3.5 text-rose-400" />
+                      বাতিল (Rejected)
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Send Recharge Request Modal */}
+      {showRechargeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 w-full max-w-md space-y-6 shadow-2xl relative">
+            
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <Send className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-100 text-lg font-display">রিচার্জ রিকুয়েস্ট পাঠান</h3>
+                  <p className="text-xs text-slate-400 font-sans">এডমিনকে টাকা প্রদানের বিস্তারিত দিন</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRechargeModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSendRechargeRequest} className="space-y-4 text-xs font-sans">
+              
+              {/* Payment Method Selector */}
+              <div>
+                <label className="block text-slate-300 font-bold mb-1.5">পেমেন্ট মেথড বা মাধ্যম নির্বাচন করুন</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['BKASH', 'NAGAD', 'ROCKET', 'CASH', 'BANK'] as PaymentMethod[]).map((method) => (
+                    <button
+                      type="button"
+                      key={method}
+                      onClick={() => setReqMethod(method)}
+                      className={`py-2 px-2 rounded-xl border text-center font-bold text-xs transition-all ${
+                        reqMethod === method
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-md'
+                          : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      {method === 'BKASH' ? 'বিকাশ' : method === 'NAGAD' ? 'নগদ' : method === 'ROCKET' ? 'রকেট' : method === 'CASH' ? 'ক্যাশ (নগদ টাকা)' : 'ব্যাংক'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Amount Input */}
+              <div>
+                <label className="block text-slate-300 font-bold mb-1.5">টাকার পরিমাণ (৳)</label>
+                <input
+                  type="number"
+                  required
+                  min={50}
+                  step={50}
+                  value={reqAmount}
+                  onChange={(e) => setReqAmount(Number(e.target.value))}
+                  placeholder="যেমন: 500"
+                  className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 font-mono text-sm focus:outline-none focus:border-emerald-500/60 transition-all"
+                />
+              </div>
+
+              {/* TrxID / Reference Input */}
+              {reqMethod !== 'CASH' && (
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1.5">Transaction ID (TrxID) / ট্রানজেকশন নম্বর (ঐচ্ছিক)</label>
+                  <input
+                    type="text"
+                    value={reqTrxId}
+                    onChange={(e) => setReqTrxId(e.target.value)}
+                    placeholder="যেমন: 9B7281XA92"
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500/60 transition-all"
+                  />
+                </div>
+              )}
+
+              {/* Note Input */}
+              <div>
+                <label className="block text-slate-300 font-bold mb-1.5">অতিরিক্ত বার্তা / নোট (ঐচ্ছিক)</label>
+                <input
+                  type="text"
+                  value={reqNote}
+                  onChange={(e) => setReqNote(e.target.value)}
+                  placeholder="যেমন: মেস ম্যানেজার আংকেলকে নগদ ৫০০ টাকা দিয়েছি"
+                  className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 font-sans text-xs focus:outline-none focus:border-emerald-500/60 transition-all"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowRechargeModal(false)}
+                  className="px-4 py-2.5 rounded-xl text-slate-400 hover:text-slate-200 font-bold text-xs"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingReq}
+                  className="px-6 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>{submittingReq ? 'পাঠানো হচ্ছে...' : 'রিকুয়েস্ট পাঠান'}</span>
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
 
       {/* Digital Receipt Modal */}
       <ReceiptModal

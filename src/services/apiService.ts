@@ -1,4 +1,4 @@
-import { User, WalletTransaction, MealDeclaration, EmergencyClosure, SpecialMeal, MealRateConfig, AuditLog, FinancialMetrics, ArchivedUserReplica, UserType, UserRole, ApprovalStatus } from '../types';
+import { User, WalletTransaction, MealDeclaration, EmergencyClosure, SpecialMeal, MealRateConfig, AuditLog, FinancialMetrics, ArchivedUserReplica, UserType, UserRole, ApprovalStatus, RechargeRequest, PaymentMethod } from '../types';
 
 const API_BASE = '/api';
 
@@ -348,6 +348,91 @@ export class ApiService {
         adminId,
       };
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // RECHARGE REQUESTS
+  // ---------------------------------------------------------------------------
+  static async getRechargeRequests(): Promise<RechargeRequest[]> {
+    try {
+      const res = await fetch(`${API_BASE}/recharge-requests`);
+      if (!res.ok) throw new Error('Failed');
+      return await res.json();
+    } catch {
+      const stored = localStorage.getItem('meal_app_v5_recharge_requests');
+      return stored ? JSON.parse(stored) : [];
+    }
+  }
+
+  static async createRechargeRequest(data: {
+    userId: string;
+    userName: string;
+    userPhone: string;
+    amount: number;
+    paymentMethod: PaymentMethod;
+    trxId?: string;
+    note?: string;
+  }): Promise<RechargeRequest> {
+    const reqs = await this.getRechargeRequests();
+    const newReq: RechargeRequest = {
+      id: 'rr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      userId: data.userId,
+      userName: data.userName,
+      userPhone: data.userPhone,
+      amount: data.amount,
+      paymentMethod: data.paymentMethod,
+      trxId: data.trxId,
+      note: data.note,
+      status: 'PENDING',
+      requestedAt: new Date().toISOString(),
+    };
+    reqs.unshift(newReq);
+    localStorage.setItem('meal_app_v5_recharge_requests', JSON.stringify(reqs));
+    await this.logAudit('user', 'RECHARGE_REQUEST_CREATED', data.userId, `Requested ৳${data.amount} via ${data.paymentMethod} (TrxID: ${data.trxId || 'N/A'})`);
+    return newReq;
+  }
+
+  static async approveRechargeRequest(requestId: string, adminId: string): Promise<{ request: RechargeRequest; transaction: WalletTransaction }> {
+    const reqs = await this.getRechargeRequests();
+    const req = reqs.find((r) => r.id === requestId);
+    if (!req) throw new Error('রিচার্জ রিকুয়েস্ট পাওয়া যায়নি');
+    if (req.status !== 'PENDING') throw new Error('এই রিকুয়েস্টটি আগেই প্রসেস করা হয়েছে');
+
+    // 1. Credit wallet & log transaction
+    const txNote = `ইউজার রিকুয়েস্ট রিচার্জ (${req.paymentMethod}${req.trxId ? ' TrxID: ' + req.trxId : ''})`;
+    const tx = await this.addWalletBalance(adminId, req.userId, req.amount, 'RECHARGE', txNote);
+
+    // 2. Update user wallet balance locally for fast sync
+    const users = await this.getUsers();
+    const user = users.find((u) => u.id === req.userId);
+    if (user) {
+      user.walletBalance = (user.walletBalance || 0) + req.amount;
+      localStorage.setItem('meal_app_v5_users', JSON.stringify(users));
+    }
+
+    // 3. Mark request as APPROVED
+    req.status = 'APPROVED';
+    req.processedAt = new Date().toISOString();
+    req.processedByAdminId = adminId;
+    localStorage.setItem('meal_app_v5_recharge_requests', JSON.stringify(reqs));
+
+    await this.logAudit(adminId, 'RECHARGE_REQUEST_APPROVED', req.userId, `Approved ৳${req.amount} for ${req.userName}`);
+    return { request: req, transaction: tx };
+  }
+
+  static async rejectRechargeRequest(requestId: string, adminId: string, reason?: string): Promise<RechargeRequest> {
+    const reqs = await this.getRechargeRequests();
+    const req = reqs.find((r) => r.id === requestId);
+    if (!req) throw new Error('রিচার্জ রিকুয়েস্ট পাওয়া যায়নি');
+
+    req.status = 'REJECTED';
+    req.processedAt = new Date().toISOString();
+    req.processedByAdminId = adminId;
+    req.rejectionReason = reason || 'তথ্য সঠিক পাওয়া যায়নি';
+    localStorage.setItem('meal_app_v5_recharge_requests', JSON.stringify(reqs));
+
+    await this.logAudit(adminId, 'RECHARGE_REQUEST_REJECTED', req.userId, `Rejected recharge request of ৳${req.amount}. Reason: ${req.rejectionReason}`);
+    return req;
   }
 
   static async collectMonthlyFee(...args: any[]): Promise<number> {
