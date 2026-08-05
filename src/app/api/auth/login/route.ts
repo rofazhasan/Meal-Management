@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
@@ -14,29 +16,16 @@ export async function POST(req: Request) {
 
     if (process.env.DATABASE_URL) {
       try {
-        const result = await pool.query(
-          `SELECT 
-            u.id, u.phone_number AS phone, u.full_name AS name, u.password_hash AS password,
-            u.role, u.user_type AS "userType", u.approval_status AS status,
-            COALESCE(u.is_indefinitely_paused, FALSE) AS "isIndefinitelyPaused",
-            COALESCE(w.current_balance, 0)::float AS "walletBalance",
-            p.room_number AS "roomNumber", p.department, p.batch, p.hostel_name AS "hostelName",
-            u.created_at AS "createdAt"
-          FROM users u
-          LEFT JOIN profiles p ON u.id = p.user_id
-          LEFT JOIN wallets w ON u.id = w.user_id
-          WHERE u.phone_number = $1 AND u.deleted_at IS NULL
-          LIMIT 1;`,
-          [cleanPhone]
-        );
-        userRow = result.rows[0];
+        userRow = await prisma.user.findUnique({
+          where: { phoneNumber: cleanPhone },
+          include: { profile: true, wallet: true },
+        });
       } catch (err) {
-        console.error('DB query error on login:', err);
+        console.error('Prisma query error on login:', err);
       }
     }
 
     if (!userRow) {
-      // Fallback response format for standard seed accounts if DB is empty/unseeded
       const role = cleanPhone === '01700000000' || cleanPhone === '01700000001' ? 'SUPERADMIN' : 'USER';
       const status = 'APPROVED';
       return NextResponse.json({
@@ -62,29 +51,29 @@ export async function POST(req: Request) {
       });
     }
 
-    if (password && userRow.password && password !== userRow.password) {
+    if (password && userRow.passwordHash && password !== userRow.passwordHash) {
       return NextResponse.json({ error: 'Invalid password.' }, { status: 401 });
     }
 
     const user = {
       id: userRow.id,
-      name: userRow.name,
-      phone: userRow.phone,
-      password: userRow.password,
+      name: userRow.fullName,
+      phone: userRow.phoneNumber,
+      password: userRow.passwordHash,
       role: userRow.role,
       userType: userRow.userType,
-      status: userRow.status,
-      isIndefinitelyPaused: userRow.isIndefinitelyPaused,
-      walletBalance: userRow.walletBalance,
-      isDualMode: userRow.role === 'ADMIN' || userRow.role === 'SUPERADMIN',
-      activeMode: userRow.role === 'ADMIN' || userRow.role === 'SUPERADMIN' ? 'ADMIN' : 'USER',
-      createdAt: userRow.createdAt,
+      status: userRow.approvalStatus,
+      isIndefinitelyPaused: !userRow.isActive,
+      walletBalance: userRow.wallet ? Number(userRow.wallet.currentBalance) : 0,
+      isDualMode: (userRow.role as string) === 'ADMIN' || userRow.role === 'SUPERADMIN',
+      activeMode: ((userRow.role as string) === 'ADMIN' || userRow.role === 'SUPERADMIN' ? 'ADMIN' : 'USER') as 'ADMIN' | 'USER',
+      createdAt: userRow.createdAt.toISOString(),
       profile: {
-        studentId: userRow.roomNumber || '',
-        department: userRow.department || '',
+        studentId: userRow.profile?.roomNumber || '',
+        department: userRow.profile?.department || '',
         bloodGroup: 'B+',
         emergencyContact: '',
-        hostelName: userRow.hostelName || 'Main Hostel',
+        hostelName: userRow.profile?.hostelName || 'Main Hostel',
       },
     };
 

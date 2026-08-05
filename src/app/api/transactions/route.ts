@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   try {
@@ -7,25 +9,25 @@ export async function GET(req: Request) {
     const userId = searchParams.get('userId');
 
     if (process.env.DATABASE_URL) {
-      let query = `
-        SELECT 
-          id, 
-          user_id AS "userId", 
-          amount::float AS amount, 
-          transaction_type AS type, 
-          description, 
-          to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS date
-        FROM wallet_transactions
-      `;
-      const params: any[] = [];
-      if (userId) {
-        params.push(userId);
-        query += ` WHERE user_id = $1`;
-      }
-      query += ` ORDER BY created_at DESC LIMIT 100;`;
+      const whereClause: any = {};
+      if (userId) whereClause.userId = userId;
 
-      const result = await pool.query(query, params);
-      return NextResponse.json(result.rows);
+      const txs = await prisma.walletTransaction.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
+
+      const formatted = txs.map((t) => ({
+        id: t.id,
+        userId: t.userId,
+        amount: Number(t.amount),
+        type: t.transactionType,
+        description: t.note || t.referenceType,
+        date: t.createdAt.toISOString(),
+      }));
+
+      return NextResponse.json(formatted);
     }
 
     return NextResponse.json([]);

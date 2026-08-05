@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
@@ -10,26 +12,34 @@ export async function POST(req: Request) {
     }
 
     if (process.env.DATABASE_URL) {
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-        for (const item of updates) {
+      await prisma.$transaction(
+        updates.map((item: any) => {
           const { userId, date, breakfast, lunch, dinner } = item;
-          await client.query(
-            `INSERT INTO meal_declarations (user_id, declaration_date, breakfast_on, lunch_on, dinner_on, updated_at)
-             VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
-             ON CONFLICT (user_id, declaration_date)
-             DO UPDATE SET breakfast_on = EXCLUDED.breakfast_on, lunch_on = EXCLUDED.lunch_on, dinner_on = EXCLUDED.dinner_on, updated_at = CURRENT_TIMESTAMP;`,
-            [userId, date, Boolean(breakfast), Boolean(lunch), Boolean(dinner)]
-          );
-        }
-        await client.query('COMMIT');
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release();
-      }
+          const declDate = new Date(date);
+          return prisma.mealDeclaration.upsert({
+            where: {
+              uq_user_declaration_date: {
+                userId,
+                declarationDate: declDate,
+              },
+            },
+            update: {
+              breakfastSelected: Boolean(breakfast),
+              lunchSelected: Boolean(lunch),
+              dinnerSelected: Boolean(dinner),
+              sourceType: 'ADMIN_OVERRIDE',
+            },
+            create: {
+              userId,
+              declarationDate: declDate,
+              breakfastSelected: Boolean(breakfast),
+              lunchSelected: Boolean(lunch),
+              dinnerSelected: Boolean(dinner),
+              sourceType: 'ADMIN_OVERRIDE',
+            },
+          });
+        })
+      );
     }
 
     return NextResponse.json({ success: true, count: updates.length });

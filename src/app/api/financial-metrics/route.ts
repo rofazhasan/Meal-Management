@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,30 +19,30 @@ export async function GET() {
 
     if (process.env.DATABASE_URL) {
       try {
-        const collectedRes = await pool.query(
-          `SELECT COALESCE(SUM(amount), 0)::float AS total FROM wallet_transactions WHERE amount > 0;`
-        );
-        const usersRes = await pool.query(
-          `SELECT 
-            COUNT(*) FILTER (WHERE is_active = TRUE)::int AS active,
-            0::int AS paused
-           FROM users WHERE deleted_at IS NULL;`
-        );
-        const rechargesRes = await pool.query(
-          `SELECT COUNT(*)::int AS count, COALESCE(SUM(amount), 0)::float AS sum FROM recharge_requests WHERE status = 'PENDING';`
-        );
+        const collected = await prisma.walletTransaction.aggregate({
+          _sum: { amount: true },
+          where: { amount: { gt: 0 } },
+        });
 
-        if (collectedRes.rows[0]) metrics.totalCollected = collectedRes.rows[0].total;
-        if (usersRes.rows[0]) {
-          metrics.activeUsersCount = usersRes.rows[0].active;
-          metrics.pausedUsersCount = usersRes.rows[0].paused;
-        }
-        if (rechargesRes.rows[0]) {
-          metrics.pendingRechargesCount = rechargesRes.rows[0].count;
-          metrics.pendingRechargesSum = rechargesRes.rows[0].sum;
-        }
+        const activeCount = await prisma.user.count({
+          where: { deletedAt: null, isActive: true },
+        });
+
+        const pausedCount = await prisma.user.count({
+          where: { deletedAt: null, isActive: false },
+        });
+
+        const pendingRecharges = await prisma.approvalRequest.aggregate({
+          _count: true,
+          where: { status: 'PENDING' },
+        });
+
+        metrics.totalCollected = Number(collected._sum.amount || 0);
+        metrics.activeUsersCount = activeCount;
+        metrics.pausedUsersCount = pausedCount;
+        metrics.pendingRechargesCount = pendingRecharges._count || 0;
       } catch (e) {
-        console.error('Error fetching financial metrics:', e);
+        console.error('Error fetching financial metrics via Prisma:', e);
       }
     }
 

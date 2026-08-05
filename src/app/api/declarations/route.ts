@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   try {
@@ -9,38 +11,31 @@ export async function GET(req: Request) {
     const endDate = searchParams.get('endDate');
 
     if (process.env.DATABASE_URL) {
-      let query = `
-        SELECT 
-          id, 
-          user_id AS "userId", 
-          to_char(declaration_date, 'YYYY-MM-DD') AS date, 
-          breakfast_on AS breakfast, 
-          lunch_on AS lunch, 
-          dinner_on AS dinner, 
-          is_auto_copied AS "isAutoCopied", 
-          updated_at AS "updatedAt"
-        FROM meal_declarations
-        WHERE 1=1
-      `;
-      const params: any[] = [];
-
-      if (userId) {
-        params.push(userId);
-        query += ` AND user_id = $${params.length}`;
-      }
-      if (startDate) {
-        params.push(startDate);
-        query += ` AND declaration_date >= $${params.length}`;
-      }
-      if (endDate) {
-        params.push(endDate);
-        query += ` AND declaration_date <= $${params.length}`;
+      const whereClause: any = {};
+      if (userId) whereClause.userId = userId;
+      if (startDate || endDate) {
+        whereClause.declarationDate = {};
+        if (startDate) whereClause.declarationDate.gte = new Date(startDate);
+        if (endDate) whereClause.declarationDate.lte = new Date(endDate);
       }
 
-      query += ` ORDER BY declaration_date ASC;`;
+      const decls = await prisma.mealDeclaration.findMany({
+        where: whereClause,
+        orderBy: { declarationDate: 'asc' },
+      });
 
-      const result = await pool.query(query, params);
-      return NextResponse.json(result.rows);
+      const formatted = decls.map((d) => ({
+        id: d.id,
+        userId: d.userId,
+        date: d.declarationDate.toISOString().split('T')[0],
+        breakfast: d.breakfastSelected,
+        lunch: d.lunchSelected,
+        dinner: d.dinnerSelected,
+        isAutoCopied: d.sourceType === 'COPIED',
+        updatedAt: d.updatedAt.toISOString(),
+      }));
+
+      return NextResponse.json(formatted);
     }
 
     return NextResponse.json([]);
@@ -57,6 +52,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'userId and date are required' }, { status: 400 });
     }
 
+    const declDate = new Date(date);
     let declaration: any = {
       id: `decl-${userId}-${date}`,
       userId,
@@ -69,20 +65,39 @@ export async function POST(req: Request) {
     };
 
     if (process.env.DATABASE_URL) {
-      const query = `
-        INSERT INTO meal_declarations (user_id, declaration_date, breakfast_on, lunch_on, dinner_on, is_auto_copied, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
-        ON CONFLICT (user_id, declaration_date) 
-        DO UPDATE SET 
-          breakfast_on = EXCLUDED.breakfast_on,
-          lunch_on = EXCLUDED.lunch_on,
-          dinner_on = EXCLUDED.dinner_on,
-          is_auto_copied = EXCLUDED.is_auto_copied,
-          updated_at = CURRENT_TIMESTAMP
-        RETURNING id, user_id AS "userId", to_char(declaration_date, 'YYYY-MM-DD') AS date, breakfast_on AS breakfast, lunch_on AS lunch, dinner_on AS dinner, is_auto_copied AS "isAutoCopied", updated_at AS "updatedAt";
-      `;
-      const res = await pool.query(query, [userId, date, Boolean(breakfast), Boolean(lunch), Boolean(dinner), isAutoCopied]);
-      if (res.rows.length > 0) declaration = res.rows[0];
+      const upserted = await prisma.mealDeclaration.upsert({
+        where: {
+          uq_user_declaration_date: {
+            userId,
+            declarationDate: declDate,
+          },
+        },
+        update: {
+          breakfastSelected: Boolean(breakfast),
+          lunchSelected: Boolean(lunch),
+          dinnerSelected: Boolean(dinner),
+          sourceType: isAutoCopied ? 'COPIED' : 'MANUAL',
+        },
+        create: {
+          userId,
+          declarationDate: declDate,
+          breakfastSelected: Boolean(breakfast),
+          lunchSelected: Boolean(lunch),
+          dinnerSelected: Boolean(dinner),
+          sourceType: isAutoCopied ? 'COPIED' : 'MANUAL',
+        },
+      });
+
+      declaration = {
+        id: upserted.id,
+        userId: upserted.userId,
+        date: upserted.declarationDate.toISOString().split('T')[0],
+        breakfast: upserted.breakfastSelected,
+        lunch: upserted.lunchSelected,
+        dinner: upserted.dinnerSelected,
+        isAutoCopied: upserted.sourceType === 'COPIED',
+        updatedAt: upserted.updatedAt.toISOString(),
+      };
     }
 
     return NextResponse.json(declaration);

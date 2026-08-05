@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+import { UserRole, UserType } from '@prisma/client';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
@@ -14,41 +17,41 @@ export async function POST(req: Request) {
 
     if (process.env.DATABASE_URL) {
       try {
-        const client = await pool.connect();
-        try {
-          await client.query('BEGIN');
-          const userRes = await client.query(
-            `INSERT INTO users (phone_number, password_hash, full_name, role, user_type, approval_status)
-             VALUES ($1, $2, $3, $4, $5, 'PENDING')
-             RETURNING id, phone_number AS phone, full_name AS name, role, user_type AS "userType", approval_status AS status, created_at AS "createdAt";`,
-            [cleanPhone, password || '123456', name, role, userType]
-          );
-          const u = userRes.rows[0];
-          await client.query(`INSERT INTO profiles (user_id) VALUES ($1);`, [u.id]);
-          await client.query(`INSERT INTO wallets (user_id, current_balance) VALUES ($1, 0);`, [u.id]);
-          await client.query('COMMIT');
+        const created = await prisma.user.create({
+          data: {
+            phoneNumber: cleanPhone,
+            passwordHash: password || '123456',
+            fullName: name,
+            role: (role in UserRole ? role : 'USER') as UserRole,
+            userType: (userType in UserType ? userType : 'PERMANENT') as UserType,
+            approvalStatus: 'PENDING',
+            profile: {
+              create: {},
+            },
+            wallet: {
+              create: {
+                currentBalance: 0,
+              },
+            },
+          },
+          include: { profile: true, wallet: true },
+        });
 
-          newUser = {
-            id: u.id,
-            name: u.name,
-            phone: u.phone,
-            password: password || '123456',
-            role: u.role,
-            userType: u.userType,
-            status: u.status,
-            isIndefinitelyPaused: false,
-            walletBalance: 0,
-            createdAt: u.createdAt,
-            profile: { studentId: '', department: '', bloodGroup: 'B+', emergencyContact: '', hostelName: 'Main Hostel' }
-          };
-        } catch (e) {
-          await client.query('ROLLBACK');
-          throw e;
-        } finally {
-          client.release();
-        }
+        newUser = {
+          id: created.id,
+          name: created.fullName,
+          phone: created.phoneNumber,
+          password: created.passwordHash,
+          role: created.role,
+          userType: created.userType,
+          status: created.approvalStatus,
+          isIndefinitelyPaused: false,
+          walletBalance: 0,
+          createdAt: created.createdAt.toISOString(),
+          profile: { studentId: '', department: '', bloodGroup: 'B+', emergencyContact: '', hostelName: 'Main Hostel' }
+        };
       } catch (err: any) {
-        console.error('DB error during registration:', err);
+        console.error('Prisma error during registration:', err);
       }
     }
 

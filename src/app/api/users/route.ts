@@ -1,62 +1,46 @@
 import { NextResponse } from 'next/server';
-import { pool, ensureColumnsExist } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
     if (process.env.DATABASE_URL) {
-      await ensureColumnsExist();
-
       try {
-        const result = await pool.query(`
-          SELECT 
-            u.id, 
-            u.phone_number AS phone, 
-            u.full_name AS name, 
-            u.password_hash AS password,
-            u.role, 
-            u.user_type AS "userType", 
-            u.approval_status AS status, 
-            COALESCE(u.is_indefinitely_paused, FALSE) AS "isIndefinitelyPaused",
-            COALESCE(w.current_balance, 0)::float AS "walletBalance",
-            p.room_number AS "roomNumber",
-            p.department,
-            p.batch,
-            p.hostel_name AS "hostelName",
-            u.created_at AS "createdAt"
-          FROM users u
-          LEFT JOIN profiles p ON u.id = p.user_id
-          LEFT JOIN wallets w ON u.id = w.user_id
-          WHERE u.deleted_at IS NULL
-          ORDER BY u.created_at DESC;
-        `);
+        const usersData = await prisma.user.findMany({
+          where: { deletedAt: null },
+          include: {
+            profile: true,
+            wallet: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        });
 
-        const users = result.rows.map((row: any) => ({
-          id: row.id,
-          name: row.name,
-          phone: row.phone,
-          password: row.password,
-          role: row.role,
-          userType: row.userType,
-          status: row.status,
-          isIndefinitelyPaused: row.isIndefinitelyPaused || false,
-          walletBalance: row.walletBalance,
-          isDualMode: row.role === 'ADMIN' || row.role === 'SUPERADMIN',
-          activeMode: row.role === 'ADMIN' || row.role === 'SUPERADMIN' ? 'ADMIN' : 'USER',
-          createdAt: row.createdAt,
+        const users = usersData.map((u) => ({
+          id: u.id,
+          name: u.fullName,
+          phone: u.phoneNumber,
+          password: u.passwordHash,
+          role: u.role,
+          userType: u.userType,
+          status: u.approvalStatus,
+          isIndefinitelyPaused: !u.isActive,
+          walletBalance: u.wallet ? Number(u.wallet.currentBalance) : 0,
+          isDualMode: (u.role as string) === 'ADMIN' || u.role === 'SUPERADMIN',
+          activeMode: ((u.role as string) === 'ADMIN' || u.role === 'SUPERADMIN' ? 'ADMIN' : 'USER') as 'ADMIN' | 'USER',
+          createdAt: u.createdAt.toISOString(),
           profile: {
-            studentId: row.roomNumber || '',
-            department: row.department || '',
-            bloodGroup: 'B+',
-            emergencyContact: '',
-            hostelName: row.hostelName || 'Main Hostel',
-          }
+            studentId: u.profile?.roomNumber || '',
+            department: u.profile?.department || '',
+            bloodGroup: u.profile?.bloodGroup || 'B+',
+            emergencyContact: u.profile?.emergencyContact || '',
+            hostelName: u.profile?.hostelName || 'Main Hostel',
+          },
         }));
 
         return NextResponse.json(users);
       } catch (err) {
-        console.error('Error querying users table:', err);
+        console.error('Error fetching users via Prisma:', err);
       }
     }
 
