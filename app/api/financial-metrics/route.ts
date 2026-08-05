@@ -22,8 +22,8 @@ export async function GET() {
         );
         const usersRes = await pool.query(
           `SELECT 
-            COUNT(*) FILTER (WHERE is_active = TRUE AND is_indefinitely_paused = FALSE)::int AS active,
-            COUNT(*) FILTER (WHERE is_indefinitely_paused = TRUE)::int AS paused
+            COUNT(*) FILTER (WHERE is_active = TRUE)::int AS active,
+            0::int AS paused
            FROM users WHERE deleted_at IS NULL;`
         );
         const rechargesRes = await pool.query(
