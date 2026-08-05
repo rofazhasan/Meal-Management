@@ -215,40 +215,43 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
           />
         ) : (
           <div className="space-y-3">
-            {filteredTx.map((tx) => (
-              <div
-                key={tx.id}
-                onClick={() => setSelectedTxForReceipt(tx)}
-                className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-cyan-500/40 hover:bg-slate-900 cursor-pointer transition-all flex items-center justify-between gap-4 group shadow-sm"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className={`p-3 rounded-2xl ${tx.type === 'RECHARGE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                    }`}>
-                    {tx.type === 'RECHARGE' ? <ArrowDownRight className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold text-slate-200 group-hover:text-cyan-300 transition-colors font-sans">{tx.description}</p>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 flex items-center gap-1 font-mono group-hover:bg-cyan-500/20">
-                        <Printer className="w-3 h-3 text-cyan-400" />
-                        রসিদ
-                      </span>
+            {filteredTx.map((tx) => {
+              const isCredit = ['RECHARGE', 'CREDIT', 'ADMIN_TOPUP', 'REFUND'].includes(tx.type);
+              return (
+                <div
+                  key={tx.id}
+                  onClick={() => setSelectedTxForReceipt(tx)}
+                  className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-cyan-500/40 hover:bg-slate-900 cursor-pointer transition-all flex items-center justify-between gap-4 group shadow-sm"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className={`p-3 rounded-2xl ${isCredit ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                      }`}>
+                      {isCredit ? <ArrowDownRight className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
                     </div>
-                    <p className="text-xs text-slate-400 font-mono mt-0.5">{tx.date}</p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-slate-200 group-hover:text-cyan-300 transition-colors font-sans">{tx.description}</p>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 flex items-center gap-1 font-mono group-hover:bg-cyan-500/20">
+                          <Printer className="w-3 h-3 text-cyan-400" />
+                          রসিদ
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 font-mono mt-0.5">{tx.date}</p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <p className={`text-base font-extrabold font-mono ${isCredit ? 'text-emerald-400' : 'text-rose-400'
+                      }`}>
+                      {isCredit ? '+' : '-'} ৳{tx.amount}
+                    </p>
+                    <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                      অবশিষ্ট: ৳{tx.balanceAfter}
+                    </p>
                   </div>
                 </div>
-
-                <div className="text-right shrink-0">
-                  <p className={`text-base font-extrabold font-mono ${tx.type === 'RECHARGE' ? 'text-emerald-400' : 'text-rose-400'
-                    }`}>
-                    {tx.type === 'RECHARGE' ? '+' : '-'} ৳{tx.amount}
-                  </p>
-                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">
-                    অবশিষ্ট: ৳{tx.balanceAfter}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

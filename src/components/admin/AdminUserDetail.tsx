@@ -333,8 +333,8 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
                   <p className="text-[11px] text-slate-400 font-mono mt-0.5">{tx.date}</p>
                 </div>
                 <div className="text-right font-mono font-bold">
-                  <span className={tx.type === 'RECHARGE' ? 'text-emerald-400' : 'text-rose-400'}>
-                    {tx.type === 'RECHARGE' ? '+' : '-'} ৳{tx.amount}
+                  <span className={['RECHARGE', 'CREDIT', 'ADMIN_TOPUP', 'REFUND'].includes(tx.type) ? 'text-emerald-400' : 'text-rose-400'}>
+                    {['RECHARGE', 'CREDIT', 'ADMIN_TOPUP', 'REFUND'].includes(tx.type) ? '+' : '-'} ৳{tx.amount}
                   </span>
                   <p className="text-[10px] text-slate-400 font-normal">অবশিষ্ট: ৳{tx.balanceAfter}</p>
                 </div>

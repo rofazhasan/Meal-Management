@@ -458,32 +458,35 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           />
         ) : (
           <div className="space-y-3">
-            {transactions.slice(0, 3).map((tx) => (
-              <div key={tx.id} className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center justify-between hover:border-slate-700 transition-colors">
-                <div className="flex items-center gap-3.5">
-                  <div className={`p-3 rounded-xl ${
-                    tx.type === 'RECHARGE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                  }`}>
-                    {tx.type === 'RECHARGE' ? <ArrowDownRight className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
+            {transactions.slice(0, 3).map((tx) => {
+              const isCredit = ['RECHARGE', 'CREDIT', 'ADMIN_TOPUP', 'REFUND'].includes(tx.type);
+              return (
+                <div key={tx.id} className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center justify-between hover:border-slate-700 transition-colors">
+                  <div className="flex items-center gap-3.5">
+                    <div className={`p-3 rounded-xl ${
+                      isCredit ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                    }`}>
+                      {isCredit ? <ArrowDownRight className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-200 font-sans">{tx.description}</p>
+                      <p className="text-[11px] text-slate-400 font-mono mt-0.5">{tx.date}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-200 font-sans">{tx.description}</p>
-                    <p className="text-[11px] text-slate-400 font-mono mt-0.5">{tx.date}</p>
-                  </div>
-                </div>
 
-                <div className="text-right">
-                  <p className={`text-sm font-bold font-mono ${
-                    tx.type === 'RECHARGE' ? 'text-emerald-400' : 'text-rose-400'
-                  }`}>
-                    {tx.type === 'RECHARGE' ? '+' : '-'} ৳{tx.amount}
-                  </p>
-                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">
-                    অবশিষ্ট: ৳{tx.balanceAfter}
-                  </p>
+                  <div className="text-right">
+                    <p className={`text-sm font-bold font-mono ${
+                      isCredit ? 'text-emerald-400' : 'text-rose-400'
+                    }`}>
+                      {isCredit ? '+' : '-'} ৳{tx.amount}
+                    </p>
+                    <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                      অবশিষ্ট: ৳{tx.balanceAfter}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
