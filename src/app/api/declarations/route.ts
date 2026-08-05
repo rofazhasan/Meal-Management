@@ -1,26 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSystemRatesFromDb } from '@/lib/rates';
 
 export const dynamic = 'force-dynamic';
-
-async function getRatesFromDb() {
-  const config = await prisma.systemConfig.findUnique({
-    where: { key: 'rates' },
-  });
-  if (config && config.valueJson) {
-    const json = config.valueJson as any;
-    return {
-      permanent: json.permanent || { breakfast: 25, lunch: 50, dinner: 50, monthlyCharge: 300 },
-      guest: json.guest || { breakfast: 35, lunch: 70, dinner: 70, monthlyCharge: 0 },
-      cutoffTime: json.cutoffTime || '10:00',
-    };
-  }
-  return {
-    permanent: { breakfast: 25, lunch: 50, dinner: 50, monthlyCharge: 300 },
-    guest: { breakfast: 35, lunch: 70, dinner: 70, monthlyCharge: 0 },
-    cutoffTime: '10:00',
-  };
-}
 
 export async function GET(req: Request) {
   try {
@@ -71,19 +53,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'userId and date are required' }, { status: 400 });
     }
 
-    const declDate = new Date(date);
-    const dateStr = declDate.toISOString().split('T')[0];
+    // Standardize date to YYYY-MM-DD at 12:00 UTC to prevent timezone shifts
+    const [year, month, day] = date.split('-').map(Number);
+    const declDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    const dateStr = date;
 
     if (process.env.DATABASE_URL) {
       // 1. Check emergency closures
-      const emSetting = await prisma.mealSetting.findUnique({
-        where: { mealDate: declDate },
+      const emSetting = await prisma.mealSetting.findFirst({
+        where: { mealDate: declDate, emergencyOff: true },
       });
 
+      const newB = Boolean(breakfast);
+      const newL = Boolean(lunch);
+      const newD = Boolean(dinner);
+
       if (emSetting && emSetting.emergencyOff) {
-        if (breakfast || lunch || dinner) {
+        if (newB || newL || newD) {
           return NextResponse.json(
-            { error: 'জরুরি মিল বন্ধ থাকার কারণে কোনো মিল চালুকরণ গ্রহণযোগ্য নয়।' },
+            { error: 'জরুরি মিল বন্ধ থাকার কারণে এই দিনে মিল চালু করা সম্ভব নয়।' },
             { status: 400 }
           );
         }
@@ -99,7 +87,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'ব্যবহারকারী পাওয়া যায়নি' }, { status: 404 });
       }
 
-      const ratesConfig = await getRatesFromDb();
+      const ratesConfig = await getSystemRatesFromDb();
       const userRates = user.userType === 'GUEST' ? ratesConfig.guest : ratesConfig.permanent;
 
       // 3. Find previous declaration for this date
@@ -116,10 +104,6 @@ export async function POST(req: Request) {
       const oldL = prevDecl ? prevDecl.lunchSelected : false;
       const oldD = prevDecl ? prevDecl.dinnerSelected : false;
 
-      const newB = Boolean(breakfast);
-      const newL = Boolean(lunch);
-      const newD = Boolean(dinner);
-
       const oldCost = (oldB ? userRates.breakfast : 0) + (oldL ? userRates.lunch : 0) + (oldD ? userRates.dinner : 0);
       const newCost = (newB ? userRates.breakfast : 0) + (newL ? userRates.lunch : 0) + (newD ? userRates.dinner : 0);
       const costDiff = newCost - oldCost;
@@ -133,15 +117,15 @@ export async function POST(req: Request) {
           });
         }
 
-        const currentBal = Number(wallet.currentBalance);
+        let currentBal = Number(wallet.currentBalance);
+        let newBal = currentBal;
 
-        if (costDiff > 0 && currentBal < costDiff && !isAdminOverride) {
-          throw new Error(`পর্যাপ্ত ওয়ালেট ব্যালেন্স নেই। প্রয়োজনীয় ৳${costDiff}, বর্তমান ব্যালেন্স ৳${currentBal}`);
-        }
-
-        const newBal = currentBal - costDiff;
-
-        if (costDiff !== 0) {
+        // If user or admin turns ON a meal (costDiff > 0): deduct balance
+        if (costDiff > 0) {
+          if (currentBal < costDiff && !isAdminOverride) {
+            throw new Error(`পর্যাপ্ত ওয়ালেট ব্যালেন্স নেই। প্রয়োজনীয় ৳${costDiff}, বর্তমান ব্যালেন্স ৳${currentBal}`);
+          }
+          newBal = currentBal - costDiff;
           await tx.wallet.update({
             where: { id: wallet.id },
             data: { currentBalance: newBal },
@@ -151,15 +135,41 @@ export async function POST(req: Request) {
             data: {
               walletId: wallet.id,
               userId,
-              transactionType: costDiff > 0 ? 'MEAL_DEDUCTION' : 'REFUND',
-              amount: Math.abs(costDiff),
+              transactionType: 'MEAL_DEDUCTION',
+              amount: costDiff,
               balanceBefore: currentBal,
               balanceAfter: newBal,
               referenceType: 'MEAL_DECLARATION',
               referenceId: wallet.id,
-              note: costDiff > 0 ? `মিল ফি কর্তন (${dateStr})` : `মিল বাতিল রিফান্ড (${dateStr})`,
+              note: `মিল ফি কর্তন (${dateStr})`,
             },
           });
+        }
+        // If turning OFF a meal (costDiff < 0):
+        // Only REFUND if done by ADMIN in override section; if done by USER, no refund (policy)
+        else if (costDiff < 0) {
+          if (isAdminOverride) {
+            const refundAmt = Math.abs(costDiff);
+            newBal = currentBal + refundAmt;
+            await tx.wallet.update({
+              where: { id: wallet.id },
+              data: { currentBalance: newBal },
+            });
+
+            await tx.walletTransaction.create({
+              data: {
+                walletId: wallet.id,
+                userId,
+                transactionType: 'REFUND',
+                amount: refundAmt,
+                balanceBefore: currentBal,
+                balanceAfter: newBal,
+                referenceType: 'ADMIN_OVERRIDE_REFUND',
+                referenceId: wallet.id,
+                note: `এডমিন ওভাররাইড রিফান্ড (${dateStr})`,
+              },
+            });
+          }
         }
 
         const sourceType = isAutoCopied ? 'COPIED' : (isAdminOverride ? 'ADMIN_OVERRIDE' : 'MANUAL');
@@ -190,7 +200,7 @@ export async function POST(req: Request) {
         return {
           id: upserted.id,
           userId: upserted.userId,
-          date: upserted.declarationDate.toISOString().split('T')[0],
+          date: dateStr,
           breakfast: upserted.breakfastSelected,
           lunch: upserted.lunchSelected,
           dinner: upserted.dinnerSelected,

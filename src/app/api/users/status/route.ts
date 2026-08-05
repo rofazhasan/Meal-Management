@@ -16,6 +16,7 @@ async function handleStatusUpdate(req: Request) {
       where: { id: userId },
       data: {
         approvalStatus: status as ApprovalStatus,
+        isActive: status === 'APPROVED' ? true : false,
       },
     });
 
@@ -26,7 +27,7 @@ async function handleStatusUpdate(req: Request) {
       role: updated.role,
       userType: updated.userType,
       status: updated.approvalStatus,
-      isIndefinitelyPaused: !updated.isActive,
+      isIndefinitelyPaused: updated.isIndefinitelyPaused,
       createdAt: updated.createdAt.toISOString(),
     });
   } catch (error: any) {

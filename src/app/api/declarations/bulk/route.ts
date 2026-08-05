@@ -1,43 +1,26 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSystemRatesFromDb } from '@/lib/rates';
 
 export const dynamic = 'force-dynamic';
 
-async function getRatesFromDb() {
-  const config = await prisma.systemConfig.findUnique({
-    where: { key: 'rates' },
-  });
-  if (config && config.valueJson) {
-    const json = config.valueJson as any;
-    return {
-      permanent: json.permanent || { breakfast: 25, lunch: 50, dinner: 50, monthlyCharge: 300 },
-      guest: json.guest || { breakfast: 35, lunch: 70, dinner: 70, monthlyCharge: 0 },
-      cutoffTime: json.cutoffTime || '10:00',
-    };
-  }
-  return {
-    permanent: { breakfast: 25, lunch: 50, dinner: 50, monthlyCharge: 300 },
-    guest: { breakfast: 35, lunch: 70, dinner: 70, monthlyCharge: 0 },
-    cutoffTime: '10:00',
-  };
-}
-
 export async function POST(req: Request) {
   try {
-    const { updates } = await req.json();
+    const { updates, isAdminOverride = true } = await req.json();
 
     if (!Array.isArray(updates) || updates.length === 0) {
       return NextResponse.json({ success: true, count: 0 });
     }
 
     if (process.env.DATABASE_URL) {
-      const ratesConfig = await getRatesFromDb();
+      const ratesConfig = await getSystemRatesFromDb();
 
       await prisma.$transaction(async (tx) => {
         for (const item of updates) {
           const { userId, date, breakfast, lunch, dinner } = item;
-          const declDate = new Date(date);
-          const dateStr = declDate.toISOString().split('T')[0];
+          const [year, month, day] = date.split('-').map(Number);
+          const declDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+          const dateStr = date;
 
           const user = await tx.user.findUnique({
             where: { id: userId },
@@ -45,6 +28,22 @@ export async function POST(req: Request) {
           });
 
           if (!user) continue;
+
+          // Check Emergency Closure
+          const emSetting = await tx.mealSetting.findFirst({
+            where: { mealDate: declDate, emergencyOff: true },
+          });
+
+          let newB = Boolean(breakfast);
+          let newL = Boolean(lunch);
+          let newD = Boolean(dinner);
+
+          // Force off if emergency
+          if (emSetting && emSetting.emergencyOff) {
+            newB = false;
+            newL = false;
+            newD = false;
+          }
 
           const userRates = user.userType === 'GUEST' ? ratesConfig.guest : ratesConfig.permanent;
 
@@ -61,10 +60,6 @@ export async function POST(req: Request) {
           const oldL = prevDecl ? prevDecl.lunchSelected : false;
           const oldD = prevDecl ? prevDecl.dinnerSelected : false;
 
-          const newB = Boolean(breakfast);
-          const newL = Boolean(lunch);
-          const newD = Boolean(dinner);
-
           const oldCost = (oldB ? userRates.breakfast : 0) + (oldL ? userRates.lunch : 0) + (oldD ? userRates.dinner : 0);
           const newCost = (newB ? userRates.breakfast : 0) + (newL ? userRates.lunch : 0) + (newD ? userRates.dinner : 0);
           const costDiff = newCost - oldCost;
@@ -77,9 +72,10 @@ export async function POST(req: Request) {
           }
 
           const currentBal = Number(wallet.currentBalance);
-          const newBal = currentBal - costDiff;
+          let newBal = currentBal;
 
-          if (costDiff !== 0) {
+          if (costDiff > 0) {
+            newBal = currentBal - costDiff;
             await tx.wallet.update({
               where: { id: wallet.id },
               data: { currentBalance: newBal },
@@ -89,13 +85,34 @@ export async function POST(req: Request) {
               data: {
                 walletId: wallet.id,
                 userId,
-                transactionType: costDiff > 0 ? 'MEAL_DEDUCTION' : 'REFUND',
-                amount: Math.abs(costDiff),
+                transactionType: 'MEAL_DEDUCTION',
+                amount: costDiff,
                 balanceBefore: currentBal,
                 balanceAfter: newBal,
                 referenceType: 'BULK_OVERRIDE',
                 referenceId: wallet.id,
-                note: costDiff > 0 ? `বাল্ক মিল ফি কর্তন (${dateStr})` : `বাল্ক মিল বাতিল রিফান্ড (${dateStr})`,
+                note: `বাল্ক মিল ফি কর্তন (${dateStr})`,
+              },
+            });
+          } else if (costDiff < 0 && isAdminOverride) {
+            const refundAmt = Math.abs(costDiff);
+            newBal = currentBal + refundAmt;
+            await tx.wallet.update({
+              where: { id: wallet.id },
+              data: { currentBalance: newBal },
+            });
+
+            await tx.walletTransaction.create({
+              data: {
+                walletId: wallet.id,
+                userId,
+                transactionType: 'REFUND',
+                amount: refundAmt,
+                balanceBefore: currentBal,
+                balanceAfter: newBal,
+                referenceType: 'BULK_OVERRIDE_REFUND',
+                referenceId: wallet.id,
+                note: `বাল্ক মিল রিফান্ড (${dateStr})`,
               },
             });
           }

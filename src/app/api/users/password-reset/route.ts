@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   }
 }
 
-export async function PATCH(req: Request) {
+async function handleResetAction(req: Request) {
   try {
     const { userId, newPassword, action } = await req.json();
 
@@ -37,16 +37,17 @@ export async function PATCH(req: Request) {
     }
 
     if (action === 'reject') {
-      await prisma.user.update({
+      const user = await prisma.user.update({
         where: { id: userId },
         data: {
           isPasswordResetRequested: false,
           passwordResetRequestedAt: null,
         },
       });
+      return NextResponse.json({ success: true, userId: user.id });
     } else {
       const hashedPassword = await bcrypt.hash(newPassword || '123456', 10);
-      await prisma.user.update({
+      const user = await prisma.user.update({
         where: { id: userId },
         data: {
           passwordHash: hashedPassword,
@@ -54,11 +55,25 @@ export async function PATCH(req: Request) {
           passwordResetRequestedAt: null,
         },
       });
+      return NextResponse.json({
+        id: user.id,
+        name: user.fullName,
+        phone: user.phoneNumber,
+        role: user.role,
+        userType: user.userType,
+        status: user.approvalStatus,
+      });
     }
-
-    return NextResponse.json({ success: true, userId });
   } catch (error: any) {
     console.error('Password reset action error:', error);
     return NextResponse.json({ error: error.message || 'Password reset action failed' }, { status: 500 });
   }
+}
+
+export async function PATCH(req: Request) {
+  return handleResetAction(req);
+}
+
+export async function PUT(req: Request) {
+  return handleResetAction(req);
 }

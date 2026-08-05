@@ -14,6 +14,7 @@ export async function GET() {
       id: l.id,
       adminId: l.actorUserId || 'admin',
       action: l.action,
+      targetUserId: (l as any).targetUserId || null,
       details: l.details || '',
       timestamp: l.createdAt.toISOString(),
     }));

@@ -5,6 +5,11 @@ import { normalizePhoneNumber } from '../../../../utils/phoneUtils';
 
 export const dynamic = 'force-dynamic';
 
+const ADMIN_ROLES = new Set([
+  'ADMIN', 'SUPERADMIN', 'OWNER', 'FINANCE_ADMIN',
+  'MEAL_MANAGER', 'HOSTEL_MANAGER', 'AUDITOR', 'SUPPORT_ADMIN', 'READONLY_ADMIN'
+]);
+
 export async function POST(req: Request) {
   try {
     const { phone, password } = await req.json();
@@ -19,7 +24,7 @@ export async function POST(req: Request) {
       include: { profile: true, wallet: true },
     });
 
-    if (!userRow) {
+    if (!userRow || userRow.deletedAt) {
       return NextResponse.json({ error: 'User not found with this phone number.' }, { status: 404 });
     }
 
@@ -45,6 +50,8 @@ export async function POST(req: Request) {
       }
     }
 
+    const isAdminRole = ADMIN_ROLES.has(userRow.role);
+
     const user = {
       id: userRow.id,
       name: userRow.fullName,
@@ -52,13 +59,14 @@ export async function POST(req: Request) {
       role: userRow.role,
       userType: userRow.userType,
       status: userRow.approvalStatus,
-      isIndefinitelyPaused: !userRow.isActive,
+      isIndefinitelyPaused: userRow.isIndefinitelyPaused,
       walletBalance: userRow.wallet ? Number(userRow.wallet.currentBalance) : 0,
-      isDualMode: (userRow.role as string) === 'ADMIN' || userRow.role === 'SUPERADMIN',
-      activeMode: ((userRow.role as string) === 'ADMIN' || userRow.role === 'SUPERADMIN' ? 'ADMIN' : 'USER') as 'ADMIN' | 'USER',
+      isDualMode: userRow.isDualMode || isAdminRole,
+      activeMode: (userRow.activeMode || (isAdminRole ? 'ADMIN' : 'USER')) as 'ADMIN' | 'USER',
       createdAt: userRow.createdAt.toISOString(),
       profile: {
-        studentId: userRow.profile?.roomNumber || '',
+        studentId: userRow.profile?.studentId || '',
+        roomNumber: userRow.profile?.roomNumber || '',
         department: userRow.profile?.department || '',
         bloodGroup: userRow.profile?.bloodGroup || 'B+',
         emergencyContact: userRow.profile?.emergencyContact || '',

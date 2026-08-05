@@ -38,13 +38,13 @@ export async function GET() {
 
         const totalRechargesAgg = await prisma.walletTransaction.aggregate({
           _sum: { amount: true },
-          where: { transactionType: { in: ['ADMIN_TOPUP', 'RECHARGE', 'CREDIT'] } },
+          where: { transactionType: { in: ['ADMIN_TOPUP', 'RECHARGE', 'CREDIT', 'CASH_PAID'] } },
         });
 
         const todayRechargesAgg = await prisma.walletTransaction.aggregate({
           _sum: { amount: true },
           where: {
-            transactionType: { in: ['ADMIN_TOPUP', 'RECHARGE', 'CREDIT'] },
+            transactionType: { in: ['ADMIN_TOPUP', 'RECHARGE', 'CREDIT', 'CASH_PAID'] },
             createdAt: { gte: startOfToday },
           },
         });
@@ -52,7 +52,7 @@ export async function GET() {
         const monthRechargesAgg = await prisma.walletTransaction.aggregate({
           _sum: { amount: true },
           where: {
-            transactionType: { in: ['ADMIN_TOPUP', 'RECHARGE', 'CREDIT'] },
+            transactionType: { in: ['ADMIN_TOPUP', 'RECHARGE', 'CREDIT', 'CASH_PAID'] },
             createdAt: { gte: startOfMonth },
           },
         });
@@ -60,14 +60,14 @@ export async function GET() {
         const yearRechargesAgg = await prisma.walletTransaction.aggregate({
           _sum: { amount: true },
           where: {
-            transactionType: { in: ['ADMIN_TOPUP', 'RECHARGE', 'CREDIT'] },
+            transactionType: { in: ['ADMIN_TOPUP', 'RECHARGE', 'CREDIT', 'CASH_PAID'] },
             createdAt: { gte: startOfYear },
           },
         });
 
         const totalDeductionsAgg = await prisma.walletTransaction.aggregate({
           _sum: { amount: true },
-          where: { transactionType: { in: ['MEAL_DEDUCTION', 'DEBIT'] } },
+          where: { transactionType: { in: ['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE'] } },
         });
 
         const totalRefundsAgg = await prisma.walletTransaction.aggregate({
@@ -115,6 +115,7 @@ export async function GET() {
         const totalColl = Number(totalRechargesAgg._sum.amount || 0);
         const totalDeduct = Number(totalDeductionsAgg._sum.amount || 0);
         const totalRef = Number(totalRefundsAgg._sum.amount || 0);
+        const netDeduct = totalDeduct - totalRef;
         const walletBal = Number(totalWalletBalAgg._sum.currentBalance || 0);
 
         metrics = {
@@ -122,18 +123,18 @@ export async function GET() {
           monthlyCollection: Number(monthRechargesAgg._sum.amount || 0),
           yearlyCollection: Number(yearRechargesAgg._sum.amount || 0),
           todayExpenses: 0,
-          netProfit: totalDeduct - totalRef,
+          netProfit: netDeduct,
           outstandingBalance: 0,
           totalWalletBalance: walletBal,
           totalRefunds: totalRef,
           permanentRevenue: Number(permRevenueAgg._sum.amount || 0),
           guestRevenue: Number(guestRevenueAgg._sum.amount || 0),
           totalCollected: totalColl,
-          totalSpent: totalDeduct,
+          totalSpent: netDeduct,
           netReserve: walletBal,
           pendingRechargesCount: pendingReqAgg._count || 0,
           pendingRechargesSum: 0,
-          monthlyEstRevenue: totalDeduct,
+          monthlyEstRevenue: netDeduct,
           monthlyEstCost: 0,
           activeUsersCount,
           pausedUsersCount,

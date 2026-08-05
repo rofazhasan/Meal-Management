@@ -28,7 +28,7 @@ async function handleRoleUpdate(req: Request) {
       role: updated.role,
       userType: updated.userType,
       status: updated.approvalStatus,
-      isIndefinitelyPaused: !updated.isActive,
+      isIndefinitelyPaused: updated.isIndefinitelyPaused,
       createdAt: updated.createdAt.toISOString(),
     });
   } catch (error: any) {

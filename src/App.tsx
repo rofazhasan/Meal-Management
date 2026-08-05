@@ -163,6 +163,14 @@ const MainApplication: React.FC = () => {
     (currentUser.activeMode !== 'USER' && ADMIN_ROLES.has(currentUser.role))
   );
 
+  const defaultRatesConfig = {
+    permanent: { breakfast: 25, lunch: 50, dinner: 50, monthlyCharge: 300 },
+    guest: { breakfast: 35, lunch: 70, dinner: 70, monthlyCharge: 0 },
+    globalMealStatus: { breakfast: true, lunch: true, dinner: true },
+    cutoffTime: '10:00',
+  };
+  const effectiveRates = rates || defaultRatesConfig;
+
   // Strict route protection guard for non-admin users (Must be called before any early returns to obey React Rules of Hooks)
   useEffect(() => {
     if (currentUser && !isAdmin && activeTab.startsWith('admin-')) {
@@ -291,10 +299,10 @@ const MainApplication: React.FC = () => {
                     </button>
                   </div>
                 )}
-                {activeTab === 'dashboard' && rates && (
+                {activeTab === 'dashboard' && (
                   <UserDashboard
                     currentUser={currentUser}
-                    rates={rates}
+                    rates={effectiveRates}
                     declarations={declarations}
                     transactions={transactions.filter((t) => t.userId === currentUser.id)}
                     emergencies={emergencies}
@@ -303,10 +311,10 @@ const MainApplication: React.FC = () => {
                   />
                 )}
 
-                {activeTab === 'meals' && rates && (
+                {activeTab === 'meals' && (
                   <MealDeclaration
                     currentUser={currentUser}
-                    rates={rates}
+                    rates={effectiveRates}
                     declarations={declarations}
                     emergencies={emergencies}
                     specialMeals={specialMeals}
@@ -319,19 +327,19 @@ const MainApplication: React.FC = () => {
                     currentUser={currentUser}
                     transactions={transactions.filter((t) => t.userId === currentUser.id)}
                     declarations={declarations}
-                    rates={rates}
+                    rates={effectiveRates}
                   />
                 )}
 
                 {activeTab === 'reports' && (
-                  <UserReports currentUser={currentUser} declarations={declarations} rates={rates} specialMeals={specialMeals} />
+                  <UserReports currentUser={currentUser} declarations={declarations} rates={effectiveRates} specialMeals={specialMeals} />
                 )}
 
                 {activeTab === 'public-meals' && (
                   <PublicTodaysMeal
                     users={users}
                     declarations={declarations}
-                    rates={rates}
+                    rates={effectiveRates}
                     specialMeals={specialMeals}
                     currentUser={currentUser}
                     onNavigateToLogin={() => setActiveTab('dashboard')}
@@ -341,13 +349,13 @@ const MainApplication: React.FC = () => {
             )}
 
             {/* Admin Navigation Screens */}
-            {isAdmin && rates && (
+            {isAdmin && (
               <>
                 {activeTab === 'admin-dashboard' && (
                   <AdminDashboard
                     currentAdmin={currentUser}
                     users={users}
-                    rates={rates}
+                    rates={effectiveRates}
                     emergencies={emergencies}
                     declarations={declarations}
                     onRefreshData={handleRefreshAll}
@@ -359,7 +367,7 @@ const MainApplication: React.FC = () => {
                   <CookReport
                     users={users}
                     declarations={declarations}
-                    rates={rates}
+                    rates={effectiveRates}
                     specialMeals={specialMeals}
                     emergencies={emergencies}
                   />
@@ -369,7 +377,7 @@ const MainApplication: React.FC = () => {
                   <BulkMealControl
                     users={users}
                     declarations={declarations}
-                    rates={rates}
+                    rates={effectiveRates}
                     specialMeals={specialMeals}
                     emergencies={emergencies}
                     currentAdmin={currentUser}
@@ -397,7 +405,7 @@ const MainApplication: React.FC = () => {
                 )}
 
                 {activeTab === 'admin-settings' && (
-                  <SettingsPanel rates={rates} specialMeals={specialMeals} onRefreshData={handleRefreshAll} currentUser={currentUser} />
+                  <SettingsPanel rates={effectiveRates} specialMeals={specialMeals} onRefreshData={handleRefreshAll} currentUser={currentUser} />
                 )}
 
                 {activeTab === 'admin-audit' && (
@@ -405,7 +413,7 @@ const MainApplication: React.FC = () => {
                 )}
 
                 {activeTab === 'reports' && (
-                  <UserReports currentUser={currentUser} declarations={declarations} rates={rates} specialMeals={specialMeals} emergencies={emergencies} />
+                  <UserReports currentUser={currentUser} declarations={declarations} rates={effectiveRates} specialMeals={specialMeals} emergencies={emergencies} />
                 )}
               </>
             )}

@@ -296,7 +296,18 @@ export class ApiService {
   }
 
   static async copyPreviousDayDeclaration(userId: string, targetDate: string): Promise<MealDeclaration> {
-    return this.updateDeclaration(userId, targetDate, { breakfast: true, lunch: true, dinner: true });
+    const targetDt = new Date(`${targetDate}T12:00:00`);
+    targetDt.setDate(targetDt.getDate() - 1);
+    const yesterdayStr = targetDt.toISOString().split('T')[0];
+
+    const allDecls = await this.getDeclarations();
+    const prevDecl = allDecls.find((d) => d.userId === userId && d.date === yesterdayStr);
+
+    const mealsToCopy = prevDecl
+      ? { breakfast: prevDecl.breakfast, lunch: prevDecl.lunch, dinner: prevDecl.dinner }
+      : { breakfast: true, lunch: true, dinner: true };
+
+    return this.updateDeclaration(userId, targetDate, mealsToCopy, false);
   }
 
   // ---------------------------------------------------------------------------

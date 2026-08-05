@@ -18,16 +18,27 @@ export async function GET(req: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
-    const formatted = requests.map((r) => ({
-      id: r.id,
-      userId: r.userId,
-      userName: r.user.fullName,
-      userPhone: r.user.phoneNumber,
-      amount: 500,
-      paymentMethod: 'BKASH',
-      status: r.status,
-      requestedAt: r.createdAt.toISOString(),
-    }));
+    const formatted = requests.map((r) => {
+      let meta: any = {};
+      try {
+        if (r.remark && r.remark.startsWith('{')) {
+          meta = JSON.parse(r.remark);
+        }
+      } catch (e) {}
+
+      return {
+        id: r.id,
+        userId: r.userId,
+        userName: r.user.fullName,
+        userPhone: r.user.phoneNumber,
+        amount: Number(meta.amount || 500),
+        paymentMethod: meta.paymentMethod || 'BKASH',
+        trxId: meta.trxId || '',
+        note: meta.note || r.remark || '',
+        status: r.status,
+        requestedAt: r.createdAt.toISOString(),
+      };
+    });
 
     return NextResponse.json(formatted);
   } catch (error: any) {
@@ -38,13 +49,24 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { userId, note } = body;
+    const { userId, amount = 500, paymentMethod = 'BKASH', trxId = '', note = '' } = body;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
+
+    const remarkJson = JSON.stringify({
+      amount: Number(amount),
+      paymentMethod,
+      trxId,
+      note,
+    });
 
     const created = await prisma.approvalRequest.create({
       data: {
         userId,
         status: 'PENDING',
-        remark: note || 'Recharge request',
+        remark: remarkJson,
       },
       include: { user: true },
     });
@@ -54,8 +76,10 @@ export async function POST(req: Request) {
       userId: created.userId,
       userName: created.user.fullName,
       userPhone: created.user.phoneNumber,
-      amount: 500,
-      paymentMethod: 'BKASH',
+      amount: Number(amount),
+      paymentMethod,
+      trxId,
+      note,
       status: created.status,
       requestedAt: created.createdAt.toISOString(),
     };
@@ -68,14 +92,32 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const { requestId, status, amount = 500 } = await req.json();
+    const { requestId, status, amount: passedAmount, adminId } = await req.json();
 
     if (!requestId || !status) {
       return NextResponse.json({ error: 'requestId and status are required' }, { status: 400 });
     }
 
     const updated = await prisma.$transaction(async (tx) => {
-      const appReq = await tx.approvalRequest.update({
+      const appReq = await tx.approvalRequest.findUnique({
+        where: { id: requestId },
+      });
+
+      if (!appReq) {
+        throw new Error('Recharge request not found');
+      }
+
+      let reqAmount = 500;
+      try {
+        if (appReq.remark && appReq.remark.startsWith('{')) {
+          const parsed = JSON.parse(appReq.remark);
+          reqAmount = Number(parsed.amount || 500);
+        }
+      } catch (e) {}
+
+      const finalAmount = passedAmount ? Number(passedAmount) : reqAmount;
+
+      const updatedReq = await tx.approvalRequest.update({
         where: { id: requestId },
         data: { status: status as ApprovalStatus },
       });
@@ -87,7 +129,7 @@ export async function PATCH(req: Request) {
         }
 
         const prevBal = Number(wallet.currentBalance);
-        const newBal = prevBal + Number(amount);
+        const newBal = prevBal + finalAmount;
 
         await tx.wallet.update({
           where: { id: wallet.id },
@@ -98,18 +140,19 @@ export async function PATCH(req: Request) {
           data: {
             walletId: wallet.id,
             userId: appReq.userId,
-            transactionType: 'CREDIT',
-            amount: Number(amount),
+            transactionType: 'RECHARGE',
+            amount: finalAmount,
             balanceBefore: prevBal,
             balanceAfter: newBal,
             referenceType: 'RECHARGE_APPROVAL',
             referenceId: appReq.id,
-            note: 'Recharge Request Approved',
+            createdBy: adminId || null,
+            note: `রিচার্জ রিকোয়েস্ট অনুমোদন (৳${finalAmount})`,
           },
         });
       }
 
-      return appReq;
+      return updatedReq;
     });
 
     return NextResponse.json({ success: true, requestId: updated.id, status: updated.status });
