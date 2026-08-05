@@ -152,6 +152,15 @@ model WalletTransaction {
   @@map("wallet_transactions")
 }
 
+model SystemConfig {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique @db.VarChar(50)
+  valueJson Json     @map("value_json")
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("system_configs")
+}
+
 model MealSetting {
   id              String    @id @default(uuid()) @db.Uuid
   mealDate        DateTime  @unique @map("meal_date") @db.Date

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,21 +12,20 @@ const defaultConfig = {
 
 export async function GET() {
   try {
-    if (process.env.DATABASE_URL) {
-      const res = await pool.query(`SELECT key_name, value_json FROM meal_settings;`);
-      if (res.rows.length > 0) {
-        const config = { ...defaultConfig };
-        res.rows.forEach((row: any) => {
-          if (row.key_name === 'rates_permanent') config.permanent = row.value_json;
-          if (row.key_name === 'rates_guest') config.guest = row.value_json;
-          if (row.key_name === 'global_status') config.globalMealStatus = row.value_json;
-          if (row.key_name === 'cutoff_time') config.cutoffTime = row.value_json?.cutoffTime || '10:00';
-        });
-        return NextResponse.json(config);
-      }
+    const configs = await prisma.systemConfig.findMany();
+    if (configs.length > 0) {
+      const config = { ...defaultConfig };
+      configs.forEach((item) => {
+        if (item.key === 'rates_permanent') config.permanent = item.valueJson as any;
+        if (item.key === 'rates_guest') config.guest = item.valueJson as any;
+        if (item.key === 'global_status') config.globalMealStatus = item.valueJson as any;
+        if (item.key === 'cutoff_time') config.cutoffTime = (item.valueJson as any)?.cutoffTime || '10:00';
+      });
+      return NextResponse.json(config);
     }
     return NextResponse.json(defaultConfig);
   } catch (error: any) {
+    console.error('Error fetching rates:', error);
     return NextResponse.json(defaultConfig);
   }
 }
@@ -36,35 +35,53 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const { permanent, guest, globalMealStatus, cutoffTime } = body;
 
-    if (process.env.DATABASE_URL) {
-      if (permanent) {
-        await pool.query(
-          `INSERT INTO meal_settings (key_name, value_json, updated_at) VALUES ('rates_permanent', $1, CURRENT_TIMESTAMP) ON CONFLICT (key_name) DO UPDATE SET value_json = EXCLUDED.value_json, updated_at = CURRENT_TIMESTAMP;`,
-          [JSON.stringify(permanent)]
-        );
-      }
-      if (guest) {
-        await pool.query(
-          `INSERT INTO meal_settings (key_name, value_json, updated_at) VALUES ('rates_guest', $1, CURRENT_TIMESTAMP) ON CONFLICT (key_name) DO UPDATE SET value_json = EXCLUDED.value_json, updated_at = CURRENT_TIMESTAMP;`,
-          [JSON.stringify(guest)]
-        );
-      }
-      if (globalMealStatus) {
-        await pool.query(
-          `INSERT INTO meal_settings (key_name, value_json, updated_at) VALUES ('global_status', $1, CURRENT_TIMESTAMP) ON CONFLICT (key_name) DO UPDATE SET value_json = EXCLUDED.value_json, updated_at = CURRENT_TIMESTAMP;`,
-          [JSON.stringify(globalMealStatus)]
-        );
-      }
-      if (cutoffTime) {
-        await pool.query(
-          `INSERT INTO meal_settings (key_name, value_json, updated_at) VALUES ('cutoff_time', $1, CURRENT_TIMESTAMP) ON CONFLICT (key_name) DO UPDATE SET value_json = EXCLUDED.value_json, updated_at = CURRENT_TIMESTAMP;`,
-          [JSON.stringify({ cutoffTime })]
-        );
-      }
+    const updates: Promise<any>[] = [];
+
+    if (permanent) {
+      updates.push(
+        prisma.systemConfig.upsert({
+          where: { key: 'rates_permanent' },
+          update: { valueJson: permanent },
+          create: { key: 'rates_permanent', valueJson: permanent },
+        })
+      );
     }
+
+    if (guest) {
+      updates.push(
+        prisma.systemConfig.upsert({
+          where: { key: 'rates_guest' },
+          update: { valueJson: guest },
+          create: { key: 'rates_guest', valueJson: guest },
+        })
+      );
+    }
+
+    if (globalMealStatus) {
+      updates.push(
+        prisma.systemConfig.upsert({
+          where: { key: 'global_status' },
+          update: { valueJson: globalMealStatus },
+          create: { key: 'global_status', valueJson: globalMealStatus },
+        })
+      );
+    }
+
+    if (cutoffTime) {
+      updates.push(
+        prisma.systemConfig.upsert({
+          where: { key: 'cutoff_time' },
+          update: { valueJson: { cutoffTime } },
+          create: { key: 'cutoff_time', valueJson: { cutoffTime } },
+        })
+      );
+    }
+
+    await Promise.all(updates);
 
     return NextResponse.json({ success: true, ...body });
   } catch (error: any) {
+    console.error('Error updating rates:', error);
     return NextResponse.json({ error: error.message || 'Failed to update rates' }, { status: 500 });
   }
 }
