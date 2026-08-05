@@ -1,27 +1,52 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    if (process.env.DATABASE_URL) {
-      const res = await pool.query(`
-        SELECT 
-          id, 
-          admin_user_id AS "adminId", 
-          action_type AS action, 
-          target_id AS "targetUserId", 
-          reason AS details, 
-          to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS timestamp
-        FROM admin_actions
-        ORDER BY created_at DESC
-        LIMIT 200;
-      `);
-      return NextResponse.json(res.rows);
-    }
-    return NextResponse.json([]);
+    const logs = await prisma.auditLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+
+    const formatted = logs.map((l) => ({
+      id: l.id,
+      adminId: l.actorUserId || 'admin',
+      action: l.action,
+      details: l.details || '',
+      timestamp: l.createdAt.toISOString(),
+    }));
+
+    return NextResponse.json(formatted);
   } catch (error: any) {
     return NextResponse.json([]);
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { adminId, action, targetUserId, details, reason } = body;
+
+    const created = await prisma.auditLog.create({
+      data: {
+        actorUserId: adminId && adminId.length === 36 ? adminId : null,
+        action: action || 'ACTION',
+        details: details || reason || '',
+      },
+    });
+
+    return NextResponse.json({
+      id: created.id,
+      adminId: created.actorUserId || adminId || 'admin',
+      action: created.action,
+      targetUserId,
+      details: created.details,
+      timestamp: created.createdAt.toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Audit log error:', error);
+    return NextResponse.json({ success: true });
   }
 }

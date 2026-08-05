@@ -4,7 +4,7 @@ import { UserType } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
-export async function PATCH(req: Request) {
+async function handleTypeUpdate(req: Request) {
   try {
     const { userId, userType } = await req.json();
 
@@ -19,9 +19,26 @@ export async function PATCH(req: Request) {
       },
     });
 
-    return NextResponse.json({ success: true, userId: updated.id, userType: updated.userType });
+    return NextResponse.json({
+      id: updated.id,
+      name: updated.fullName,
+      phone: updated.phoneNumber,
+      role: updated.role,
+      userType: updated.userType,
+      status: updated.approvalStatus,
+      isIndefinitelyPaused: !updated.isActive,
+      createdAt: updated.createdAt.toISOString(),
+    });
   } catch (error: any) {
     console.error('Failed to update user type:', error);
     return NextResponse.json({ error: error.message || 'Failed to update user type' }, { status: 500 });
   }
+}
+
+export async function POST(req: Request) {
+  return handleTypeUpdate(req);
+}
+
+export async function PATCH(req: Request) {
+  return handleTypeUpdate(req);
 }

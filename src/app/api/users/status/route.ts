@@ -4,7 +4,7 @@ import { ApprovalStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
-export async function PATCH(req: Request) {
+async function handleStatusUpdate(req: Request) {
   try {
     const { userId, status } = await req.json();
 
@@ -19,9 +19,26 @@ export async function PATCH(req: Request) {
       },
     });
 
-    return NextResponse.json({ success: true, userId: updated.id, status: updated.approvalStatus });
+    return NextResponse.json({
+      id: updated.id,
+      name: updated.fullName,
+      phone: updated.phoneNumber,
+      role: updated.role,
+      userType: updated.userType,
+      status: updated.approvalStatus,
+      isIndefinitelyPaused: !updated.isActive,
+      createdAt: updated.createdAt.toISOString(),
+    });
   } catch (error: any) {
     console.error('Failed to update user status:', error);
     return NextResponse.json({ error: error.message || 'Failed to update user status' }, { status: 500 });
   }
+}
+
+export async function POST(req: Request) {
+  return handleStatusUpdate(req);
+}
+
+export async function PATCH(req: Request) {
+  return handleStatusUpdate(req);
 }

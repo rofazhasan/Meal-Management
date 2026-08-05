@@ -4,7 +4,7 @@ import { UserRole } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
-export async function PATCH(req: Request) {
+async function handleRoleUpdate(req: Request) {
   try {
     const { userId, role } = await req.json();
 
@@ -21,9 +21,26 @@ export async function PATCH(req: Request) {
       },
     });
 
-    return NextResponse.json({ success: true, userId: updated.id, role: updated.role });
+    return NextResponse.json({
+      id: updated.id,
+      name: updated.fullName,
+      phone: updated.phoneNumber,
+      role: updated.role,
+      userType: updated.userType,
+      status: updated.approvalStatus,
+      isIndefinitelyPaused: !updated.isActive,
+      createdAt: updated.createdAt.toISOString(),
+    });
   } catch (error: any) {
     console.error('Failed to update user role:', error);
     return NextResponse.json({ error: error.message || 'Failed to update user role' }, { status: 500 });
   }
+}
+
+export async function POST(req: Request) {
+  return handleRoleUpdate(req);
+}
+
+export async function PATCH(req: Request) {
+  return handleRoleUpdate(req);
 }
