@@ -4,6 +4,12 @@ import { getSystemRatesFromDb } from '@/lib/rates';
 
 export const dynamic = 'force-dynamic';
 
+function getBgdDateStr(d = new Date()) {
+  const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+  const bgdDate = new Date(utc + 3600000 * 6);
+  return bgdDate.toISOString().split('T')[0];
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -12,6 +18,106 @@ export async function GET(req: Request) {
     const endDate = searchParams.get('endDate');
 
     if (process.env.DATABASE_URL) {
+      // Auto-process daily meal declarations and deductions for today if missing
+      try {
+        const todayStr = getBgdDateStr();
+        const [y, m, dayNum] = todayStr.split('-').map(Number);
+        const todayDt = new Date(Date.UTC(y, m - 1, dayNum, 12, 0, 0));
+        const yesterdayDt = new Date(Date.UTC(y, m - 1, dayNum - 1, 12, 0, 0));
+
+        const ratesConfig = await getSystemRatesFromDb();
+        const activeUsers = await prisma.user.findMany({
+          where: { deletedAt: null, isActive: true, isIndefinitelyPaused: false, approvalStatus: 'APPROVED' },
+          include: { wallet: true },
+        });
+
+        for (const u of activeUsers) {
+          const existingToday = await prisma.mealDeclaration.findUnique({
+            where: {
+              uq_user_declaration_date: {
+                userId: u.id,
+                declarationDate: todayDt,
+              },
+            },
+          });
+
+          if (!existingToday) {
+            const yesterdayDecl = await prisma.mealDeclaration.findUnique({
+              where: {
+                uq_user_declaration_date: {
+                  userId: u.id,
+                  declarationDate: yesterdayDt,
+                },
+              },
+            });
+
+            const userRates = u.userType === 'GUEST' ? ratesConfig.guest : ratesConfig.permanent;
+            const minMealCost = Math.min(userRates.breakfast, userRates.lunch, userRates.dinner);
+            const currentBal = u.wallet ? Number(u.wallet.currentBalance) : 0;
+            const canAfford = currentBal >= minMealCost;
+
+            const isBOff = ratesConfig.globalMealStatus?.breakfast === false;
+            const isLOff = ratesConfig.globalMealStatus?.lunch === false;
+            const isDOff = ratesConfig.globalMealStatus?.dinner === false;
+
+            const rawB = yesterdayDecl ? yesterdayDecl.breakfastSelected : canAfford;
+            const rawL = yesterdayDecl ? yesterdayDecl.lunchSelected : canAfford;
+            const rawD = yesterdayDecl ? yesterdayDecl.dinnerSelected : canAfford;
+
+            const finalB = isBOff ? false : rawB;
+            const finalL = isLOff ? false : rawL;
+            const finalD = isDOff ? false : rawD;
+
+            const mealCost = (finalB ? userRates.breakfast : 0) + (finalL ? userRates.lunch : 0) + (finalD ? userRates.dinner : 0);
+
+            await prisma.$transaction(async (tx) => {
+              let wallet = u.wallet;
+              if (!wallet) {
+                wallet = await tx.wallet.create({ data: { userId: u.id, currentBalance: 0 } });
+              }
+
+              let newBal = Number(wallet.currentBalance);
+              if (mealCost > 0 && newBal >= mealCost) {
+                newBal = newBal - mealCost;
+                await tx.wallet.update({
+                  where: { id: wallet.id },
+                  data: { currentBalance: newBal },
+                });
+
+                await tx.walletTransaction.create({
+                  data: {
+                    walletId: wallet.id,
+                    userId: u.id,
+                    transactionType: 'MEAL_DEDUCTION',
+                    amount: mealCost,
+                    balanceBefore: Number(wallet.currentBalance),
+                    balanceAfter: newBal,
+                    referenceType: 'DAILY_AUTO_DEDUCTION',
+                    referenceId: wallet.id,
+                    note: `দৈনিক মিল ফি কর্তন (${todayStr})`,
+                  },
+                });
+              }
+
+              await tx.mealDeclaration.create({
+                data: {
+                  userId: u.id,
+                  declarationDate: todayDt,
+                  breakfastSelected: finalB,
+                  lunchSelected: finalL,
+                  dinnerSelected: finalD,
+                  sourceType: 'COPIED',
+                },
+              });
+            }).catch(() => {
+              // Ignore single user conflict if race condition occurs
+            });
+          }
+        }
+      } catch (autoErr) {
+        console.error('Error auto-processing daily meal declarations:', autoErr);
+      }
+
       const whereClause: any = {};
       if (userId) whereClause.userId = userId;
       if (startDate || endDate) {

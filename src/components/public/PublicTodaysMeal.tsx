@@ -31,7 +31,8 @@ import {
   DollarSign,
   Gift
 } from 'lucide-react';
-import { User, MealDeclaration, MealRateConfig, SpecialMeal } from '../../types';
+import { AlertOctagon } from 'lucide-react';
+import { User, MealDeclaration, MealRateConfig, SpecialMeal, EmergencyClosure } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AppLogo } from '../common/AppLogo';
 import { getBangladeshDateStr, getBangladeshNow } from '../../utils/dateUtils';
@@ -42,6 +43,7 @@ interface PublicTodaysMealProps {
   declarations: MealDeclaration[];
   rates?: MealRateConfig;
   specialMeals?: SpecialMeal[];
+  emergencies?: EmergencyClosure[];
   onNavigateToLogin: () => void;
   currentUser?: User | null;
 }
@@ -53,6 +55,7 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
   declarations,
   rates,
   specialMeals = [],
+  emergencies = [],
   onNavigateToLogin,
   currentUser,
 }) => {
@@ -88,6 +91,15 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
       .forEach((d) => map.set(d.userId, d));
     return map;
   }, [declarations, todayStr]);
+
+  // Today's Emergency Notice
+  const todayEmergency = useMemo(() => {
+    return emergencies.find((em) => {
+      const start = em.date;
+      const end = em.endDate || em.date;
+      return todayStr >= start && todayStr <= end;
+    });
+  }, [emergencies, todayStr]);
 
   // Today's Special Meals list
   const todaysSpecialMeals = useMemo(() => {
@@ -128,21 +140,20 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
 
     approvedUsers.forEach((u) => {
       const dec = todayDeclarationsMap.get(u.id);
+      const state = getUserMealStateForDate(u, todayStr, dec, rates, todayEmergency);
       const userRates = u.userType === 'GUEST' ? guestRates : permRates;
-      
-      if (dec) {
-        if (dec.breakfast) {
-          breakfast += 1;
-          breakfastMoney += userRates.breakfast;
-        }
-        if (dec.lunch) {
-          lunch += 1;
-          lunchMoney += userRates.lunch;
-        }
-        if (dec.dinner) {
-          dinner += 1;
-          dinnerMoney += userRates.dinner;
-        }
+
+      if (state.breakfast) {
+        breakfast += 1;
+        breakfastMoney += userRates.breakfast;
+      }
+      if (state.lunch) {
+        lunch += 1;
+        lunchMoney += userRates.lunch;
+      }
+      if (state.dinner) {
+        dinner += 1;
+        dinnerMoney += userRates.dinner;
       }
     });
 
@@ -160,7 +171,7 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
       totalMealMoney, 
       totalUsers: approvedUsers.length 
     };
-  }, [approvedUsers, todayDeclarationsMap, rates]);
+  }, [approvedUsers, todayDeclarationsMap, rates, todayEmergency, todayStr]);
 
   // Status Counts for Filter Pills
   const statusCounts = useMemo(() => {
@@ -170,17 +181,15 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
 
     approvedUsers.forEach((u) => {
       const dec = todayDeclarationsMap.get(u.id);
-      const b = dec ? dec.breakfast : false;
-      const l = dec ? dec.lunch : false;
-      const d = dec ? dec.dinner : false;
+      const state = getUserMealStateForDate(u, todayStr, dec, rates, todayEmergency);
 
-      if (b && l && d) allOn++;
-      else if (!b && !l && !d) allOff++;
+      if (state.breakfast && state.lunch && state.dinner) allOn++;
+      else if (!state.breakfast && !state.lunch && !state.dinner) allOff++;
       else partial++;
     });
 
     return { all: approvedUsers.length, allOn, partial, allOff };
-  }, [approvedUsers, todayDeclarationsMap]);
+  }, [approvedUsers, todayDeclarationsMap, rates, todayEmergency, todayStr]);
 
   // Filtered Users based on Search & Status Filter
   const filteredUsers = useMemo(() => {
@@ -196,9 +205,10 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
 
       // 2. Status filter match
       const dec = todayDeclarationsMap.get(u.id);
-      const b = dec ? dec.breakfast : false;
-      const l = dec ? dec.lunch : false;
-      const d = dec ? dec.dinner : false;
+      const state = getUserMealStateForDate(u, todayStr, dec, rates, todayEmergency);
+      const b = state.breakfast;
+      const l = state.lunch;
+      const d = state.dinner;
 
       if (statusFilter === 'ALL_ON' && !(b && l && d)) return false;
       if (statusFilter === 'ALL_OFF' && (b || l || d)) return false;
@@ -206,7 +216,7 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
 
       return true;
     });
-  }, [approvedUsers, searchTerm, statusFilter, todayDeclarationsMap]);
+  }, [approvedUsers, searchTerm, statusFilter, todayDeclarationsMap, rates, todayEmergency, todayStr]);
 
   // Phone masking function: e.g., 01794678***
   const maskPhone = (phone: string): string => {
@@ -303,6 +313,31 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
             {showRatesCard ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
         </div>
+
+        {/* Feature: Active Public Emergency Closure Notice Banner */}
+        {todayEmergency && (
+          <div className="mt-4 p-5 rounded-2xl border border-rose-500/50 bg-gradient-to-r from-rose-950/90 via-slate-900 to-rose-950/50 text-rose-200 flex items-start gap-4 shadow-2xl animate-scale-in">
+            <div className="p-3 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-400 shrink-0 mt-0.5">
+              <AlertOctagon className="w-7 h-7 animate-pulse text-rose-400" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base sm:text-lg font-extrabold text-white font-display">
+                  🚨 জরুরি নোটিশ: আজকের সমস্ত মিল বন্ধ!
+                </h3>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-500/30 text-rose-200 border border-rose-500/50 font-mono uppercase">
+                  EMERGENCY CLOSED
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm font-semibold text-rose-200 leading-relaxed font-sans">
+                {todayEmergency.reason || 'বিশেষ পরিস্থিতির কারণে ডাইনিং মিল সার্ভিস বন্ধ রাখা হয়েছে।'}
+              </p>
+              <p className="text-[11px] text-rose-300/80 font-mono pt-0.5">
+                জরুরি বন্ধের সময়সীমা: {todayEmergency.date} {todayEmergency.endDate && todayEmergency.endDate !== todayEmergency.date ? `থেকে ${todayEmergency.endDate}` : ''}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Feature 1: Today's Special Meal Banner (if any) */}
@@ -319,18 +354,39 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            {todaysSpecialMeals.map((sm) => (
-              <div key={sm.id} className="p-3.5 rounded-2xl bg-slate-900/90 border border-amber-500/30 flex items-center justify-between gap-3">
-                <div>
-                  <h4 className="font-extrabold text-amber-200 text-sm font-display">{sm.title}</h4>
-                  <p className="text-xs text-slate-400 font-sans mt-0.5">{sm.description || 'স্পেশাল মিল আয়োজন'}</p>
+            {todaysSpecialMeals.map((sm) => {
+              const mealTypeKey = String(sm.mealType).toLowerCase() as 'breakfast' | 'lunch' | 'dinner';
+              const mealName = sm.mealType === 'breakfast' ? 'সকালের নাস্তা' : sm.mealType === 'lunch' ? 'দুপুরের খাবার' : sm.mealType === 'dinner' ? 'রাতের খাবার' : sm.mealType;
+              const regRate = rates?.permanent?.[mealTypeKey] || 50;
+              const priceDiff = sm.customRate - regRate;
+
+              return (
+                <div key={sm.id} className="p-4 rounded-2xl bg-slate-900/90 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 font-display uppercase">
+                        {mealName} Overwrite
+                      </span>
+                      <h4 className="font-extrabold text-amber-200 text-sm font-display">{sm.title}</h4>
+                    </div>
+                    <p className="text-xs text-slate-400 font-sans">{sm.description || 'স্পেশাল মিল আয়োজন'}</p>
+                    <p className="text-xs text-amber-300/90 font-medium font-sans">
+                      💡 এই মেনুটি <strong>{mealName}</strong>-এর কাস্টম রেট হিসেবে প্রযোজ্য (নিয়মিত ৳{regRate})
+                    </p>
+                  </div>
+
+                  <div className="text-left sm:text-right shrink-0 bg-amber-500/10 p-3 rounded-xl border border-amber-500/20">
+                    <span className="text-[10px] text-amber-300/80 block font-bold font-mono">স্পেশাল রেট</span>
+                    <span className="text-xl font-black text-amber-400 font-mono">৳ {sm.customRate}</span>
+                    {priceDiff !== 0 && (
+                      <span className={`text-[10px] font-bold block mt-0.5 font-mono ${priceDiff > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                        ({priceDiff > 0 ? `+৳${priceDiff}` : `-৳${Math.abs(priceDiff)}`})
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <span className="text-xs text-amber-300/80 block uppercase font-mono">স্পেশাল রেট</span>
-                  <span className="text-lg font-black text-amber-400 font-mono">৳ {sm.customRate}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -421,15 +477,21 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
                   <span className="text-slate-400 block text-[10px]">সকাল</span>
-                  <span className="font-bold text-white font-mono">৳ {permRates.breakfast}</span>
+                  <span className={`font-bold font-mono ${rates?.globalMealStatus?.breakfast === false ? 'text-rose-400 text-[11px]' : 'text-white'}`}>
+                    {rates?.globalMealStatus?.breakfast === false ? '৳ 0 (বন্ধ)' : `৳ ${permRates.breakfast}`}
+                  </span>
                 </div>
                 <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
                   <span className="text-slate-400 block text-[10px]">দুপুর</span>
-                  <span className="font-bold text-white font-mono">৳ {permRates.lunch}</span>
+                  <span className={`font-bold font-mono ${rates?.globalMealStatus?.lunch === false ? 'text-rose-400 text-[11px]' : 'text-white'}`}>
+                    {rates?.globalMealStatus?.lunch === false ? '৳ 0 (বন্ধ)' : `৳ ${permRates.lunch}`}
+                  </span>
                 </div>
                 <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
                   <span className="text-slate-400 block text-[10px]">রাত</span>
-                  <span className="font-bold text-white font-mono">৳ {permRates.dinner}</span>
+                  <span className={`font-bold font-mono ${rates?.globalMealStatus?.dinner === false ? 'text-rose-400 text-[11px]' : 'text-white'}`}>
+                    {rates?.globalMealStatus?.dinner === false ? '৳ 0 (বন্ধ)' : `৳ ${permRates.dinner}`}
+                  </span>
                 </div>
               </div>
               <div className="text-[11px] text-slate-400 flex justify-between pt-1 border-t border-slate-900">
@@ -441,20 +503,26 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
             {/* Guest Member Rates */}
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
               <div className="text-xs font-bold text-amber-400 uppercase tracking-wider font-mono">
-                গেস্ট মেম্বার রেট
+                গেস্ট / ভিজিটর রেট
               </div>
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
                   <span className="text-slate-400 block text-[10px]">সকাল</span>
-                  <span className="font-bold text-white font-mono">৳ {guestRates.breakfast}</span>
+                  <span className={`font-bold font-mono ${rates?.globalMealStatus?.breakfast === false ? 'text-rose-400 text-[11px]' : 'text-white'}`}>
+                    {rates?.globalMealStatus?.breakfast === false ? '৳ 0 (বন্ধ)' : `৳ ${guestRates.breakfast}`}
+                  </span>
                 </div>
                 <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
                   <span className="text-slate-400 block text-[10px]">দুপুর</span>
-                  <span className="font-bold text-white font-mono">৳ {guestRates.lunch}</span>
+                  <span className={`font-bold font-mono ${rates?.globalMealStatus?.lunch === false ? 'text-rose-400 text-[11px]' : 'text-white'}`}>
+                    {rates?.globalMealStatus?.lunch === false ? '৳ 0 (বন্ধ)' : `৳ ${guestRates.lunch}`}
+                  </span>
                 </div>
                 <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
                   <span className="text-slate-400 block text-[10px]">রাত</span>
-                  <span className="font-bold text-white font-mono">৳ {guestRates.dinner}</span>
+                  <span className={`font-bold font-mono ${rates?.globalMealStatus?.dinner === false ? 'text-rose-400 text-[11px]' : 'text-white'}`}>
+                    {rates?.globalMealStatus?.dinner === false ? '৳ 0 (বন্ধ)' : `৳ ${guestRates.dinner}`}
+                  </span>
                 </div>
               </div>
               <div className="text-[11px] text-slate-400 flex justify-between pt-1 border-t border-slate-900">
@@ -608,9 +676,10 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredUsers.map((u) => {
             const dec = todayDeclarationsMap.get(u.id);
-            const bOn = dec ? dec.breakfast : false;
-            const lOn = dec ? dec.lunch : false;
-            const dOn = dec ? dec.dinner : false;
+            const state = getUserMealStateForDate(u, todayStr, dec, rates, todayEmergency);
+            const bOn = state.breakfast;
+            const lOn = state.lunch;
+            const dOn = state.dinner;
 
             return (
               <div

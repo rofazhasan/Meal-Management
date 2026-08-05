@@ -173,6 +173,28 @@ const MainApplication: React.FC = () => {
   };
   const effectiveRates = rates || defaultRatesConfig;
 
+  // Synchronize active currentUser with latest users query data (wallet balance & status)
+  useEffect(() => {
+    if (currentUser && users.length > 0) {
+      const latest = users.find((u) => u.id === currentUser.id);
+      if (
+        latest &&
+        (latest.walletBalance !== currentUser.walletBalance ||
+          latest.isIndefinitelyPaused !== currentUser.isIndefinitelyPaused ||
+          latest.status !== currentUser.status)
+      ) {
+        const updated = {
+          ...currentUser,
+          walletBalance: latest.walletBalance,
+          isIndefinitelyPaused: latest.isIndefinitelyPaused,
+          status: latest.status,
+        };
+        setCurrentUser(updated);
+        ApiService.setCurrentUser(updated);
+      }
+    }
+  }, [users, currentUser]);
+
   // Strict route protection guard for non-admin users (Must be called before any early returns to obey React Rules of Hooks)
   useEffect(() => {
     if (currentUser && !isAdmin && activeTab.startsWith('admin-')) {
@@ -222,6 +244,7 @@ const MainApplication: React.FC = () => {
               declarations={declarations}
               rates={rates}
               specialMeals={specialMeals}
+              emergencies={emergencies}
               onNavigateToLogin={() => setUnauthView('login')}
             />
           ) : (
@@ -312,6 +335,7 @@ const MainApplication: React.FC = () => {
                     declarations={declarations}
                     transactions={transactions.filter((t) => t.userId === currentUser.id)}
                     emergencies={emergencies}
+                    specialMeals={specialMeals}
                     onNavigateTab={(tab) => setActiveTab(tab as TabType)}
                     onRefreshData={handleRefreshAll}
                   />
@@ -347,6 +371,7 @@ const MainApplication: React.FC = () => {
                     declarations={declarations}
                     rates={effectiveRates}
                     specialMeals={specialMeals}
+                    emergencies={emergencies}
                     currentUser={currentUser}
                     onNavigateToLogin={() => setActiveTab('dashboard')}
                   />
@@ -364,6 +389,7 @@ const MainApplication: React.FC = () => {
                     rates={effectiveRates}
                     emergencies={emergencies}
                     declarations={declarations}
+                    specialMeals={specialMeals}
                     onRefreshData={handleRefreshAll}
                     onSelectUser={(u) => setSelectedUserForDetail(u)}
                   />

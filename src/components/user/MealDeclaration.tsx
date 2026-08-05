@@ -115,16 +115,21 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
   const specL = getSpecialForMeal('lunch');
   const specD = getSpecialForMeal('dinner');
 
-  const effectiveBRate = specB ? specB.customRate : userRates.breakfast;
-  const effectiveLRate = specL ? specL.customRate : userRates.lunch;
-  const effectiveDRate = specD ? specD.customRate : userRates.dinner;
+  const emergencyForDate = emergencies.find(e => selectedDate >= e.date && selectedDate <= (e.endDate || e.date));
+
+  const isBOff = rates.globalMealStatus?.breakfast === false || (!!emergencyForDate && emergencyForDate.closedMeals.includes('breakfast'));
+  const isLOff = rates.globalMealStatus?.lunch === false || (!!emergencyForDate && emergencyForDate.closedMeals.includes('lunch'));
+  const isDOff = rates.globalMealStatus?.dinner === false || (!!emergencyForDate && emergencyForDate.closedMeals.includes('dinner'));
+
+  const effectiveBRate = isBOff ? 0 : (specB ? specB.customRate : userRates.breakfast);
+  const effectiveLRate = isLOff ? 0 : (specL ? specL.customRate : userRates.lunch);
+  const effectiveDRate = isDOff ? 0 : (specD ? specD.customRate : userRates.dinner);
 
   const specialForDate = specB || specL || specD;
 
-  const minMealRate = Math.min(effectiveBRate, effectiveLRate, effectiveDRate);
+  const validRates = [effectiveBRate, effectiveLRate, effectiveDRate].filter(r => r > 0);
+  const minMealRate = validRates.length > 0 ? Math.min(...validRates) : Math.min(userRates.breakfast, userRates.lunch, userRates.dinner);
   const isInsufficientBalance = currentUser.walletBalance < minMealRate;
-
-  const emergencyForDate = emergencies.find(e => selectedDate >= e.date && selectedDate <= (e.endDate || e.date));
   const isToday = selectedDate === getBangladeshDateStr();
 
   // Live 10 AM cutoff check
@@ -632,8 +637,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
               {bGlobalOff ? '⛔ এডমিন কর্তৃক বন্ধ' : bEmergencyBlocked ? '🚨 জরুরি বন্ধ' : breakfast ? BN.mealOn : BN.mealOff}
             </div>
             <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-1">
-              চার্জ: ৳{effectiveBRate}
-              {specB && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">স্পেশাল</span>}
+              চার্জ: {bBlocked ? '৳0 (বন্ধ)' : `৳${effectiveBRate}`}
+              {specB && !bBlocked && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">স্পেশাল</span>}
             </p>
           </div>
         </div>
@@ -678,8 +683,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
               {lGlobalOff ? '⛔ এডমিন কর্তৃক বন্ধ' : lEmergencyBlocked ? '🚨 জরুরি বন্ধ' : lunch ? BN.mealOn : BN.mealOff}
             </div>
             <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-1">
-              চার্জ: ৳{effectiveLRate}
-              {specL && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">স্পেশাল</span>}
+              চার্জ: {lBlocked ? '৳0 (বন্ধ)' : `৳${effectiveLRate}`}
+              {specL && !lBlocked && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">স্পেশাল</span>}
             </p>
           </div>
         </div>
@@ -724,8 +729,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
               {dGlobalOff ? '⛔ এডমিন কর্তৃক বন্ধ' : dEmergencyBlocked ? '🚨 জরুরি বন্ধ' : dinner ? BN.mealOn : BN.mealOff}
             </div>
             <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-1">
-              চার্জ: ৳{effectiveDRate}
-              {specD && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">স্পেশাল</span>}
+              চার্জ: {dBlocked ? '৳0 (বন্ধ)' : `৳${effectiveDRate}`}
+              {specD && !dBlocked && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">স্পেশাল</span>}
             </p>
           </div>
         </div>

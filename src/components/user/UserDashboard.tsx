@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Wallet, Clock, CheckCircle2, XCircle, ArrowUpRight, ArrowDownRight, Calendar, AlertCircle, UtensilsCrossed, Sparkles, ShieldAlert, ChevronRight, UserCheck, Lock, Edit3, X } from 'lucide-react';
-import { User, MealRateConfig, MealDeclaration, WalletTransaction, EmergencyClosure } from '../../types';
+import { User, MealRateConfig, MealDeclaration, WalletTransaction, EmergencyClosure, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
 import { AnimatedNumber } from '../common/AnimatedNumber';
@@ -16,6 +16,7 @@ interface UserDashboardProps {
   declarations: MealDeclaration[];
   transactions: WalletTransaction[];
   emergencies: EmergencyClosure[];
+  specialMeals?: SpecialMeal[];
   onNavigateTab: (tab: 'meals' | 'wallet' | 'reports') => void;
   onRefreshData: () => void;
 }
@@ -26,6 +27,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   declarations,
   transactions,
   emergencies,
+  specialMeals = [],
   onNavigateTab,
   onRefreshData,
 }) => {
@@ -377,59 +379,82 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               isPassed10AM ||
               rates.globalMealStatus?.[meal] === false;
 
-            const cardClass = (meal: 'breakfast' | 'lunch' | 'dinner', isOn: boolean) => {
+            const specB = specialMeals.find((s) => s.date === todayStr && s.mealType === 'breakfast');
+            const specL = specialMeals.find((s) => s.date === todayStr && s.mealType === 'lunch');
+            const specD = specialMeals.find((s) => s.date === todayStr && s.mealType === 'dinner');
+
+            const cardClass = (meal: 'breakfast' | 'lunch' | 'dinner', isOn: boolean, isSpec: boolean) => {
               if (isLocked(meal))
                 return 'p-5 rounded-2xl border cursor-not-allowed transition-all flex items-center justify-between opacity-60 bg-rose-950/30 border-rose-500/30 text-rose-400';
-              return `p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between group ${
-                isOn
-                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 shadow-lg shadow-emerald-950/20'
-                  : 'bg-slate-900/60 border-slate-800/80 text-slate-400 hover:border-slate-700'
-              }`;
+              if (isOn) {
+                return isSpec
+                  ? 'p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between group bg-gradient-to-br from-amber-950/70 via-slate-900 to-slate-900 border-amber-500/60 shadow-xl shadow-amber-950/40 text-amber-300'
+                  : 'p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between group bg-emerald-500/10 border-emerald-500/40 text-emerald-300 shadow-lg shadow-emerald-950/20';
+              }
+              return 'p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between group bg-slate-900/60 border-slate-800/80 text-slate-400 hover:border-slate-700';
             };
 
-            const IconFor = ({ meal, isOn }: { meal: 'breakfast' | 'lunch' | 'dinner'; isOn: boolean }) => {
+            const IconFor = ({ meal, isOn, isSpec }: { meal: 'breakfast' | 'lunch' | 'dinner'; isOn: boolean; isSpec: boolean }) => {
               if (isLocked(meal)) return <Lock className="w-8 h-8 text-rose-500" />;
-              return isOn
-                ? <CheckCircle2 className="w-8 h-8 text-emerald-400 group-hover:scale-110 transition-transform" />
-                : <XCircle className="w-8 h-8 text-slate-600 group-hover:scale-110 transition-transform" />;
+              if (isOn) {
+                return isSpec
+                  ? <Sparkles className="w-8 h-8 text-amber-400 group-hover:scale-110 transition-transform" />
+                  : <CheckCircle2 className="w-8 h-8 text-emerald-400 group-hover:scale-110 transition-transform" />;
+              }
+              return <XCircle className="w-8 h-8 text-slate-600 group-hover:scale-110 transition-transform" />;
             };
 
             return (
               <>
                 {/* Breakfast */}
-                <div onClick={() => handleToggleTodayMeal('breakfast')} className={cardClass('breakfast', todayDec.breakfast)}>
+                <div onClick={() => handleToggleTodayMeal('breakfast')} className={cardClass('breakfast', todayDec.breakfast, !!specB)}>
                   <div>
-                    <p className="text-xs font-semibold text-slate-400">{BN.breakfast}</p>
-                    <p className="text-xl font-bold mt-1 font-display">
+                    <p className="text-xs font-semibold text-slate-400 flex items-center gap-1">
+                      {specB ? `✨ ${specB.title}` : BN.breakfast}
+                      {specB && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">স্পেশাল</span>}
+                    </p>
+                    <p className={`text-xl font-bold mt-1 font-display ${specB && todayDec.breakfast && !isLocked('breakfast') ? 'text-amber-400' : ''}`}>
                       {todayEmergency ? '🚨 জরুরি বন্ধ' : isLocked('breakfast') ? 'বন্ধ (লক)' : todayDec.breakfast ? BN.mealOn : BN.mealOff}
                     </p>
-                    <p className="text-xs font-mono opacity-80 mt-1">৳{userRates.breakfast}</p>
+                    <p className="text-xs font-mono opacity-80 mt-1">
+                      {isLocked('breakfast') ? '৳0 (এডমিন বন্ধ)' : specB ? `৳${specB.customRate} (স্পেশাল)` : `৳${userRates.breakfast}`}
+                    </p>
                   </div>
-                  <IconFor meal="breakfast" isOn={todayDec.breakfast} />
+                  <IconFor meal="breakfast" isOn={todayDec.breakfast} isSpec={!!specB} />
                 </div>
 
                 {/* Lunch */}
-                <div onClick={() => handleToggleTodayMeal('lunch')} className={cardClass('lunch', todayDec.lunch)}>
+                <div onClick={() => handleToggleTodayMeal('lunch')} className={cardClass('lunch', todayDec.lunch, !!specL)}>
                   <div>
-                    <p className="text-xs font-semibold text-slate-400">{BN.lunch}</p>
-                    <p className="text-xl font-bold mt-1 font-display">
+                    <p className="text-xs font-semibold text-slate-400 flex items-center gap-1">
+                      {specL ? `✨ ${specL.title}` : BN.lunch}
+                      {specL && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">স্পেশাল</span>}
+                    </p>
+                    <p className={`text-xl font-bold mt-1 font-display ${specL && todayDec.lunch && !isLocked('lunch') ? 'text-amber-400' : ''}`}>
                       {todayEmergency ? '🚨 জরুরি বন্ধ' : isLocked('lunch') ? 'বন্ধ (লক)' : todayDec.lunch ? BN.mealOn : BN.mealOff}
                     </p>
-                    <p className="text-xs font-mono opacity-80 mt-1">৳{userRates.lunch}</p>
+                    <p className="text-xs font-mono opacity-80 mt-1">
+                      {isLocked('lunch') ? '৳0 (এডমিন বন্ধ)' : specL ? `৳${specL.customRate} (স্পেশাল)` : `৳${userRates.lunch}`}
+                    </p>
                   </div>
-                  <IconFor meal="lunch" isOn={todayDec.lunch} />
+                  <IconFor meal="lunch" isOn={todayDec.lunch} isSpec={!!specL} />
                 </div>
 
                 {/* Dinner */}
-                <div onClick={() => handleToggleTodayMeal('dinner')} className={cardClass('dinner', todayDec.dinner)}>
+                <div onClick={() => handleToggleTodayMeal('dinner')} className={cardClass('dinner', todayDec.dinner, !!specD)}>
                   <div>
-                    <p className="text-xs font-semibold text-slate-400">{BN.dinner}</p>
-                    <p className="text-xl font-bold mt-1 font-display">
+                    <p className="text-xs font-semibold text-slate-400 flex items-center gap-1">
+                      {specD ? `✨ ${specD.title}` : BN.dinner}
+                      {specD && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">স্পেশাল</span>}
+                    </p>
+                    <p className={`text-xl font-bold mt-1 font-display ${specD && todayDec.dinner && !isLocked('dinner') ? 'text-amber-400' : ''}`}>
                       {todayEmergency ? '🚨 জরুরি বন্ধ' : isLocked('dinner') ? 'বন্ধ (লক)' : todayDec.dinner ? BN.mealOn : BN.mealOff}
                     </p>
-                    <p className="text-xs font-mono opacity-80 mt-1">৳{userRates.dinner}</p>
+                    <p className="text-xs font-mono opacity-80 mt-1">
+                      {isLocked('dinner') ? '৳0 (এডমিন বন্ধ)' : specD ? `৳${specD.customRate} (স্পেশাল)` : `৳${userRates.dinner}`}
+                    </p>
                   </div>
-                  <IconFor meal="dinner" isOn={todayDec.dinner} />
+                  <IconFor meal="dinner" isOn={todayDec.dinner} isSpec={!!specD} />
                 </div>
               </>
             );

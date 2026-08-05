@@ -2,15 +2,16 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { ShieldAlert, UserCheck, Utensils, Wallet, AlertOctagon, Check, X, PlusCircle, Sparkles, ChevronRight, Printer, TriangleAlert, UserX, SlidersHorizontal, KeyRound, Send, CheckCircle2, XCircle } from 'lucide-react';
-import { User, MealRateConfig, EmergencyClosure, WalletTransaction, MealDeclaration, RechargeRequest } from '../../types';
+import { User, MealRateConfig, EmergencyClosure, WalletTransaction, MealDeclaration, RechargeRequest, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
 import { ApiService } from '../../services/apiService';
 import { ReceiptModal } from '../common/ReceiptModal';
-import { getBangladeshDateStr } from '../../utils/dateUtils';
+import { getBangladeshDateStr, getDayOfWeekFromDateStr } from '../../utils/dateUtils';
 import { getUserMealStateForDate } from '../../utils/mealUtils';
+import { Gift } from 'lucide-react';
 
 interface AdminDashboardProps {
   currentAdmin: User;
@@ -18,6 +19,7 @@ interface AdminDashboardProps {
   rates: MealRateConfig;
   emergencies: EmergencyClosure[];
   declarations: MealDeclaration[];
+  specialMeals?: SpecialMeal[];
   onRefreshData: () => void;
   onSelectUser: (user: User) => void;
 }
@@ -28,6 +30,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   rates,
   emergencies,
   declarations,
+  specialMeals = [],
   onRefreshData,
   onSelectUser,
 }) => {
@@ -109,6 +112,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const todayStr = getBangladeshDateStr();
+  const dayOfWeekToday = getDayOfWeekFromDateStr(todayStr);
+
+  const todaysSpecialMeals = specialMeals.filter((sm) => {
+    if (!sm.isActive) return false;
+    const typeLower = String(sm.mealType).toLowerCase();
+    const isMatchingType = typeLower === 'breakfast' || typeLower === 'lunch' || typeLower === 'dinner';
+    if (!isMatchingType) return false;
+
+    if (sm.isRecurring && sm.repeatDayOfWeek !== undefined && sm.repeatDayOfWeek !== null) {
+      return String(sm.repeatDayOfWeek).toUpperCase() === String(dayOfWeekToday).toUpperCase();
+    }
+    return sm.date === todayStr;
+  });
+
+  const getMealTypeName = (type: string) => {
+    const t = String(type).toLowerCase();
+    if (t === 'breakfast') return 'সকালের নাস্তা (Breakfast)';
+    if (t === 'lunch') return 'দুপুরের খাবার (Lunch)';
+    if (t === 'dinner') return 'রাতের খাবার (Dinner)';
+    return type;
+  };
 
   const emergencyToday = emergencies.find(em => {
     const start = em.date;
@@ -400,6 +424,62 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
       </div>
+
+      {/* Today's Special Menu Notice Banner */}
+      {todaysSpecialMeals.length > 0 && (
+        <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-slate-900/90 to-amber-950/30 shadow-2xl space-y-4 relative overflow-hidden animate-scale-in">
+          <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+            <div className="flex items-center gap-3 text-amber-400 font-bold text-base font-display">
+              <div className="p-2 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400">
+                <Gift className="w-5 h-5 animate-bounce" />
+              </div>
+              <div>
+                <h3 className="text-slate-100 font-bold">আজকের বিশেষ স্পেশাল মেনু নোটিশ</h3>
+                <p className="text-xs text-amber-300/80 font-sans font-normal">স্পেশাল মিলের কারণে আজকের কাস্টম মিল রেট পরিবর্তন</p>
+              </div>
+            </div>
+            <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono">
+              SPECIAL OVERWRITE
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {todaysSpecialMeals.map((sm) => {
+              const mealTypeKey = String(sm.mealType).toLowerCase() as 'breakfast' | 'lunch' | 'dinner';
+              const mealName = getMealTypeName(sm.mealType);
+              const regRate = rates?.permanent?.[mealTypeKey] || 50;
+              const priceDiff = sm.customRate - regRate;
+
+              return (
+                <div key={sm.id} className="p-4 rounded-2xl bg-slate-950/90 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-0.5 rounded-lg text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 font-display">
+                        {mealName} Overwrite
+                      </span>
+                      <h4 className="font-extrabold text-slate-100 text-base font-display">{sm.title}</h4>
+                    </div>
+                    <p className="text-xs text-slate-400 font-sans">{sm.description || 'বিশেষ খাবার আয়োজন'}</p>
+                    <p className="text-xs text-amber-300/90 font-medium font-sans">
+                      💡 এই স্পেশাল মেনুটি <strong>{mealName}</strong> ওভাররাইট করেছে। নিয়মিত রেট ৳{regRate}-এর বদলে আজ বিশেষ রেট ৳{sm.customRate} নির্ধারণ করা হয়েছে।
+                    </p>
+                  </div>
+
+                  <div className="text-left sm:text-right shrink-0 bg-amber-500/10 p-3.5 rounded-xl border border-amber-500/20">
+                    <span className="text-[11px] text-amber-300/80 block font-bold font-mono">বিশেষ রেট</span>
+                    <span className="text-2xl font-black text-amber-400 font-mono">৳{sm.customRate}</span>
+                    {priceDiff !== 0 && (
+                      <span className={`text-[10px] font-bold block mt-0.5 font-mono ${priceDiff > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                        ({priceDiff > 0 ? `+৳${priceDiff} অতিরিক্ত` : `-৳${Math.abs(priceDiff)} ছাড়`})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Pending User Recharge Requests Hub */}
       {rechargeRequests.length > 0 && (
