@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { Wallet, Clock, CheckCircle2, XCircle, ArrowUpRight, ArrowDownRight, Calendar, AlertCircle, UtensilsCrossed, Sparkles, ShieldAlert, ChevronRight, UserCheck, Lock, Edit3, X } from 'lucide-react';
 import { User, MealRateConfig, MealDeclaration, WalletTransaction, EmergencyClosure } from '../../types';
@@ -5,7 +7,7 @@ import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
-import { MockService } from '../../services/mockStorage';
+import { ApiService } from '../../services/apiService';
 import { getBangladeshDateStr, getBangladeshNow } from '../../utils/dateUtils';
 
 interface UserDashboardProps {
@@ -40,7 +42,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
     e.preventDefault();
     setSavingProfile(true);
     try {
-      await MockService.updateUserProfile(currentUser.id, {
+      await ApiService.updateUserProfile(currentUser.id, {
         name: editName,
         password: editPassword,
       });
@@ -138,7 +140,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
         return;
       }
     }
-    await MockService.updateDeclaration(currentUser.id, todayStr, newMeals);
+    await ApiService.updateDeclaration(currentUser.id, todayStr, newMeals);
     onRefreshData();
   };
 

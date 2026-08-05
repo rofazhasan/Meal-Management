@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { ShieldAlert, UserCheck, Utensils, Wallet, AlertOctagon, Check, X, PlusCircle, Sparkles, ChevronRight, Printer, TriangleAlert, UserX, SlidersHorizontal, KeyRound, Send, CheckCircle2, XCircle } from 'lucide-react';
 import { User, MealRateConfig, EmergencyClosure, WalletTransaction, MealDeclaration, RechargeRequest } from '../../types';
@@ -5,7 +7,7 @@ import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
-import { ApiService, MockService } from '../../services/apiService';
+import { ApiService } from '../../services/apiService';
 import { ReceiptModal } from '../common/ReceiptModal';
 import { getBangladeshDateStr } from '../../utils/dateUtils';
 
@@ -87,7 +89,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleApproveReset = async (userId: string) => {
     try {
-      await MockService.approvePasswordReset(currentAdmin.id, userId, '123');
+      await ApiService.approvePasswordReset(currentAdmin.id, userId, '123');
       alert('পাসওয়ার্ড রিসেট অনুমোদন করা হয়েছে! উক্ত সদস্যের পাসওয়ার্ড 123 সেট হয়েছে।');
       onRefreshData();
     } catch (err: any) {
@@ -97,7 +99,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleRejectReset = async (userId: string) => {
     try {
-      await MockService.rejectPasswordReset(currentAdmin.id, userId);
+      await ApiService.rejectPasswordReset(currentAdmin.id, userId);
       alert('পাসওয়ার্ড রিসেট অনুরোধ বাতিল করা হয়েছে');
       onRefreshData();
     } catch (err: any) {
@@ -298,12 +300,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [topUpNote, setTopUpNote] = useState('ক্যাশ ডিপোজিট');
 
   const handleApprove = async (userId: string) => {
-    await MockService.updateUserStatus(userId, 'APPROVED', currentAdmin.id);
+    await ApiService.updateUserStatus(userId, 'APPROVED', currentAdmin.id);
     onRefreshData();
   };
 
   const handleReject = async (userId: string) => {
-    await MockService.updateUserStatus(userId, 'REJECTED', currentAdmin.id);
+    await ApiService.updateUserStatus(userId, 'REJECTED', currentAdmin.id);
     onRefreshData();
   };
 
@@ -315,7 +317,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
     setEmergencySubmitting(true);
     try {
-      await MockService.addEmergency(currentAdmin.id, emergencyStartDate, emergencyEndDate, emergencyReason, ['breakfast', 'lunch', 'dinner']);
+      await ApiService.addEmergency({ date: emergencyStartDate, endDate: emergencyEndDate, reason: emergencyReason, closedMeals: ['breakfast', 'lunch', 'dinner'] });
       setEmergencyReason('');
       alert(`জরুরি মিল বন্ধ নোটিশ (${emergencyStartDate} থেকে ${emergencyEndDate}) সফলভাবে পোস্ট করা হয়েছে!`);
       onRefreshData();
@@ -327,7 +329,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleConfirmTopUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!topUpUser || topUpAmount <= 0) return;
-    await MockService.addWalletBalance(topUpUser.id, topUpAmount, currentAdmin.id, topUpNote);
+    await ApiService.addWalletBalance(topUpUser.id, topUpAmount, currentAdmin.id, topUpNote);
     alert(`${topUpUser.name}-এর ওয়ালেটে ৳${topUpAmount} রিচার্জ যোগ করা হয়েছে!`);
     setTopUpUser(null);
     onRefreshData();

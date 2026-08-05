@@ -1,8 +1,10 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Phone, Lock, User as UserIcon, Home, ArrowRight, ShieldAlert, Utensils, KeyRound, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { User, UserType } from '../../types';
 import { BN } from '../../constants/banglaText';
-import { MockService } from '../../services/mockStorage';
+import { ApiService } from '../../services/apiService';
 import { StatusBadge } from '../common/StatusBadge';
 import { AppLogo } from '../common/AppLogo';
 import { Footer } from '../common/Footer';
@@ -35,7 +37,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     setResetSuccessNotice(null);
     setResetLoading(true);
     try {
-      await MockService.requestPasswordReset(resetPhone);
+      await ApiService.requestPasswordReset(resetPhone);
       setResetSuccessNotice('আপনার পাসওয়ার্ড রিসেট অনুরোধ সফলভাবে অ্যাডমিনের কাছে পাঠানো হয়েছে! অ্যাডমিন অনুমোদন করলে আপনার পাসওয়ার্ড রিসেট হয়ে 123 হবে।');
     } catch (err: any) {
       setResetError(err.message || 'অনুরোধ পাঠাতে সমস্যা হয়েছে');
@@ -51,7 +53,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
     try {
       if (mode === 'login') {
-        const user = await MockService.login(phone, password);
+        const user = await ApiService.login(phone, password);
         if (user.status === 'PENDING') {
           setPendingUserNotice(user);
         } else {
@@ -61,7 +63,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         if (!name.trim()) {
           throw new Error('অনুগ্রহ করে আপনার নামটি লিখুন');
         }
-        const newUser = await MockService.register({
+        const newUser = await ApiService.register({
           name,
           phone,
           password,

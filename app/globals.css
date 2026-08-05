@@ -1,0 +1,367 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: #050811;
+    --bg-surface: rgba(13, 21, 38, 0.7);
+    --bg-card: rgba(18, 28, 50, 0.55);
+    --border-card: rgba(255, 255, 255, 0.08);
+    --border-card-hover: rgba(56, 189, 248, 0.3);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent-glow: rgba(6, 182, 212, 0.25);
+  }
+
+  .light {
+    --bg-primary: #f1f5f9;
+    --bg-surface: rgba(255, 255, 255, 0.85);
+    --bg-card: rgba(255, 255, 255, 0.9);
+    --border-card: rgba(0, 0, 0, 0.07);
+    --border-card-hover: rgba(2, 132, 199, 0.3);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --accent-glow: rgba(2, 132, 199, 0.15);
+  }
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Hind Siliguri', 'Plus Jakarta Sans', sans-serif;
+  overflow-x: hidden;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+h1, h2, h3, .font-display {
+  font-family: 'Anek Bangla', 'Hind Siliguri', sans-serif;
+}
+
+.glass-panel {
+  background: var(--bg-surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-card);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-card);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-hover {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-card);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-hover:hover {
+  border-color: var(--border-card-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px -10px var(--accent-glow);
+}
+
+.wallet-card-holographic {
+  background: linear-gradient(135deg, #091328 0%, #0f1f42 45%, #034b75 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.wallet-card-holographic::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.wallet-card-gold {
+  background: linear-gradient(135deg, #451a03 0%, #78350f 40%, #b45309 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.4);
+}
+
+::selection {
+  background-color: rgba(6, 182, 212, 0.3);
+  color: #ffffff;
+}
+
+.light {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.light body,
+.light #root,
+.light div.min-h-screen,
+.light main {
+  background-color: #f8fafc !important;
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.light .glass-panel,
+.light .glass-card,
+.light .glass-card-hover {
+  background: #ffffff !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02) !important;
+  color: #0f172a !important;
+}
+
+.light .glass-card-hover:hover {
+  border-color: rgba(2, 132, 199, 0.4) !important;
+  box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.12) !important;
+  transform: translateY(-2px) !important;
+}
+
+.light .bg-\[\#050811\],
+.light .bg-slate-950,
+.light .bg-slate-900,
+.light .bg-slate-950\/40,
+.light .bg-slate-950\/90,
+.light .bg-slate-900\/80,
+.light .bg-slate-900\/90,
+.light .bg-slate-900\/60,
+.light .bg-slate-900\/50,
+.light .bg-slate-900\/40 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.light .bg-slate-800,
+.light .bg-slate-800\/80,
+.light .bg-slate-800\/50,
+.light .bg-slate-800\/30 {
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light .border-slate-800,
+.light .border-slate-800\/80,
+.light .border-slate-700,
+.light .border-slate-700\/80 {
+  border-color: #e2e8f0 !important;
+}
+
+.light .text-white,
+.light .text-slate-100,
+.light .text-slate-200 {
+  color: #0f172a !important;
+}
+
+.light .text-slate-300,
+.light .text-slate-400 {
+  color: #334155 !important;
+}
+
+.light .text-slate-500 {
+  color: #64748b !important;
+}
+
+.light input,
+.light select,
+.light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light input:focus,
+.light select:focus,
+.light textarea:focus {
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15) !important;
+}
+
+.light input::placeholder,
+.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+.light select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.light .text-cyan-300 {
+  color: #0284c7 !important;
+}
+
+.light .text-cyan-400 {
+  color: #0369a1 !important;
+}
+
+.light .text-amber-300 {
+  color: #d97706 !important;
+}
+
+.light .text-amber-400 {
+  color: #b45309 !important;
+}
+
+.light .text-emerald-300 {
+  color: #059669 !important;
+}
+
+.light .text-emerald-400 {
+  color: #047857 !important;
+}
+
+.light .text-rose-300 {
+  color: #e11d48 !important;
+}
+
+.light .text-rose-400 {
+  color: #be123c !important;
+}
+
+.light .text-purple-300 {
+  color: #9333ea !important;
+}
+
+.light .text-purple-400 {
+  color: #7e22ce !important;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+
+  header,
+  nav,
+  button,
+  .print\:hidden,
+  div.print\:hidden,
+  .no-print {
+    display: none !important;
+  }
+
+  body, html {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .glass-panel,
+  .glass-card,
+  .glass-card-hover,
+  div[class*="glass"] {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-radius: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .text-white,
+  .text-slate-100,
+  .text-slate-200,
+  .text-slate-300,
+  .text-slate-400,
+  .text-slate-500 {
+    color: #0f172a !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+    page-break-inside: auto !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    border: 1px solid #94a3b8 !important;
+    padding: 6px 8px !important;
+    font-size: 10pt !important;
+  }
+
+  td {
+    border: 1px solid #cbd5e1 !important;
+    padding: 6px 8px !important;
+    font-size: 9.5pt !important;
+    color: #0f172a !important;
+  }
+
+  .badge, span[class*="rounded"] {
+    border: 1px solid #94a3b8 !important;
+    background: #f8fafc !important;
+    color: #0f172a !important;
+  }
+
+  .text-emerald-400, .text-emerald-300 {
+    color: #047857 !important;
+  }
+
+  .text-rose-400, .text-rose-300 {
+    color: #b91c1c !important;
+  }
+
+  .text-cyan-400, .text-cyan-300 {
+    color: #0369a1 !important;
+  }
+
+  .text-amber-400, .text-amber-300 {
+    color: #b45309 !important;
+  }
+
+  .text-purple-400, .text-purple-300 {
+    color: #6b21a8 !important;
+  }
+}

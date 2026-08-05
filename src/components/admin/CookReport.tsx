@@ -1,10 +1,12 @@
+'use client';
+
 import React, { useState } from 'react';
 import { ChefHat, Calendar, Printer, Utensils, CheckCircle2, DollarSign, Users, Sparkles, Clock } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { User, MealDeclaration, MealRateConfig, SpecialMeal, EmergencyClosure } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { getBangladeshDateStr, getDayOfWeekFromDateStr } from '../../utils/dateUtils';
-import { MockService } from '../../services/mockStorage';
+import { ApiService } from '../../services/apiService';
 
 interface CookReportProps {
   users: User[];
@@ -26,7 +28,7 @@ export const CookReport: React.FC<CookReportProps> = ({
   // Fetch declarations for selectedDate fresh — use EMPTY ARRAY as default to avoid stale previous-date data
   const { data: rawDeclarations = [], isFetching } = useQuery({
     queryKey: ['cook_declarations', selectedDate],
-    queryFn: () => MockService.getDeclarationsForDate(selectedDate),
+    queryFn: () => ApiService.getDeclarationsForDate(selectedDate),
     staleTime: 0,
   });
 

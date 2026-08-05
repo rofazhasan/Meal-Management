@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { Wallet, ArrowDownRight, ArrowUpRight, History, CreditCard, AlertTriangle, Printer, Sparkles, Send, CheckCircle2, Clock, XCircle, X } from 'lucide-react';
 import { User, WalletTransaction, MealDeclaration, MealRateConfig, RechargeRequest, PaymentMethod } from '../../types';

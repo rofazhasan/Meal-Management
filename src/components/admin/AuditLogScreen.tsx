@@ -1,8 +1,10 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Search, Clock, User, Filter } from 'lucide-react';
 import { AuditLog, User as UserType } from '../../types';
 import { EmptyState } from '../common/EmptyState';
-import { MockService } from '../../services/mockStorage';
+import { ApiService } from '../../services/apiService';
 
 interface AuditLogScreenProps {
   users: UserType[];
@@ -14,7 +16,7 @@ export const AuditLogScreen: React.FC<AuditLogScreenProps> = ({ users }) => {
   const [selectedAction, setSelectedAction] = useState<string>('ALL');
 
   useEffect(() => {
-    MockService.getAudits().then(setAudits);
+    ApiService.getAudits().then(setAudits);
   }, []);
 
   const filteredAudits = audits.filter(log => {

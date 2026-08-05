@@ -1,7 +1,9 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { UtensilsCrossed, Calendar, Search, Filter, Sparkles, CheckCircle2, XCircle, Check, X, Users, RefreshCw, ShieldAlert, AlertOctagon, PauseCircle, PlayCircle, CheckSquare, Square } from 'lucide-react';
 import { User, MealDeclaration, SpecialMeal, MealRateConfig, EmergencyClosure } from '../../types';
-import { MockService } from '../../services/mockStorage';
+import { ApiService } from '../../services/apiService';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { getBangladeshDateStr, getBangladeshTomorrowStr } from '../../utils/dateUtils';
 
@@ -11,6 +13,7 @@ interface BulkMealControlProps {
   rates?: MealRateConfig;
   specialMeals?: SpecialMeal[];
   emergencies?: EmergencyClosure[];
+  currentAdmin: User;
   onRefreshData: () => void;
 }
 
@@ -20,6 +23,7 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
   rates,
   specialMeals = [],
   emergencies = [],
+  currentAdmin,
   onRefreshData,
 }) => {
   const approvedUsers = users.filter((u) => u.status === 'APPROVED');
@@ -51,6 +55,9 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
   const isBEmergencyOff = !!emergencyForDate && emergencyForDate.closedMeals.includes('breakfast');
   const isLEmergencyOff = !!emergencyForDate && emergencyForDate.closedMeals.includes('lunch');
   const isDEmergencyOff = !!emergencyForDate && emergencyForDate.closedMeals.includes('dinner');
+  const isBGlobalOff = rates?.globalMealStatus?.breakfast === false;
+  const isLGlobalOff = rates?.globalMealStatus?.lunch === false;
+  const isDGlobalOff = rates?.globalMealStatus?.dinner === false;
 
   // Sync state whenever selectedDate, approvedUsers, declarations, emergencies, or rates update
   useEffect(() => {
@@ -64,23 +71,23 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
 
       if (dec) {
         newMap[u.id] = {
-          breakfast: isBEmergencyOff ? false : dec.breakfast,
-          lunch: isLEmergencyOff ? false : dec.lunch,
-          dinner: isDEmergencyOff ? false : dec.dinner,
+          breakfast: isBEmergencyOff || isBGlobalOff ? false : dec.breakfast,
+          lunch: isLEmergencyOff || isLGlobalOff ? false : dec.lunch,
+          dinner: isDEmergencyOff || isDGlobalOff ? false : dec.dinner,
         };
       } else {
         // Safe Default Rule: If user is indefinitely paused OR has insufficient balance (< min meal cost), default to false!
         const defaultActive = !u.isIndefinitelyPaused && isBalanceSufficient;
         newMap[u.id] = {
-          breakfast: isBEmergencyOff ? false : defaultActive,
-          lunch: isLEmergencyOff ? false : defaultActive,
-          dinner: isDEmergencyOff ? false : defaultActive,
+          breakfast: isBEmergencyOff || isBGlobalOff ? false : defaultActive,
+          lunch: isLEmergencyOff || isLGlobalOff ? false : defaultActive,
+          dinner: isDEmergencyOff || isDGlobalOff ? false : defaultActive,
         };
       }
     });
 
     setMealMap(newMap);
-  }, [selectedDate, declarations, users, emergencies, rates, isBEmergencyOff, isLEmergencyOff, isDEmergencyOff]);
+  }, [selectedDate, declarations, users, emergencies, rates, isBEmergencyOff, isLEmergencyOff, isDEmergencyOff, isBGlobalOff, isLGlobalOff, isDGlobalOff]);
 
   // Special meal info for selected date
   const specialObj = specialMeals.find(
@@ -145,9 +152,9 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
 
     // Emergency restriction check
     if (
-      (meal === 'breakfast' && isBEmergencyOff) ||
-      (meal === 'lunch' && isLEmergencyOff) ||
-      (meal === 'dinner' && isDEmergencyOff)
+      (meal === 'breakfast' && (isBEmergencyOff || isBGlobalOff)) ||
+      (meal === 'lunch' && (isLEmergencyOff || isLGlobalOff)) ||
+      (meal === 'dinner' && (isDEmergencyOff || isDGlobalOff))
     ) {
       const mealTitle = meal === 'breakfast' ? 'সকালের নাস্তা' : meal === 'lunch' ? 'দুপুরের খাবার' : 'রাতের খাবার';
       setAlertMsg(`🚨 ${selectedDate} তারিখে ${mealTitle} জরুরি নোটিশের কারণে বন্ধ রয়েছে। জরুরি অবস্থায় এই মিল অন করা সম্ভব নয়।`);
@@ -229,7 +236,7 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
     setAlertMsg(null);
     try {
       const nextPause = !user.isIndefinitelyPaused;
-      await MockService.setUserIndefinitePause(user.id, nextPause);
+      await ApiService.setUserIndefinitePause(user.id, nextPause);
       setAlertMsg(
         nextPause
           ? `⏸️ ${user.name}-এর মিল সুবিধা অনির্দিষ্টকালের জন্য স্থগিত করা হয়েছে।`
@@ -250,7 +257,7 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
     setSaving(true);
     try {
       for (const u of targetUsers) {
-        await MockService.setUserIndefinitePause(u.id, isPaused);
+        await ApiService.setUserIndefinitePause(u.id, isPaused);
       }
       setAlertMsg(
         isPaused
@@ -277,13 +284,14 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
           userId: u.id,
           date: selectedDate,
           meals: {
-            breakfast: isBEmergencyOff ? false : meals.breakfast,
-            lunch: isLEmergencyOff ? false : meals.lunch,
-            dinner: isDEmergencyOff ? false : meals.dinner,
+            breakfast: isBEmergencyOff || isBGlobalOff ? false : meals.breakfast,
+            lunch: isLEmergencyOff || isLGlobalOff ? false : meals.lunch,
+            dinner: isDEmergencyOff || isDGlobalOff ? false : meals.dinner,
           },
         };
       });
-      await MockService.bulkUpdateDeclarations(updates);
+      await ApiService.bulkUpdateDeclarations(updates);
+      await ApiService.logAudit(currentAdmin.id, 'BULK_MEALS_UPDATED', '', `${updates.length} declarations updated for ${selectedDate}.`);
       setSuccessBanner(true);
       onRefreshData();
       setTimeout(() => setSuccessBanner(false), 5000);

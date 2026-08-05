@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ShieldAlert } from 'lucide-react';
@@ -19,7 +21,7 @@ import { SettingsPanel } from './components/admin/SettingsPanel';
 import { AuditLogScreen } from './components/admin/AuditLogScreen';
 import { FinancialDashboard } from './components/admin/FinancialDashboard';
 import { PublicTodaysMeal } from './components/public/PublicTodaysMeal';
-import { MockService } from './services/mockStorage';
+import { ApiService } from './services/apiService';
 import { User } from './types';
 
 // All roles that have administrative access
@@ -47,7 +49,7 @@ const MainApplication: React.FC = () => {
 
   // Load active user on mount
   useEffect(() => {
-    MockService.getCurrentUser().then((u) => {
+    ApiService.getCurrentUser().then((u) => {
       if (u) {
         setCurrentUser(u);
         if (ADMIN_ROLES.has(u.role)) {
@@ -59,38 +61,38 @@ const MainApplication: React.FC = () => {
 
   const { data: financialMetrics } = useQuery({
     queryKey: ['financialMetrics'],
-    queryFn: () => MockService.getFinancialMetrics(),
+    queryFn: () => ApiService.getFinancialMetrics(),
   });
 
   // TanStack Queries for caching & state synchronization
   const { data: users = [], refetch: refetchUsers } = useQuery({
     queryKey: ['users'],
-    queryFn: () => MockService.getUsers(),
+    queryFn: () => ApiService.getUsers(),
   });
 
   const { data: rates, refetch: refetchRates } = useQuery({
     queryKey: ['rates'],
-    queryFn: () => MockService.getMealRates(),
+    queryFn: () => ApiService.getMealRates(),
   });
 
   const { data: declarations = [], refetch: refetchDeclarations } = useQuery({
     queryKey: ['declarations'],
-    queryFn: () => MockService.getDeclarations(),
+    queryFn: () => ApiService.getDeclarations(),
   });
 
   const { data: transactions = [], refetch: refetchTransactions } = useQuery({
     queryKey: ['transactions'],
-    queryFn: () => MockService.getTransactions(),
+    queryFn: () => ApiService.getTransactions(),
   });
 
   const { data: emergencies = [], refetch: refetchEmergencies } = useQuery({
     queryKey: ['emergencies'],
-    queryFn: () => MockService.getEmergencies(),
+    queryFn: () => ApiService.getEmergencies(),
   });
 
   const { data: specialMeals = [], refetch: refetchSpecialMeals } = useQuery({
     queryKey: ['specialMeals'],
-    queryFn: () => MockService.getSpecialMeals(),
+    queryFn: () => ApiService.getSpecialMeals(),
   });
 
   const handleRefreshAll = () => {
@@ -103,7 +105,7 @@ const MainApplication: React.FC = () => {
     refetchSpecialMeals();
 
     if (currentUser) {
-      MockService.getUsers().then((usrs) => {
+      ApiService.getUsers().then((usrs) => {
         const updatedSelf = usrs.find((u) => u.id === currentUser.id);
         if (updatedSelf) {
           setCurrentUser(updatedSelf);
@@ -113,7 +115,7 @@ const MainApplication: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await MockService.logout();
+    await ApiService.logout();
     setCurrentUser(null);
     setSelectedUserForDetail(null);
     setActiveTab('dashboard');
@@ -126,7 +128,7 @@ const MainApplication: React.FC = () => {
       activeMode: newRole,
       isDualMode: true,
     };
-    MockService.setCurrentUser(updated);
+    ApiService.setCurrentUser(updated);
     setCurrentUser(updated);
     if (newRole === 'ADMIN') {
       setActiveTab('admin-dashboard');
@@ -369,6 +371,7 @@ const MainApplication: React.FC = () => {
                     rates={rates}
                     specialMeals={specialMeals}
                     emergencies={emergencies}
+                    currentAdmin={currentUser}
                     onRefreshData={handleRefreshAll}
                   />
                 )}
@@ -378,6 +381,7 @@ const MainApplication: React.FC = () => {
                     metrics={financialMetrics}
                     transactions={transactions}
                     users={users}
+                    currentAdmin={currentUser}
                     onRefreshData={handleRefreshAll}
                   />
                 )}

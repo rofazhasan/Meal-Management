@@ -1,14 +1,17 @@
+'use client';
+
 import React, { useState, useMemo } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight, Users, AlertCircle, Download, FileText, Printer, Sparkles, CheckCircle2, Wallet, HandCoins, ClipboardList, CheckCheck, XCircle } from 'lucide-react';
 import { FinancialMetrics, WalletTransaction, User } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
-import { MockService } from '../../services/mockStorage';
+import { ApiService } from '../../services/apiService';
 
 interface FinancialDashboardProps {
   metrics: FinancialMetrics;
   transactions?: WalletTransaction[];
   users?: User[];
+  currentAdmin: User;
   onRefreshData?: () => void;
 }
 
@@ -16,6 +19,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   metrics,
   transactions = [],
   users = [],
+  currentAdmin,
   onRefreshData,
 }) => {
   const [filterPeriod, setFilterPeriod] = useState<'today' | 'monthly' | 'yearly'>('monthly');
@@ -109,8 +113,8 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
     if (feeAmount <= 0) return;
     setFeeSubmitting(true);
     try {
-      const count = await MockService.collectMonthlyFee(
-        'admin',
+      const count = await ApiService.collectMonthlyFee(
+        currentAdmin.id,
         feeTargetUser,
         feeMethod,
         feeAmount,

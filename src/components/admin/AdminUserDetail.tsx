@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { ArrowLeft, User, Phone, Home, Wallet, Shield, History, PlusCircle, Check, X, Calendar, Sparkles, UtensilsCrossed, KeyRound, Printer } from 'lucide-react';
 import { User as UserType, WalletTransaction, MealDeclaration, UserType as MemberType, MealRateConfig } from '../../types';
@@ -6,7 +8,7 @@ import { StatusBadge } from '../common/StatusBadge';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
 import { ReceiptModal } from '../common/ReceiptModal';
-import { MockService } from '../../services/mockStorage';
+import { ApiService } from '../../services/apiService';
 import { getBangladeshDateStr } from '../../utils/dateUtils';
 
 interface AdminUserDetailProps {
@@ -47,7 +49,7 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
     if (topUpAmount <= 0) return;
     setSubmitting(true);
     try {
-      const createdTx = await MockService.addWalletBalance(user.id, topUpAmount, adminId, topUpNote);
+      const createdTx = await ApiService.addWalletBalance(user.id, topUpAmount, adminId, topUpNote);
       setSelectedTxForReceipt(createdTx);
       onRefreshData();
     } finally {
@@ -57,19 +59,19 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
 
   const handleToggleType = async () => {
     const newType: MemberType = user.userType === 'PERMANENT' ? 'GUEST' : 'PERMANENT';
-    await MockService.updateUserType(user.id, newType);
+    await ApiService.updateUserType(user.id, newType);
     onRefreshData();
   };
 
   const handleStatusChange = async (status: 'APPROVED' | 'REJECTED') => {
-    await MockService.updateUserStatus(user.id, status, adminId);
+    await ApiService.updateUserStatus(user.id, status, adminId);
     onRefreshData();
   };
 
   const handleResetPassword = async () => {
     if (confirm(`আপনি কি নিশ্চিত যে ${user.name} এর পাসওয়ার্ড রিসেট করে '123' সেট করতে চান?`)) {
       try {
-        await MockService.approvePasswordReset(adminId, user.id, '123');
+        await ApiService.approvePasswordReset(adminId, user.id, '123');
         alert(`${user.name} এর পাসওয়ার্ড সফলভাবে রিসেট করে '123' করা হয়েছে!`);
         onRefreshData();
       } catch (err: any) {
@@ -282,7 +284,7 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
 
         <button
           onClick={async () => {
-            await MockService.updateDeclaration(
+            await ApiService.updateDeclaration(
               user.id,
               overrideDate,
               {

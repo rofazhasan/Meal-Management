@@ -1,8 +1,10 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Settings, Save, CheckCircle2, DollarSign, ToggleLeft, ToggleRight, Clock, Sparkles } from 'lucide-react';
 import { MealRateConfig, SpecialMeal, User } from '../../types';
 import { BN } from '../../constants/banglaText';
-import { MockService } from '../../services/mockStorage';
+import { ApiService } from '../../services/apiService';
 import { getBangladeshDateStr, getDayOfWeekFromDateStr } from '../../utils/dateUtils';
 
 interface SettingsPanelProps {
@@ -35,7 +37,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeal
     e.preventDefault();
     setSaving(true);
     try {
-      await MockService.updateMealRates({
+      await ApiService.updateMealRates({
         permanent: {
           breakfast: permBreakfast,
           lunch: permLunch,
@@ -55,7 +57,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeal
         },
         cutoffTime,
       }, currentUser.id);
-      await MockService.logAudit(currentUser.id, 'SETTINGS_UPDATED', '', 'Meal rates, global meal switches, and cutoff time updated.');
+      await ApiService.logAudit(currentUser.id, 'SETTINGS_UPDATED', '', 'Meal rates, global meal switches, and cutoff time updated.');
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2500);
@@ -268,7 +270,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeal
           type="button"
           onClick={async () => {
             if (window.confirm('আপনি কি নিশ্চিত যে সমস্ত টেস্ট ডাটা রিসেট করে প্রোডাকশন মেস ক্লিন করতে চান?')) {
-              await MockService.purgeSystemData(currentUser.id);
+              await ApiService.purgeSystemData(currentUser.id);
               alert('সিস্টেম সফলভাবে রিসেট করা হয়েছে!');
               onRefreshData();
             }
@@ -302,8 +304,8 @@ const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshDa
     }
     setSaving(true);
     try {
-      await MockService.addSpecialMeal(currentUser.id, date, mealType, title, customRate, description, isRecurring, repeatDayOfWeek);
-      await MockService.logAudit(currentUser.id, 'SPECIAL_MEAL_CREATED', '', `Created special meal: ${title}`);
+      await ApiService.addSpecialMeal({ adminId: currentUser.id, date, mealType, title, customRate, description, isRecurring, repeatDayOfWeek });
+      await ApiService.logAudit(currentUser.id, 'SPECIAL_MEAL_CREATED', '', `Created special meal: ${title}`);
       setMsg(true);
       setTimeout(() => setMsg(false), 2500);
       setTitle('');
@@ -476,8 +478,8 @@ const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshDa
                     <button
                       type="button"
                       onClick={async () => {
-                        await MockService.toggleSpecialMealActive(currentUser.id, sm.id, sm.isActive !== false);
-                        await MockService.logAudit(currentUser.id, 'SPECIAL_MEAL_STATUS_CHANGED', sm.id, `Set special meal "${sm.title}" to ${sm.isActive !== false ? 'inactive' : 'active'}.`);
+                        await ApiService.toggleSpecialMealActive(currentUser.id, sm.id, sm.isActive !== false);
+                        await ApiService.logAudit(currentUser.id, 'SPECIAL_MEAL_STATUS_CHANGED', sm.id, `Set special meal "${sm.title}" to ${sm.isActive !== false ? 'inactive' : 'active'}.`);
                         onRefreshData();
                       }}
                       className={`px-3 py-1 rounded-xl text-[11px] font-bold border transition ${
@@ -493,8 +495,8 @@ const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshDa
                       type="button"
                       onClick={async () => {
                         if (confirm(`আপনি কি সত্যিই "${sm.title}" মুছে ফেলতে চান?`)) {
-                          await MockService.deleteSpecialMeal(currentUser.id, sm.id);
-                          await MockService.logAudit(currentUser.id, 'SPECIAL_MEAL_DELETED', sm.id, `Deleted special meal: ${sm.title}`);
+                          await ApiService.deleteSpecialMeal(currentUser.id, sm.id);
+                          await ApiService.logAudit(currentUser.id, 'SPECIAL_MEAL_DELETED', sm.id, `Deleted special meal: ${sm.title}`);
                           onRefreshData();
                         }
                       }}

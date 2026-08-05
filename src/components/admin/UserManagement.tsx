@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useMemo } from 'react';
 import {
   useReactTable,
@@ -14,7 +16,7 @@ import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
-import { MockService } from '../../services/mockStorage';
+import { ApiService } from '../../services/apiService';
 
 interface UserManagementProps {
   users: User[];
@@ -44,14 +46,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const [selectedArchiveForPrint, setSelectedArchiveForPrint] = useState<ArchivedUserReplica | null>(null);
 
   const fetchArchives = async () => {
-    const list = await MockService.getArchivedReplicas();
+    const list = await ApiService.getArchivedReplicas();
     setArchives(list);
   };
 
   const handleDeleteUser = async (user: User) => {
     if (confirm(`আপনি কি নিশ্চিত যে ${user.name} (${user.phone}) কে মেসে আর না থাকায় ডিলিট করতে চান?\n\nডিলিটের পূর্বে সম্পূর্ণ মাসের মিল ও লেনদেনের বিস্তারিত একটি ফাইল ব্যাকআপ ফাইল আর্কাইভ তৈরি করা হবে, যা পরে যেকোনো সময় প্রিন্ট বা ডাউনলোড করা যাবে।`)) {
       try {
-        await MockService.deleteUserWithArchive(currentAdmin?.id || 'admin', user.id);
+        await ApiService.deleteUserWithArchive(currentAdmin?.id || 'admin', user.id);
         alert(`মেম্বার ${user.name} সফলভাবে ক্লাউড থেকে ডিলিট করা হয়েছে এবং ফাইল আর্কাইভ সেভ করা হয়েছে।`);
         onRefreshData();
         fetchArchives();
@@ -75,7 +77,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     const roleText = newRole === 'ADMIN' ? 'এডমিন' : 'সাধারণ ইউজার';
     if (confirm(`আপনি কি নিশ্চিত যে ${targetUser.name} কে ${roleText} রোলে পরিবর্তন করতে চান?`)) {
       try {
-        await MockService.updateUserRole(currentAdmin?.id || 'admin', targetUser.id, newRole);
+        await ApiService.updateUserRole(currentAdmin?.id || 'admin', targetUser.id, newRole);
         alert(`${targetUser.name} কে সফলভাবে ${roleText} রোলে পরিবর্তন করা হয়েছে!`);
         onRefreshData();
       } catch (err: any) {
@@ -87,7 +89,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const handleResetPassword = async (targetUser: User) => {
     if (confirm(`আপনি কি নিশ্চিত যে ${targetUser.name} (${targetUser.phone}) এর পাসওয়ার্ড রিসেট করে '123' সেট করতে চান?`)) {
       try {
-        await MockService.approvePasswordReset(currentAdmin?.id || 'admin', targetUser.id, '123');
+        await ApiService.approvePasswordReset(currentAdmin?.id || 'admin', targetUser.id, '123');
         alert(`${targetUser.name} এর পাসওয়ার্ড সফলভাবে রিসেট করে '123' করা হয়েছে!`);
         onRefreshData();
       } catch (err: any) {
@@ -102,7 +104,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     setSubmitting(true);
     try {
       const adminId = currentAdmin?.id || 'admin';
-      await MockService.createAccountByAdmin(adminId, {
+      await ApiService.createAccountByAdmin(adminId, {
         name,
         phone,
         password,
@@ -136,7 +138,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     if (confirm('আপনি কি টেস্ট করার জন্য সিস্টেমে ৩০০ জন টেস্ট মেম্বার এক সাথে তৈরি করতে চান?')) {
       setSeeding(true);
       try {
-        const count = await MockService.seed300TestUsers();
+        const count = await ApiService.seed300TestUsers();
         alert(`সফলভাবে ${count} জন টেস্ট ইউজার তৈরি হয়েছে!`);
         onRefreshData();
       } catch (err: any) {
@@ -151,7 +153,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     if (confirm('⚠️ সাবধান! আপনি কি নিশ্চিত যে অ্যাডমিন একাউন্ট ছাড়া বাকি সকল (৩০০ জন) টেস্ট ইউজার মুছে ফেলতে চান?\n\nমেসের শুধুমাত্র মেস অ্যাডমিন একাউন্টই অবশিষ্ট থাকবে।')) {
       setPurging(true);
       try {
-        const count = await MockService.deleteAllTestUsersExceptAdmin();
+        const count = await ApiService.deleteAllTestUsersExceptAdmin();
         alert(`সফলভাবে ${count} জন টেস্ট ইউজার মুছে ফেলা হয়েছে! এখন শুধু অ্যাডমিন একাউন্ট রয়েছে।`);
         onRefreshData();
       } catch (err: any) {

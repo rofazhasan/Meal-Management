@@ -1,30 +1,67 @@
-import { User, WalletTransaction, MealDeclaration, EmergencyClosure, SpecialMeal, MealRateConfig, AuditLog, FinancialMetrics, ArchivedUserReplica, UserType, UserRole, ApprovalStatus, RechargeRequest, PaymentMethod } from '../types';
+import {
+  User,
+  WalletTransaction,
+  MealDeclaration,
+  EmergencyClosure,
+  SpecialMeal,
+  MealRateConfig,
+  AuditLog,
+  FinancialMetrics,
+  ArchivedUserReplica,
+  UserType,
+  UserRole,
+  ApprovalStatus,
+  RechargeRequest,
+  PaymentMethod,
+} from '../types';
 
 const API_BASE = '/api';
 
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+async function apiFetch<T>(
+  url: string,
+  init?: RequestInit,
+): Promise<T> {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    ...init,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as Record<string, string>;
+    throw new Error(body.error ?? `Request failed: ${res.status} ${res.statusText}`);
+  }
+  // 204 No Content — nothing to parse
+  if (res.status === 204) return undefined as unknown as T;
+  return res.json() as Promise<T>;
+}
+
 /**
- * Real Database API Client (Vercel / Express Backend Integration)
- * Connects frontend React components directly to PostgreSQL API endpoints.
+ * Real Database API Client
+ * Every method hits a real PostgreSQL-backed endpoint.
+ * No localStorage, no in-memory fallbacks.
  */
 export class ApiService {
   // ---------------------------------------------------------------------------
-  // AUTHENTICATION & CURRENT USER
+  // SESSION — current user stored only in sessionStorage (cleared on tab close)
   // ---------------------------------------------------------------------------
-  static async getCurrentUser(): Promise<User | null> {
-    const json = localStorage.getItem('meal_app_current_user');
+  static getCurrentUserSync(): User | null {
+    const json = sessionStorage.getItem('meal_app_current_user');
     if (!json) return null;
-    try {
-      return JSON.parse(json);
-    } catch {
-      return null;
-    }
+    try { return JSON.parse(json); } catch { return null; }
+  }
+
+  static async getCurrentUser(): Promise<User | null> {
+    return this.getCurrentUserSync();
   }
 
   static async setCurrentUser(user: User | null): Promise<void> {
     if (!user) {
-      localStorage.removeItem('meal_app_current_user');
+      sessionStorage.removeItem('meal_app_current_user');
     } else {
-      localStorage.setItem('meal_app_current_user', JSON.stringify(user));
+      sessionStorage.setItem('meal_app_current_user', JSON.stringify(user));
     }
   }
 
@@ -32,293 +69,219 @@ export class ApiService {
     await this.setCurrentUser(null);
   }
 
+  // ---------------------------------------------------------------------------
+  // AUTHENTICATION
+  // ---------------------------------------------------------------------------
   static async login(phone: string, password?: string): Promise<User> {
-    try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, password }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Login failed');
-      }
-      const user: User = await res.json();
-      await this.setCurrentUser(user);
-      return user;
-    } catch (err: any) {
-      const users = await this.getUsers();
-      const cleanPhone = phone.trim();
-      const user = users.find((u) => u.phone === cleanPhone || u.phone === `+88${cleanPhone}`);
-      if (!user) throw new Error('এই ফোন নম্বর দিয়ে কোনো অ্যাকাউন্ট পাওয়া যায়নি।');
-      if (password && user.password && user.password !== password && password !== 'admin' && password !== '123') {
-        throw new Error('ভুল পাসওয়ার্ড! আবার চেষ্টা করুন।');
-      }
-      await this.setCurrentUser(user);
-      return user;
-    }
+    const user = await apiFetch<User>(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      body: JSON.stringify({ phone: phone.trim(), password }),
+    });
+    await this.setCurrentUser(user);
+    return user;
   }
 
-  static async register(data: { name: string; phone: string; password?: string; userType: UserType; role?: UserRole }): Promise<User> {
-    const res = await fetch(`${API_BASE}/auth/register`, {
+  static async register(data: {
+    name: string;
+    phone: string;
+    password?: string;
+    userType: UserType;
+    role?: UserRole;
+  }): Promise<User> {
+    return apiFetch<User>(`${API_BASE}/auth/register`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Registration failed');
-    }
-    return await res.json();
   }
 
+  // ---------------------------------------------------------------------------
+  // PASSWORD RESET
+  // ---------------------------------------------------------------------------
   static async requestPasswordReset(phone: string): Promise<boolean> {
+    // Log the request — there is no SMS/email gate yet, just an audit trail.
     await this.logAudit('user', 'PASSWORD_RESET_REQUESTED', '', `Reset requested for ${phone}`);
     return true;
   }
 
-  static async approvePasswordReset(adminId: string, userId: string, newPassword = '123'): Promise<User> {
-    await this.logAudit(adminId, 'PASSWORD_RESET_APPROVED', userId, `Reset approved`);
-    const users = await this.getUsers();
-    const user = users.find((u) => u.id === userId);
-    if (user) {
-      user.password = newPassword;
-      user.isPasswordResetRequested = false;
-    }
-    return user || ({ id: userId } as User);
+  static async approvePasswordReset(
+    adminId: string,
+    userId: string,
+    newPassword = '123',
+  ): Promise<User> {
+    const user = await apiFetch<User>(`${API_BASE}/users/password-reset`, {
+      method: 'PUT',
+      body: JSON.stringify({ adminId, userId, newPassword }),
+    });
+    await this.logAudit(adminId, 'PASSWORD_RESET_APPROVED', userId, 'Admin reset user password');
+    return user;
   }
 
   static async rejectPasswordReset(adminId: string, userId: string): Promise<void> {
-    await this.logAudit(adminId, 'PASSWORD_RESET_REJECTED', userId, `Reset rejected`);
+    await this.logAudit(adminId, 'PASSWORD_RESET_REJECTED', userId, 'Password reset request rejected');
   }
 
   // ---------------------------------------------------------------------------
-  // USERS MANAGEMENT
+  // USERS
   // ---------------------------------------------------------------------------
   static async getUsers(): Promise<User[]> {
-    try {
-      const res = await fetch(`${API_BASE}/users`);
-      if (!res.ok) throw new Error('Failed to fetch users');
-      return await res.json();
-    } catch {
-      const stored = localStorage.getItem('meal_app_v5_users');
-      return stored ? JSON.parse(stored) : [];
-    }
+    return apiFetch<User[]>(`${API_BASE}/users`);
   }
 
-  static async updateUserStatus(userId: string, status: ApprovalStatus, adminId: string): Promise<User> {
-    try {
-      const res = await fetch(`${API_BASE}/users/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, status, adminId }),
-      });
-      if (!res.ok) throw new Error('Failed to update status');
-      return await res.json();
-    } catch (err: any) {
-      throw err;
-    }
+  static async updateUserStatus(
+    userId: string,
+    status: ApprovalStatus,
+    adminId: string,
+  ): Promise<User> {
+    const user = await apiFetch<User>(`${API_BASE}/users/status`, {
+      method: 'POST',
+      body: JSON.stringify({ userId, status, adminId }),
+    });
+    await this.logAudit(adminId, 'USER_STATUS_CHANGED', userId, `Status changed to ${status}`);
+    return user;
   }
 
-  static async updateUserRole(adminId: string, targetUserId: string, newRole: UserRole): Promise<User> {
-    try {
-      await fetch(`${API_BASE}/users/role`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: targetUserId, role: newRole, adminId }),
-      });
-    } catch (err) {
-      console.warn('Backend role update failed, updating local state:', err);
-    }
-    const users = await this.getUsers();
-    const user = users.find((u) => u.id === targetUserId);
-    if (!user) throw new Error('User not found');
-    user.role = newRole;
-    localStorage.setItem('meal_app_v5_users', JSON.stringify(users));
-    await this.logAudit(adminId, 'USER_ROLE_CHANGED', targetUserId, `Changed user role to ${newRole}`);
+  static async updateUserRole(
+    adminId: string,
+    targetUserId: string,
+    newRole: UserRole,
+  ): Promise<User> {
+    const user = await apiFetch<User>(`${API_BASE}/users/role`, {
+      method: 'POST',
+      body: JSON.stringify({ userId: targetUserId, role: newRole, adminId }),
+    });
+    await this.logAudit(adminId, 'USER_ROLE_CHANGED', targetUserId, `Role changed to ${newRole}`);
     return user;
   }
 
   static async updateUserType(arg1: string, arg2: string, arg3?: string): Promise<User> {
-    const adminId = arg3 ? arg1 : 'admin';
+    const adminId  = arg3 ? arg1 : 'admin';
     const targetId = arg3 ? arg2 : arg1;
-    const newType = (arg3 || arg2) as UserType;
+    const newType  = (arg3 ?? arg2) as UserType;
 
-    try {
-      await fetch(`${API_BASE}/users/type`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: targetId, userType: newType, adminId }),
-      });
-    } catch (err) {
-      console.warn('Backend type update failed, updating local state:', err);
-    }
-
-    const users = await this.getUsers();
-    const user = users.find((u) => u.id === targetId);
-    if (!user) throw new Error('User not found');
-    user.userType = newType;
-    localStorage.setItem('meal_app_v5_users', JSON.stringify(users));
-    await this.logAudit(adminId, 'USER_TYPE_CHANGED', targetId, `Changed user type to ${newType}`);
+    const user = await apiFetch<User>(`${API_BASE}/users/type`, {
+      method: 'POST',
+      body: JSON.stringify({ userId: targetId, userType: newType, adminId }),
+    });
+    await this.logAudit(adminId, 'USER_TYPE_CHANGED', targetId, `Type changed to ${newType}`);
     return user;
   }
 
   static async setUserIndefinitePause(userId: string, isPaused: boolean): Promise<User> {
-    try {
-      await fetch(`${API_BASE}/users/pause`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, isPaused }),
-      });
-    } catch (err) {
-      console.warn('Backend pause user failed, updating local state:', err);
-    }
-    const users = await this.getUsers();
-    const user = users.find((u) => u.id === userId);
-    if (!user) throw new Error('User not found');
-    user.isIndefinitelyPaused = isPaused;
-    localStorage.setItem('meal_app_v5_users', JSON.stringify(users));
-    return user;
+    const result = await apiFetch<{ success: boolean; userId: string; isPaused: boolean }>(
+      `${API_BASE}/users/pause`,
+      { method: 'POST', body: JSON.stringify({ userId, isPaused }) },
+    );
+    return { id: userId, isIndefinitelyPaused: result.isPaused } as User;
   }
 
   static async toggleIndefinitePause(userId: string): Promise<User> {
     const users = await this.getUsers();
-    const user = users.find((u) => u.id === userId);
+    const user  = users.find((u) => u.id === userId);
     if (!user) throw new Error('User not found');
-    const nextState = !user.isIndefinitelyPaused;
-    return this.setUserIndefinitePause(userId, nextState);
+    return this.setUserIndefinitePause(userId, !user.isIndefinitelyPaused);
   }
 
   static async deleteUserWithArchive(adminId: string, userId: string): Promise<void> {
-    try {
-      await fetch(`${API_BASE}/users/${userId}`, { method: 'DELETE' });
-    } catch (err: any) {
-      console.warn('Backend delete error:', err);
-    }
+    await apiFetch<{ success: boolean }>(`${API_BASE}/users/${userId}`, { method: 'DELETE' });
+    await this.logAudit(adminId, 'USER_DELETED', userId, 'User account soft-deleted');
   }
 
-  static async createAccountByAdmin(adminId: string, data: any): Promise<User> {
+  static async createAccountByAdmin(adminId: string, data: {
+    name: string;
+    phone: string;
+    password?: string;
+    userType?: UserType;
+    role?: UserRole;
+    initialBalance?: number;
+  }): Promise<User> {
     const newUser = await this.register({
       name: data.name,
       phone: data.phone,
-      password: data.password || '123456',
-      userType: data.userType || 'PERMANENT',
-      role: data.role || 'USER',
+      password: data.password ?? '123456',
+      userType: data.userType ?? 'PERMANENT',
+      role: data.role ?? 'USER',
     });
     if (data.initialBalance && data.initialBalance > 0) {
-      await this.addWalletBalance(adminId, newUser.id, data.initialBalance, 'RECHARGE', 'প্রারম্ভিক অ্যাকাউন্ট ব্যালেন্স জমা');
+      await this.addWalletBalance(
+        adminId,
+        newUser.id,
+        data.initialBalance,
+        'RECHARGE',
+        'প্রারম্ভিক অ্যাকাউন্ট ব্যালেন্স জমা',
+      );
       newUser.walletBalance = data.initialBalance;
     }
+    await this.logAudit(adminId, 'USER_CREATED_BY_ADMIN', newUser.id, `Admin created account for ${newUser.name}`);
     return newUser;
   }
 
-  static async seed300TestUsers(): Promise<number> {
-    return 300;
-  }
+  /** No-ops kept for API surface compatibility — not used in production. */
+  static async seed300TestUsers(): Promise<number> { return 0; }
+  static async deleteAllTestUsersExceptAdmin(): Promise<number> { return 0; }
 
-  static async deleteAllTestUsersExceptAdmin(): Promise<number> {
-    return 0;
-  }
-
-  static async updateUserProfile(userId: string, profile: any): Promise<User> {
-    const users = await this.getUsers();
-    const user = users.find((u) => u.id === userId);
-    if (!user) throw new Error('User not found');
-    user.profile = { ...user.profile, ...profile };
-    return user;
+  static async updateUserProfile(userId: string, profile: Record<string, unknown>): Promise<User> {
+    const result = await apiFetch<{ id: string; profile: Record<string, unknown> }>(
+      `${API_BASE}/users/profile/${userId}`,
+      { method: 'PUT', body: JSON.stringify(profile) },
+    );
+    // Merge the updated profile into the current user session if it matches
+    const current = await this.getCurrentUser();
+    if (current?.id === userId) {
+      const merged = { ...current, profile: { ...current.profile, ...result.profile } };
+      await this.setCurrentUser(merged);
+      return merged;
+    }
+    return { id: userId, profile: result.profile } as unknown as User;
   }
 
   // ---------------------------------------------------------------------------
   // MEAL RATES
   // ---------------------------------------------------------------------------
   static async getMealRates(): Promise<MealRateConfig> {
-    try {
-      const res = await fetch(`${API_BASE}/rates`);
-      if (!res.ok) throw new Error('Failed to fetch rates');
-      return await res.json();
-    } catch {
-      return {
-        permanent: { breakfast: 30, lunch: 60, dinner: 60, monthlyCharge: 300 },
-        guest: { breakfast: 40, lunch: 80, dinner: 80, monthlyCharge: 0 },
-        globalMealStatus: { breakfast: true, lunch: true, dinner: true },
-        cutoffTime: '10:00',
-      };
-    }
+    return apiFetch<MealRateConfig>(`${API_BASE}/rates`);
   }
 
   static async updateMealRates(rates: MealRateConfig, adminId?: string): Promise<MealRateConfig> {
-    try {
-      const res = await fetch(`${API_BASE}/rates`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...rates, adminId }),
-      });
-      if (!res.ok) throw new Error('Failed to update rates');
-      return await res.json();
-    } catch {
-      return rates;
-    }
+    const updated = await apiFetch<MealRateConfig>(`${API_BASE}/rates`, {
+      method: 'PUT',
+      body: JSON.stringify({ ...rates, adminId }),
+    });
+    await this.logAudit(adminId ?? 'admin', 'MEAL_RATES_UPDATED', '', 'Meal rates updated');
+    return updated;
   }
 
   // ---------------------------------------------------------------------------
   // MEAL DECLARATIONS
   // ---------------------------------------------------------------------------
   static async getDeclarations(): Promise<MealDeclaration[]> {
-    try {
-      const res = await fetch(`${API_BASE}/declarations`);
-      if (!res.ok) throw new Error('Failed to fetch declarations');
-      return await res.json();
-    } catch {
-      const stored = localStorage.getItem('meal_app_v5_declarations');
-      return stored ? JSON.parse(stored) : [];
-    }
+    return apiFetch<MealDeclaration[]>(`${API_BASE}/declarations`);
   }
 
   static async getDeclarationsForDate(date: string): Promise<MealDeclaration[]> {
-    const decs = await this.getDeclarations();
-    return decs.filter((d) => d.date === date);
+    const all = await this.getDeclarations();
+    return all.filter((d) => d.date === date);
   }
 
   static async updateDeclaration(
     userId: string,
     date: string,
     meals: { breakfast: boolean; lunch: boolean; dinner: boolean },
-    isAdminOverride = false
+    isAdminOverride = false,
   ): Promise<MealDeclaration> {
-    try {
-      const res = await fetch(`${API_BASE}/declarations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, date, ...meals, isAdminOverride }),
-      });
-      if (!res.ok) throw new Error('Failed to update declaration');
-      return await res.json();
-    } catch {
-      return {
-        id: 'dec_' + Date.now(),
-        userId,
-        date,
-        breakfast: meals.breakfast,
-        lunch: meals.lunch,
-        dinner: meals.dinner,
-        updatedAt: new Date().toISOString(),
-      };
-    }
+    return apiFetch<MealDeclaration>(`${API_BASE}/declarations`, {
+      method: 'POST',
+      body: JSON.stringify({ userId, date, ...meals, isAdminOverride }),
+    });
   }
 
   static async bulkUpdateDeclarations(
     updates: { userId: string; date: string; meals: { breakfast: boolean; lunch: boolean; dinner: boolean } }[],
-    isAdminOverride = true
+    isAdminOverride = true,
   ): Promise<void> {
-    try {
-      await fetch(`${API_BASE}/declarations/bulk`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates, isAdminOverride }),
-      });
-    } catch {
-      console.warn('Bulk update API fallback');
-    }
+    await apiFetch<{ success: boolean; count: number }>(`${API_BASE}/declarations/bulk`, {
+      method: 'POST',
+      body: JSON.stringify({ updates, isAdminOverride }),
+    });
   }
 
   static async copyPreviousDayDeclaration(userId: string, targetDate: string): Promise<MealDeclaration> {
@@ -329,85 +292,69 @@ export class ApiService {
   // WALLET & TRANSACTIONS
   // ---------------------------------------------------------------------------
   static async getTransactions(): Promise<WalletTransaction[]> {
-    try {
-      const res = await fetch(`${API_BASE}/transactions`);
-      if (!res.ok) throw new Error('Failed to fetch transactions');
-      return await res.json();
-    } catch {
-      const stored = localStorage.getItem('meal_app_v5_txs');
-      return stored ? JSON.parse(stored) : [];
-    }
+    return apiFetch<WalletTransaction[]>(`${API_BASE}/transactions`);
   }
 
-  static async addWalletBalance(...args: any[]): Promise<WalletTransaction> {
-    let targetUserId = String(args[0] || '');
+  /**
+   * Unified wallet top-up.
+   * Supports three calling conventions used across the codebase:
+   *   addWalletBalance(adminId, userId, amount, type?, note?)
+   *   addWalletBalance(userId, amount, adminId?, note?)
+   *   addWalletBalance({ userId, amount, note?, adminId? })
+   */
+  static async addWalletBalance(...args: unknown[]): Promise<WalletTransaction> {
+    let targetUserId = '';
     let amount = 0;
     let adminId = 'admin';
     let note = 'অ্যাডমিন রিচার্জ';
 
-    if (args.length === 1 && typeof args[0] === 'object') {
-      targetUserId = args[0].userId;
-      amount = args[0].amount;
-      note = args[0].note || note;
-      adminId = args[0].adminId || adminId;
-    } else if (typeof args[1] === 'number') {
-      amount = args[1];
-      if (args[2]) adminId = String(args[2]);
-      if (args[3]) note = String(args[3]);
+    if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null) {
+      const obj = args[0] as Record<string, unknown>;
+      targetUserId = String(obj.userId ?? '');
+      amount       = Number(obj.amount ?? 0);
+      note         = String(obj.note ?? note);
+      adminId      = String(obj.adminId ?? adminId);
     } else if (typeof args[2] === 'number') {
-      adminId = String(args[0] || 'admin');
-      targetUserId = String(args[1] || '');
-      amount = args[2];
+      // (adminId, userId, amount, type?, note?)
+      adminId      = String(args[0] ?? 'admin');
+      targetUserId = String(args[1] ?? '');
+      amount       = args[2];
+      // args[3] may be the legacy TransactionType string — skip it, args[4] = note
       if (args[4]) note = String(args[4]);
-      else if (args[3]) note = String(args[3]);
+      else if (args[3] && typeof args[3] === 'string' && !['RECHARGE','MEAL_DEDUCTION','MONTHLY_CHARGE','REFUND','PENALTY','DISCOUNT','CASH_PAID'].includes(args[3] as string)) {
+        note = String(args[3]);
+      }
+    } else if (typeof args[1] === 'number') {
+      // (userId, amount, adminId?, note?)
+      targetUserId = String(args[0] ?? '');
+      amount       = args[1];
+      if (args[2]) adminId = String(args[2]);
+      if (args[3]) note    = String(args[3]);
     }
 
-    try {
-      const res = await fetch(`${API_BASE}/wallets/topup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminId, userId: targetUserId, amount, note }),
-      });
-      if (!res.ok) throw new Error('Topup failed');
-      const tx = await res.json();
-      return {
-        id: tx.id || 'tx_' + Date.now(),
-        userId: targetUserId,
-        type: 'RECHARGE',
-        amount,
-        balanceBefore: 0,
-        balanceAfter: amount,
-        description: note,
-        date: tx.timestamp || new Date().toISOString(),
-        adminId,
-      };
-    } catch {
-      return {
-        id: 'tx_' + Date.now(),
-        userId: targetUserId,
-        type: 'RECHARGE',
-        amount,
-        balanceBefore: 0,
-        balanceAfter: amount,
-        description: note,
-        date: new Date().toISOString(),
-        adminId,
-      };
-    }
+    const tx = await apiFetch<{ id: string; userId: string; amount: number; timestamp: string; description: string }>(
+      `${API_BASE}/wallets/topup`,
+      { method: 'POST', body: JSON.stringify({ adminId, userId: targetUserId, amount, note }) },
+    );
+
+    return {
+      id:            tx.id,
+      userId:        targetUserId,
+      type:          'RECHARGE',
+      amount,
+      balanceBefore: 0,   // server returns these on the tx but topup response is minimal
+      balanceAfter:  amount,
+      description:   tx.description ?? note,
+      date:          tx.timestamp ?? new Date().toISOString(),
+      adminId,
+    };
   }
 
   // ---------------------------------------------------------------------------
   // RECHARGE REQUESTS
   // ---------------------------------------------------------------------------
   static async getRechargeRequests(): Promise<RechargeRequest[]> {
-    try {
-      const res = await fetch(`${API_BASE}/recharge-requests`);
-      if (!res.ok) throw new Error('Failed');
-      return await res.json();
-    } catch {
-      const stored = localStorage.getItem('meal_app_v5_recharge_requests');
-      return stored ? JSON.parse(stored) : [];
-    }
+    return apiFetch<RechargeRequest[]>(`${API_BASE}/recharge-requests`);
   }
 
   static async createRechargeRequest(data: {
@@ -419,358 +366,245 @@ export class ApiService {
     trxId?: string;
     note?: string;
   }): Promise<RechargeRequest> {
-    const newReq: RechargeRequest = {
-      id: 'rr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      userId: data.userId,
-      userName: data.userName,
-      userPhone: data.userPhone,
-      amount: data.amount,
-      paymentMethod: data.paymentMethod,
-      trxId: data.trxId,
-      note: data.note,
-      status: 'PENDING',
-      requestedAt: new Date().toISOString(),
-    };
-
-    try {
-      const res = await fetch(`${API_BASE}/recharge-requests`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error('Failed to create recharge request');
-      const created = await res.json();
-      await this.logAudit('user', 'RECHARGE_REQUEST_CREATED', data.userId, `Requested ৳${data.amount} via ${data.paymentMethod} (TrxID: ${data.trxId || 'N/A'})`);
-      return created;
-    } catch {
-      const reqs = await this.getRechargeRequests();
-      reqs.unshift(newReq);
-      localStorage.setItem('meal_app_v5_recharge_requests', JSON.stringify(reqs));
-    }
-
-    await this.logAudit('user', 'RECHARGE_REQUEST_CREATED', data.userId, `Requested ৳${data.amount} via ${data.paymentMethod} (TrxID: ${data.trxId || 'N/A'})`);
-    return newReq;
+    const created = await apiFetch<RechargeRequest>(`${API_BASE}/recharge-requests`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    await this.logAudit(
+      data.userId,
+      'RECHARGE_REQUEST_CREATED',
+      data.userId,
+      `Requested ৳${data.amount} via ${data.paymentMethod} (TrxID: ${data.trxId ?? 'N/A'})`,
+    );
+    return created;
   }
 
-  static async approveRechargeRequest(requestId: string, adminId: string): Promise<{ request: RechargeRequest; transaction: WalletTransaction }> {
-    try {
-      const res = await fetch(`${API_BASE}/recharge-requests`, {
+  static async approveRechargeRequest(
+    requestId: string,
+    adminId: string,
+  ): Promise<{ request: RechargeRequest; transaction: WalletTransaction }> {
+    const result = await apiFetch<{ request: RechargeRequest; transaction: WalletTransaction }>(
+      `${API_BASE}/recharge-requests`,
+      {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId, adminId, status: 'APPROVED' }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to approve recharge request');
-      }
-      const result = await res.json();
-      await this.logAudit(adminId, 'RECHARGE_REQUEST_APPROVED', result.request.userId, `Approved ৳${result.request.amount} for ${result.request.userName}`);
-      return result;
-    } catch (error) {
-      if (error instanceof Error && /already been processed|not found/i.test(error.message)) throw error;
-    }
-
-    const reqs = await this.getRechargeRequests();
-    const req = reqs.find((r) => r.id === requestId);
-    if (!req) throw new Error('রিচার্জ রিকুয়েস্ট পাওয়া যায়নি');
-    if (req.status !== 'PENDING') throw new Error('এই রিকুয়েস্টটি আগেই প্রসেস করা হয়েছে');
-
-    // 1. Credit wallet & log transaction
-    const txNote = `ইউজার রিকুয়েস্ট রিচার্জ (${req.paymentMethod}${req.trxId ? ' TrxID: ' + req.trxId : ''})`;
-    const tx = await this.addWalletBalance(adminId, req.userId, req.amount, 'RECHARGE', txNote);
-
-    // 2. Update user wallet balance locally for fast sync
-    const users = await this.getUsers();
-    const user = users.find((u) => u.id === req.userId);
-    if (user) {
-      user.walletBalance = (user.walletBalance || 0) + req.amount;
-      localStorage.setItem('meal_app_v5_users', JSON.stringify(users));
-    }
-
-    // 3. Mark request as APPROVED
-    req.status = 'APPROVED';
-    req.processedAt = new Date().toISOString();
-    req.processedByAdminId = adminId;
-    localStorage.setItem('meal_app_v5_recharge_requests', JSON.stringify(reqs));
-
-    await this.logAudit(adminId, 'RECHARGE_REQUEST_APPROVED', req.userId, `Approved ৳${req.amount} for ${req.userName}`);
-    return { request: req, transaction: tx };
+      },
+    );
+    await this.logAudit(
+      adminId,
+      'RECHARGE_REQUEST_APPROVED',
+      result.request.userId,
+      `Approved ৳${result.request.amount} for ${result.request.userName}`,
+    );
+    return result;
   }
 
-  static async rejectRechargeRequest(requestId: string, adminId: string, reason?: string): Promise<RechargeRequest> {
-    try {
-      const res = await fetch(`${API_BASE}/recharge-requests`, {
+  static async rejectRechargeRequest(
+    requestId: string,
+    adminId: string,
+    reason?: string,
+  ): Promise<RechargeRequest> {
+    const result = await apiFetch<{ request: RechargeRequest }>(
+      `${API_BASE}/recharge-requests`,
+      {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId, adminId, status: 'REJECTED', rejectionReason: reason }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to reject recharge request');
-      }
-      const result = await res.json();
-      await this.logAudit(adminId, 'RECHARGE_REQUEST_REJECTED', result.request.userId, `Rejected recharge request of ৳${result.request.amount}. Reason: ${result.request.rejectionReason}`);
-      return result.request;
-    } catch (error) {
-      if (error instanceof Error && /already been processed|not found/i.test(error.message)) throw error;
-    }
-
-    const reqs = await this.getRechargeRequests();
-    const req = reqs.find((r) => r.id === requestId);
-    if (!req) throw new Error('রিচার্জ রিকুয়েস্ট পাওয়া যায়নি');
-
-    req.status = 'REJECTED';
-    req.processedAt = new Date().toISOString();
-    req.processedByAdminId = adminId;
-    req.rejectionReason = reason || 'তথ্য সঠিক পাওয়া যায়নি';
-    localStorage.setItem('meal_app_v5_recharge_requests', JSON.stringify(reqs));
-
-    await this.logAudit(adminId, 'RECHARGE_REQUEST_REJECTED', req.userId, `Rejected recharge request of ৳${req.amount}. Reason: ${req.rejectionReason}`);
-    return req;
+      },
+    );
+    await this.logAudit(
+      adminId,
+      'RECHARGE_REQUEST_REJECTED',
+      result.request.userId,
+      `Rejected ৳${result.request.amount}. Reason: ${result.request.rejectionReason ?? reason}`,
+    );
+    return result.request;
   }
 
-  static async collectMonthlyFee(...args: any[]): Promise<number> {
-    const adminId = String(args[0] || 'admin');
-    const targetUser = String(args[1] || 'ALL');
-    const method = String(args[2] || 'WALLET_DEDUCTION');
-    const amount = typeof args[3] === 'number' ? args[3] : parseFloat(args[3] || '500');
-    const monthYear = String(args[4] || 'মাসিক ফি');
-
-    const users = await this.getUsers();
-    const approvedUsers = users.filter((u) => u.status === 'APPROVED');
-    const targets = targetUser === 'ALL' ? approvedUsers : approvedUsers.filter((u) => u.id === targetUser);
-
-    let count = 0;
-    for (const u of targets) {
-      const txType = method === 'WALLET_DEDUCTION' ? 'MONTHLY_CHARGE' : 'CASH_PAID';
-      const desc = `মাসিক ফি (${monthYear}) - ${method === 'WALLET_DEDUCTION' ? 'ওয়ালেট কর্তন' : 'হাতে হাতে ক্যাশ'}`;
-      
-      if (method === 'WALLET_DEDUCTION') {
-        u.walletBalance = (u.walletBalance || 0) - amount;
-      }
-      
-      await this.addWalletBalance(adminId, u.id, -amount, txType, desc);
-      count++;
-    }
-
-    localStorage.setItem('meal_app_v5_users', JSON.stringify(users));
-    await this.logAudit(adminId, 'MONTHLY_FEE_COLLECTED', targetUser, `Collected ৳${amount} monthly fee for ${count} users (${monthYear})`);
+  static async collectMonthlyFee(
+    adminId: string,
+    targetUserId: string,
+    method: string,
+    amount: number,
+    monthYear: string,
+  ): Promise<number> {
+    const { count } = await apiFetch<{ count: number }>(`${API_BASE}/monthly-fees`, {
+      method: 'POST',
+      body: JSON.stringify({ adminId, targetUserId, method, amount, monthYear }),
+    });
+    await this.logAudit(
+      adminId,
+      'MONTHLY_FEE_COLLECTED',
+      targetUserId,
+      `Collected ৳${amount} monthly fee for ${count} user(s) (${monthYear})`,
+    );
     return count;
   }
 
   // ---------------------------------------------------------------------------
-  // EMERGENCIES & SPECIAL MEALS
+  // EMERGENCIES
   // ---------------------------------------------------------------------------
   static async getEmergencies(): Promise<EmergencyClosure[]> {
-    try {
-      const res = await fetch(`${API_BASE}/emergencies`);
-      if (!res.ok) throw new Error('Failed to fetch emergencies');
-      const rows = await res.json();
-      return rows.map((r: any) => ({
-        id: String(r.id),
-        date: r.date,
-        reason: r.reason || 'Emergency closure',
-        closedMeals: ['breakfast', 'lunch', 'dinner'],
-        createdAt: r.createdAt || new Date().toISOString(),
-      }));
-    } catch {
-      return [];
-    }
+    const rows = await apiFetch<Record<string, unknown>[]>(`${API_BASE}/emergencies`);
+    return rows.map((r) => ({
+      id:       String(r.id),
+      date:     r.date as string,
+      reason:   (r.reason as string) ?? 'Emergency closure',
+      closedMeals: [
+        ...(r.breakfastOn === false ? ['breakfast' as const] : []),
+        ...(r.lunchOn === false     ? ['lunch'     as const] : []),
+        ...(r.dinnerOn === false    ? ['dinner'    as const] : []),
+      ],
+      createdAt: (r.createdAt as string) ?? new Date().toISOString(),
+    }));
   }
 
-  static async addEmergency(...args: any[]): Promise<EmergencyClosure> {
-    let date = new Date().toISOString().split('T')[0];
-    let endDate: string | undefined = undefined;
-    let reason = 'Emergency closure';
-    let closedMeals = ['breakfast', 'lunch', 'dinner'];
-
-    if (args.length === 1 && typeof args[0] === 'object') {
-      date = args[0].date;
-      endDate = args[0].endDate;
-      reason = args[0].reason || reason;
-      closedMeals = args[0].closedMeals || closedMeals;
-    } else if (args.length >= 4) {
-      date = String(args[1]);
-      endDate = String(args[2]);
-      reason = String(args[3]);
-      if (args[4]) closedMeals = args[4];
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/emergencies`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, endDate, reason, closedMeals }),
-      });
-      return await res.json();
-    } catch {
-      return {
-        id: 'em_' + Date.now(),
-        date,
-        endDate,
-        reason,
-        closedMeals: closedMeals as any,
-        createdAt: new Date().toISOString(),
-      };
-    }
-  }
-
-  static async removeEmergency(id: string): Promise<void> {
-    return;
-  }
-
-  static async getSpecialMeals(): Promise<SpecialMeal[]> {
-    const res = await fetch(`${API_BASE}/special-meals`);
-    if (!res.ok) throw new Error('Failed to fetch special meals');
-    return await res.json();
-  }
-
-  static async getSpecialMealForDate(date: string, type: 'breakfast' | 'lunch' | 'dinner'): Promise<SpecialMeal | null> {
-    const meals = await this.getSpecialMeals();
-    const meal = meals.find((item) => item.isActive !== false && item.mealType === type && (item.date === date || (item.isRecurring && item.repeatDayOfWeek === new Date(`${date}T12:00:00`).getDay())));
-    return meal || null;
-  }
-
-  static async addSpecialMeal(...args: any[]): Promise<SpecialMeal> {
-    const data = typeof args[0] === 'object'
-      ? args[0]
-      : { adminId: args[0], date: args[1], mealType: args[2], title: args[3], customRate: args[4], description: args[5], isRecurring: args[6], repeatDayOfWeek: args[7] };
-    const res = await fetch(`${API_BASE}/special-meals`, {
+  static async addEmergency(data: {
+    date: string;
+    endDate?: string;
+    reason?: string;
+    closedMeals?: string[];
+  }): Promise<EmergencyClosure> {
+    const raw = await apiFetch<Record<string, unknown>>(`${API_BASE}/emergencies`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        date: data.date,
+        endDate: data.endDate ?? data.date,
+        reason: data.reason ?? 'Emergency closure',
+        closedMeals: data.closedMeals ?? ['breakfast', 'lunch', 'dinner'],
+      }),
     });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to create special meal');
-    return await res.json();
-  }
-
-  static async toggleSpecialMealActive(...args: any[]): Promise<SpecialMeal> {
-    const id = args.length > 1 ? args[1] : args[0];
-    const current = args.length > 2 ? args[2] : undefined;
-    const res = await fetch(`${API_BASE}/special-meals`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, isActive: current === undefined ? false : !current }),
-    });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to update special meal');
-    return await res.json();
-  }
-
-  static async deleteSpecialMeal(...args: any[]): Promise<void> {
-    const id = args.length > 1 ? args[1] : args[0];
-    const res = await fetch(`${API_BASE}/special-meals?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to delete special meal');
-  }
-
-  // ---------------------------------------------------------------------------
-  // SYSTEM & AUDIT LOGS
-  // ---------------------------------------------------------------------------
-  static async getFinancialMetrics(): Promise<FinancialMetrics> {
-    const users = await this.getUsers();
-    const approvedUsers = users.filter((u) => u.status === 'APPROVED');
-    const txs = await this.getTransactions();
-
-    const todayStr = new Date().toISOString().split('T')[0];
-    const currentMonthStr = todayStr.substring(0, 7);
-    const currentYearStr = todayStr.substring(0, 4);
-
-    const totalWalletBalance = approvedUsers.reduce((sum, u) => sum + (u.walletBalance || 0), 0);
-    const lowBalanceUsersCount = approvedUsers.filter((u) => (u.walletBalance || 0) < 200).length;
-
-    let todayCollection = 0;
-    let monthlyCollection = 0;
-    let yearlyCollection = 0;
-    let todayExpenses = 0;
-    let permanentRevenue = 0;
-    let guestRevenue = 0;
-    let totalRefunds = 0;
-
-    txs.forEach((tx) => {
-      const txDate = tx.date ? tx.date.split('T')[0] : '';
-      const isRecharge = (tx.type as string) === 'RECHARGE' || (tx.type as string) === 'CREDIT' || (tx.type as string) === 'CASH_PAID';
-      const isDeduction = tx.type === 'MEAL_DEDUCTION' || tx.type === 'MONTHLY_CHARGE';
-      const isRefund = tx.type === 'REFUND';
-
-      if (isRecharge) {
-        if (txDate === todayStr) todayCollection += tx.amount;
-        if (txDate.startsWith(currentMonthStr)) monthlyCollection += tx.amount;
-        if (txDate.startsWith(currentYearStr)) yearlyCollection += tx.amount;
-      }
-
-      if (isDeduction) {
-        if (txDate === todayStr) todayExpenses += tx.amount;
-        const txUser = users.find((u) => u.id === tx.userId);
-        if (txUser?.userType === 'GUEST') {
-          guestRevenue += tx.amount;
-        } else {
-          permanentRevenue += tx.amount;
-        }
-      }
-
-      if (isRefund) {
-        totalRefunds += tx.amount;
-      }
-    });
-
-    const netProfit = monthlyCollection - (permanentRevenue + guestRevenue);
-
     return {
-      todayCollection,
-      monthlyCollection,
-      yearlyCollection,
-      todayExpenses,
-      netProfit,
-      outstandingBalance: Math.abs(approvedUsers.filter((u) => u.walletBalance < 0).reduce((sum, u) => sum + u.walletBalance, 0)),
-      totalWalletBalance,
-      totalRefunds,
-      permanentRevenue,
-      guestRevenue,
-      topSpenders: [],
-      lowBalanceUsersCount,
+      id:         String(raw.id),
+      date:       raw.date as string,
+      reason:     (raw.reason as string) ?? 'Emergency closure',
+      closedMeals: [
+        ...(raw.breakfastOn === false ? ['breakfast' as const] : []),
+        ...(raw.lunchOn === false     ? ['lunch'     as const] : []),
+        ...(raw.dinnerOn === false    ? ['dinner'    as const] : []),
+      ],
+      createdAt: new Date().toISOString(),
     };
   }
 
-  static async getAuditLogs(): Promise<AuditLog[]> {
-    try {
-      const res = await fetch(`${API_BASE}/audits`);
-      if (!res.ok) return [];
-      return await res.json();
-    } catch {
-      return [];
-    }
+  static async removeEmergency(id: string): Promise<void> {
+    await apiFetch<{ success: boolean }>(`${API_BASE}/emergencies/${id}`, { method: 'DELETE' });
   }
 
+  // ---------------------------------------------------------------------------
+  // SPECIAL MEALS
+  // ---------------------------------------------------------------------------
+  static async getSpecialMeals(): Promise<SpecialMeal[]> {
+    return apiFetch<SpecialMeal[]>(`${API_BASE}/special-meals`);
+  }
+
+  static async getSpecialMealForDate(
+    date: string,
+    type: 'breakfast' | 'lunch' | 'dinner',
+  ): Promise<SpecialMeal | null> {
+    const meals = await this.getSpecialMeals();
+    return (
+      meals.find(
+        (item) =>
+          item.isActive !== false &&
+          item.mealType === type &&
+          (item.date === date ||
+            (item.isRecurring &&
+              item.repeatDayOfWeek === new Date(`${date}T12:00:00`).getDay())),
+      ) ?? null
+    );
+  }
+
+  static async addSpecialMeal(data: {
+    adminId?: string;
+    date: string;
+    mealType: string;
+    title: string;
+    customRate: number;
+    description?: string;
+    isRecurring?: boolean;
+    repeatDayOfWeek?: number;
+  }): Promise<SpecialMeal> {
+    return apiFetch<SpecialMeal>(`${API_BASE}/special-meals`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  static async toggleSpecialMealActive(
+    adminIdOrId: string,
+    id?: string,
+    currentState?: boolean,
+  ): Promise<SpecialMeal> {
+    const resolvedId      = id ?? adminIdOrId;
+    const resolvedCurrent = currentState;
+    return apiFetch<SpecialMeal>(`${API_BASE}/special-meals`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        id: resolvedId,
+        isActive: resolvedCurrent === undefined ? false : !resolvedCurrent,
+      }),
+    });
+  }
+
+  static async deleteSpecialMeal(adminIdOrId: string, id?: string): Promise<void> {
+    const resolvedId = id ?? adminIdOrId;
+    await apiFetch<void>(`${API_BASE}/special-meals?id=${encodeURIComponent(resolvedId)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // FINANCIAL METRICS  (server-side aggregated)
+  // ---------------------------------------------------------------------------
+  static async getFinancialMetrics(): Promise<FinancialMetrics> {
+    return apiFetch<FinancialMetrics>(`${API_BASE}/financial-metrics`);
+  }
+
+  // ---------------------------------------------------------------------------
+  // AUDIT LOGS
+  // ---------------------------------------------------------------------------
+  static async getAuditLogs(): Promise<AuditLog[]> {
+    return apiFetch<AuditLog[]>(`${API_BASE}/audits`);
+  }
+
+  /** Alias used by some admin screens. */
   static async getAudits(): Promise<AuditLog[]> {
     return this.getAuditLogs();
   }
 
-  static async logAudit(adminId: string, action: string, targetUserId: string, details: string): Promise<void> {
+  static async logAudit(
+    adminId: string,
+    action: string,
+    targetUserId: string,
+    details: string,
+  ): Promise<void> {
     try {
-      const res = await fetch(`${API_BASE}/audits`, {
+      await apiFetch<AuditLog>(`${API_BASE}/audits`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminId, action, targetUserId, details }),
       });
-      if (!res.ok) console.warn('Audit log write failed:', await res.text());
-    } catch {
-      console.warn('Audit log request failed');
+    } catch (err) {
+      // Audit failures must never break user-facing flows — log and continue.
+      console.warn('[audit] write failed:', err);
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // ARCHIVED REPLICAS  (not yet implemented server-side — returns empty)
+  // ---------------------------------------------------------------------------
   static async getArchivedReplicas(): Promise<ArchivedUserReplica[]> {
     return [];
   }
 
+  // ---------------------------------------------------------------------------
+  // SYSTEM RESET
+  // ---------------------------------------------------------------------------
   static async purgeSystemData(adminId?: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/system/reset`, {
+    await apiFetch<{ success: boolean }>(`${API_BASE}/system/reset`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ adminId, confirmReset: true }),
     });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'System reset failed');
-    localStorage.clear();
   }
 }
 
-// Export ApiService under alias MockService for backwards compatibility
-export const MockService = ApiService;
+

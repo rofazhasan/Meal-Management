@@ -1,9 +1,11 @@
+'use client';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, CheckCircle2, XCircle, Clock, Copy, ShieldAlert, Zap, Layers, Sparkles, Power } from 'lucide-react';
 import { User, MealRateConfig, MealDeclaration as MealDeclarationType, EmergencyClosure, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
-import { MockService } from '../../services/mockStorage';
+import { ApiService } from '../../services/apiService';
 import { getBangladeshDateStr, getBangladeshNow, parseDateStr, getDayOfWeekFromDateStr } from '../../utils/dateUtils';
 
 interface MealDeclarationProps {
@@ -54,7 +56,7 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
   const handleToggleIndefinitePause = async () => {
     setTogglingPause(true);
     try {
-      const updated = await MockService.toggleIndefinitePause(currentUser.id);
+      const updated = await ApiService.toggleIndefinitePause(currentUser.id);
       if (updated.isIndefinitelyPaused) {
         setBreakfast(false);
         setLunch(false);
@@ -273,7 +275,7 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
     }
     setSaving(true);
     try {
-      await MockService.updateDeclaration(currentUser.id, selectedDate, { breakfast, lunch, dinner });
+      await ApiService.updateDeclaration(currentUser.id, selectedDate, { breakfast, lunch, dinner });
       setSuccessMsg(true);
       setTimeout(() => setSuccessMsg(false), 2500);
       onRefreshData();
@@ -297,7 +299,7 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
     }
     setSaving(true);
     try {
-      const cloned = await MockService.copyPreviousDayDeclaration(currentUser.id, selectedDate);
+      const cloned = await ApiService.copyPreviousDayDeclaration(currentUser.id, selectedDate);
       setBreakfast(cloned.breakfast);
       setLunch(cloned.lunch);
       setDinner(cloned.dinner);
@@ -368,7 +370,7 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
           lunch: dayEmergency?.closedMeals.includes('lunch') ? false : rates.globalMealStatus?.lunch !== false,
           dinner: dayEmergency?.closedMeals.includes('dinner') ? false : rates.globalMealStatus?.dinner !== false,
         };
-        await MockService.updateDeclaration(currentUser.id, day.dateStr, dayMeals);
+        await ApiService.updateDeclaration(currentUser.id, day.dateStr, dayMeals);
       }
       setSuccessMsg(true);
       setTimeout(() => setSuccessMsg(false), 2500);

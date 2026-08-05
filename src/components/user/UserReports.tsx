@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { BarChart3, Calendar, Utensils, CheckCircle2, Copy, PieChart, Printer, DollarSign } from 'lucide-react';
 import { User, MealDeclaration, MealRateConfig, SpecialMeal, EmergencyClosure } from '../../types';
