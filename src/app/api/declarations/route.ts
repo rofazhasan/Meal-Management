@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { pool } from '@/lib/db';
 import { getSystemRatesFromDb } from '@/lib/rates';
 
 export const dynamic = 'force-dynamic';
@@ -197,6 +198,29 @@ export async function POST(req: Request) {
       const ratesConfig = await getSystemRatesFromDb();
       const userRates = user.userType === 'GUEST' ? ratesConfig.guest : ratesConfig.permanent;
 
+      // Fetch Special Meals for this date via SQL pool
+      let specB: any = null;
+      let specL: any = null;
+      let specD: any = null;
+
+      try {
+        const specRes = await pool.query(
+          `SELECT LOWER(meal_type::text) AS "mealType", custom_rate::float AS "customRate"
+           FROM special_meals
+           WHERE meal_date = $1 AND is_active = TRUE;`,
+          [dateStr]
+        );
+        specB = specRes.rows.find((s: any) => s.mealType === 'breakfast');
+        specL = specRes.rows.find((s: any) => s.mealType === 'lunch');
+        specD = specRes.rows.find((s: any) => s.mealType === 'dinner');
+      } catch (e) {
+        // Fallback to normal rates if special_meals is unavailable
+      }
+
+      const effectiveBRate = specB ? Number(specB.customRate) : userRates.breakfast;
+      const effectiveLRate = specL ? Number(specL.customRate) : userRates.lunch;
+      const effectiveDRate = specD ? Number(specD.customRate) : userRates.dinner;
+
       // 3. Find previous declaration for this date
       const prevDecl = await prisma.mealDeclaration.findUnique({
         where: {
@@ -211,8 +235,8 @@ export async function POST(req: Request) {
       const oldL = prevDecl ? prevDecl.lunchSelected : false;
       const oldD = prevDecl ? prevDecl.dinnerSelected : false;
 
-      const oldCost = (oldB ? userRates.breakfast : 0) + (oldL ? userRates.lunch : 0) + (oldD ? userRates.dinner : 0);
-      const newCost = (newB ? userRates.breakfast : 0) + (newL ? userRates.lunch : 0) + (newD ? userRates.dinner : 0);
+      const oldCost = (oldB ? effectiveBRate : 0) + (oldL ? effectiveLRate : 0) + (oldD ? effectiveDRate : 0);
+      const newCost = (newB ? effectiveBRate : 0) + (newL ? effectiveLRate : 0) + (newD ? effectiveDRate : 0);
       const costDiff = newCost - oldCost;
 
       // 4. Wallet handling inside transaction

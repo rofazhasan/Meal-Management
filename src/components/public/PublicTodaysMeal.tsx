@@ -138,22 +138,30 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
     const permRates = rates?.permanent || { breakfast: 40, lunch: 70, dinner: 70, monthlyCharge: 500 };
     const guestRates = rates?.guest || { breakfast: 50, lunch: 85, dinner: 85, monthlyCharge: 0 };
 
+    const specB = todaysSpecialMeals.find((s) => String(s.mealType).toLowerCase() === 'breakfast');
+    const specL = todaysSpecialMeals.find((s) => String(s.mealType).toLowerCase() === 'lunch');
+    const specD = todaysSpecialMeals.find((s) => String(s.mealType).toLowerCase() === 'dinner');
+
     approvedUsers.forEach((u) => {
       const dec = todayDeclarationsMap.get(u.id);
       const state = getUserMealStateForDate(u, todayStr, dec, rates, todayEmergency);
       const userRates = u.userType === 'GUEST' ? guestRates : permRates;
 
+      const bRate = specB ? specB.customRate : userRates.breakfast;
+      const lRate = specL ? specL.customRate : userRates.lunch;
+      const dRate = specD ? specD.customRate : userRates.dinner;
+
       if (state.breakfast) {
         breakfast += 1;
-        breakfastMoney += userRates.breakfast;
+        breakfastMoney += bRate;
       }
       if (state.lunch) {
         lunch += 1;
-        lunchMoney += userRates.lunch;
+        lunchMoney += lRate;
       }
       if (state.dinner) {
         dinner += 1;
-        dinnerMoney += userRates.dinner;
+        dinnerMoney += dRate;
       }
     });
 
@@ -171,7 +179,7 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
       totalMealMoney, 
       totalUsers: approvedUsers.length 
     };
-  }, [approvedUsers, todayDeclarationsMap, rates, todayEmergency, todayStr]);
+  }, [approvedUsers, todayDeclarationsMap, rates, todayEmergency, todayStr, todaysSpecialMeals]);
 
   // Status Counts for Filter Pills
   const statusCounts = useMemo(() => {
@@ -537,43 +545,67 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
       {/* Meal Numbers Breakdown Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Breakfast Breakdown */}
-        <div className="glass-card p-3.5 rounded-2xl border border-amber-500/20 bg-amber-500/5 space-y-1">
-          <div className="flex items-center justify-between text-amber-300 text-xs font-medium">
-            <span>সকালের নাস্তা</span>
-            <Coffee className="w-3.5 h-3.5 text-amber-400" />
-          </div>
-          <div className="text-xl font-extrabold text-white font-mono">{stats.breakfast} টি</div>
-          <div className="text-xs font-bold text-amber-400 font-mono flex items-center gap-1">
-            <span>৳ {stats.breakfastMoney}</span>
-            <span className="text-[10px] font-normal text-amber-300/70 font-sans">(মোট খরচ)</span>
-          </div>
-        </div>
+        {(() => {
+          const specB = todaysSpecialMeals.find((s) => String(s.mealType).toLowerCase() === 'breakfast');
+          return (
+            <div className={`glass-card p-3.5 rounded-2xl border transition-all ${specB ? 'border-amber-500/50 bg-amber-500/15 shadow-lg shadow-amber-950/20' : 'border-amber-500/20 bg-amber-500/5'} space-y-1`}>
+              <div className="flex items-center justify-between text-amber-300 text-xs font-medium">
+                <span className="truncate flex items-center gap-1 font-bold">
+                  {specB ? `✨ ${specB.title}` : 'সকালের নাস্তা'}
+                  {specB && <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/30 text-amber-200 font-mono">স্পেশাল</span>}
+                </span>
+                <Coffee className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              </div>
+              <div className="text-xl font-extrabold text-white font-mono">{stats.breakfast} টি</div>
+              <div className="text-xs font-bold text-amber-400 font-mono flex items-center gap-1">
+                <span>৳ {stats.breakfastMoney}</span>
+                <span className="text-[10px] font-normal text-amber-300/70 font-sans">(মোট খরচ)</span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Lunch Breakdown */}
-        <div className="glass-card p-3.5 rounded-2xl border border-sky-500/20 bg-sky-500/5 space-y-1">
-          <div className="flex items-center justify-between text-sky-300 text-xs font-medium">
-            <span>দুপুরের খাবার</span>
-            <Sun className="w-3.5 h-3.5 text-sky-400" />
-          </div>
-          <div className="text-xl font-extrabold text-white font-mono">{stats.lunch} টি</div>
-          <div className="text-xs font-bold text-sky-400 font-mono flex items-center gap-1">
-            <span>৳ {stats.lunchMoney}</span>
-            <span className="text-[10px] font-normal text-sky-300/70 font-sans">(মোট খরচ)</span>
-          </div>
-        </div>
+        {(() => {
+          const specL = todaysSpecialMeals.find((s) => String(s.mealType).toLowerCase() === 'lunch');
+          return (
+            <div className={`glass-card p-3.5 rounded-2xl border transition-all ${specL ? 'border-amber-500/50 bg-amber-500/15 shadow-lg shadow-amber-950/20' : 'border-sky-500/20 bg-sky-500/5'} space-y-1`}>
+              <div className="flex items-center justify-between text-sky-300 text-xs font-medium">
+                <span className="truncate flex items-center gap-1 font-bold">
+                  {specL ? `✨ ${specL.title}` : 'দুপুরের খাবার'}
+                  {specL && <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/30 text-amber-200 font-mono">স্পেশাল</span>}
+                </span>
+                <Sun className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+              </div>
+              <div className="text-xl font-extrabold text-white font-mono">{stats.lunch} টি</div>
+              <div className="text-xs font-bold text-sky-400 font-mono flex items-center gap-1">
+                <span>৳ {stats.lunchMoney}</span>
+                <span className="text-[10px] font-normal text-sky-300/70 font-sans">(মোট খরচ)</span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Dinner Breakdown */}
-        <div className="glass-card p-3.5 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 space-y-1">
-          <div className="flex items-center justify-between text-indigo-300 text-xs font-medium">
-            <span>রাতের খাবার</span>
-            <Moon className="w-3.5 h-3.5 text-indigo-400" />
-          </div>
-          <div className="text-xl font-extrabold text-white font-mono">{stats.dinner} টি</div>
-          <div className="text-xs font-bold text-indigo-400 font-mono flex items-center gap-1">
-            <span>৳ {stats.dinnerMoney}</span>
-            <span className="text-[10px] font-normal text-indigo-300/70 font-sans">(মোট খরচ)</span>
-          </div>
-        </div>
+        {(() => {
+          const specD = todaysSpecialMeals.find((s) => String(s.mealType).toLowerCase() === 'dinner');
+          return (
+            <div className={`glass-card p-3.5 rounded-2xl border transition-all ${specD ? 'border-amber-500/50 bg-amber-500/15 shadow-lg shadow-amber-950/20' : 'border-indigo-500/20 bg-indigo-500/5'} space-y-1`}>
+              <div className="flex items-center justify-between text-indigo-300 text-xs font-medium">
+                <span className="truncate flex items-center gap-1 font-bold">
+                  {specD ? `✨ ${specD.title}` : 'রাতের খাবার'}
+                  {specD && <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/30 text-amber-200 font-mono">স্পেশাল</span>}
+                </span>
+                <Moon className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              </div>
+              <div className="text-xl font-extrabold text-white font-mono">{stats.dinner} টি</div>
+              <div className="text-xs font-bold text-indigo-400 font-mono flex items-center gap-1">
+                <span>৳ {stats.dinnerMoney}</span>
+                <span className="text-[10px] font-normal text-indigo-300/70 font-sans">(মোট খরচ)</span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Active Members Count */}
         <div className="glass-card p-3.5 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 space-y-1">

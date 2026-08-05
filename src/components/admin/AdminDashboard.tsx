@@ -144,13 +144,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   let todayLunches = 0;
   let todayDinners = 0;
 
+  let todayBreakfastMoney = 0;
+  let todayLunchMoney = 0;
+  let todayDinnerMoney = 0;
+
+  const specB = todaysSpecialMeals.find((s) => String(s.mealType).toLowerCase() === 'breakfast');
+  const specL = todaysSpecialMeals.find((s) => String(s.mealType).toLowerCase() === 'lunch');
+  const specD = todaysSpecialMeals.find((s) => String(s.mealType).toLowerCase() === 'dinner');
+
+  const permRates = rates?.permanent || { breakfast: 40, lunch: 70, dinner: 70, monthlyCharge: 500 };
+  const guestRates = rates?.guest || { breakfast: 50, lunch: 85, dinner: 85, monthlyCharge: 0 };
+
   activeUsers.forEach((u) => {
     const dec = declarations.find((d) => d.userId === u.id && d.date === todayStr);
     const state = getUserMealStateForDate(u, todayStr, dec, rates, emergencyToday);
-    if (state.breakfast) todayBreakfasts++;
-    if (state.lunch) todayLunches++;
-    if (state.dinner) todayDinners++;
+    const userRates = u.userType === 'GUEST' ? guestRates : permRates;
+
+    const bRate = specB ? specB.customRate : userRates.breakfast;
+    const lRate = specL ? specL.customRate : userRates.lunch;
+    const dRate = specD ? specD.customRate : userRates.dinner;
+
+    if (state.breakfast) {
+      todayBreakfasts++;
+      todayBreakfastMoney += bRate;
+    }
+    if (state.lunch) {
+      todayLunches++;
+      todayLunchMoney += lRate;
+    }
+    if (state.dinner) {
+      todayDinners++;
+      todayDinnerMoney += dRate;
+    }
   });
+
+  const todayGrandTotalMoney = todayBreakfastMoney + todayLunchMoney + todayDinnerMoney;
 
   // Emergency Off Form state (Supports Date Range)
   const [emergencyStartDate, setEmergencyStartDate] = useState(todayStr);
@@ -396,13 +424,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Today's Meals Consumption */}
         <div className="glass-panel p-5 rounded-3xl border border-slate-800/80 flex items-center justify-between shadow-xl">
           <div>
-            <p className="text-xs font-semibold text-slate-400 font-display">আজকের খাবার কাউন্ট</p>
+            <p className="text-xs font-semibold text-slate-400 font-display">আজকের খাবার কাউন্ট ও আনুমানিক মূল্য (Grand Total)</p>
             <div className="flex flex-wrap items-center gap-1.5 mt-1 font-mono text-xs sm:text-sm font-bold text-emerald-400">
               <span className="bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">নাস্তা: {todayBreakfasts}</span>
               <span className="bg-sky-500/10 px-2 py-0.5 rounded-lg border border-sky-500/20 text-sky-400">দুপুর: {todayLunches}</span>
               <span className="bg-purple-500/10 px-2 py-0.5 rounded-lg border border-purple-500/20 text-purple-400">রাত: {todayDinners}</span>
             </div>
-            <p className="text-[11px] text-slate-400 mt-1.5 font-sans">সক্রিয় ডিক্লারেশন</p>
+            <p className="text-xs font-bold text-emerald-400 font-mono mt-1.5 flex items-center gap-1">
+              <span>বরাদ্দ (Grand Total): ৳ {todayGrandTotalMoney}</span>
+            </p>
           </div>
           <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
             <Utensils className="w-6 h-6" />

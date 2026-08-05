@@ -24,15 +24,27 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
 }) => {
   const [filterPeriod, setFilterPeriod] = useState<'today' | 'monthly' | 'yearly'>('monthly');
 
+  // Dynamic Month & Year Options Generation
+  const monthOptions = useMemo(() => {
+    const list: string[] = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = d.toLocaleDateString('bn-BD', { month: 'long', year: 'numeric' });
+      list.push(label);
+    }
+    return list;
+  }, []);
+
   // Monthly Fee State
   const [feeTargetUser, setFeeTargetUser] = useState<string>('ALL');
   const [feeMethod, setFeeMethod] = useState<'WALLET_DEDUCTION' | 'CASH_HAND_TO_HAND'>('WALLET_DEDUCTION');
   const [feeAmount, setFeeAmount] = useState<number>(500);
-  const [feeMonthYear, setFeeMonthYear] = useState<string>('আগস্ট ২০২৬');
+  const [feeMonthYear, setFeeMonthYear] = useState<string>(monthOptions[0] || 'চলতি মাস');
   const [feeSubmitting, setFeeSubmitting] = useState(false);
 
   // Monthly Fee Status Tracker
-  const [feeCheckMonth, setFeeCheckMonth] = useState(feeMonthYear);
+  const [feeCheckMonth, setFeeCheckMonth] = useState<string>(monthOptions[0] || 'চলতি মাস');
 
   const feeStatusReport = useMemo(() => {
     const approvedUsers = users.filter(u => u.status === 'APPROVED');
@@ -355,13 +367,17 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <input
-              type="text"
+            <select
               value={feeCheckMonth}
               onChange={e => setFeeCheckMonth(e.target.value)}
-              placeholder="যেমন: আগস্ট ২০২৬"
-              className="bg-slate-900/80 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-100 font-bold focus:border-emerald-500 focus:outline-none min-w-[150px]"
-            />
+              className="bg-slate-900/80 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-emerald-300 font-bold focus:border-emerald-500 focus:outline-none min-w-[160px]"
+            >
+              {monthOptions.map((m) => (
+                <option key={m} value={m}>
+                  📅 {m}
+                </option>
+              ))}
+            </select>
             <button
               onClick={handlePrintFeeReport}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-slate-100 border border-slate-600/60 font-bold text-xs transition-all shadow-md active:scale-95 whitespace-nowrap"
@@ -513,13 +529,20 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
             {/* Month & Year */}
             <div>
               <label className="block text-slate-300 font-semibold mb-1">মাস ও বছর (বিবরণ)</label>
-              <input
-                type="text"
-                required
+              <select
                 value={feeMonthYear}
-                onChange={(e) => setFeeMonthYear(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-2.5 text-xs text-slate-100 font-bold focus:border-cyan-500 focus:outline-none"
-              />
+                onChange={(e) => {
+                  setFeeMonthYear(e.target.value);
+                  setFeeCheckMonth(e.target.value);
+                }}
+                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-2.5 text-xs text-cyan-300 font-bold focus:border-cyan-500 focus:outline-none"
+              >
+                {monthOptions.map((m) => (
+                  <option key={m} value={m}>
+                    📅 {m}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Payment Method Selector */}
