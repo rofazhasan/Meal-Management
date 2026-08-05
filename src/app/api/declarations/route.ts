@@ -41,7 +41,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json([]);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed to fetch declarations' }, { status: 500 });
+    console.error('Error fetching declarations:', error);
+    return NextResponse.json([]);
   }
 }
 

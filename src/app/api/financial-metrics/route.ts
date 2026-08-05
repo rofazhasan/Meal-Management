@@ -4,31 +4,31 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  try {
-    let metrics = {
-      todayCollection: 0,
-      monthlyCollection: 0,
-      yearlyCollection: 0,
-      todayExpenses: 0,
-      netProfit: 0,
-      outstandingBalance: 0,
-      totalWalletBalance: 0,
-      totalRefunds: 0,
-      permanentRevenue: 0,
-      guestRevenue: 0,
-      totalCollected: 0,
-      totalSpent: 0,
-      netReserve: 0,
-      pendingRechargesCount: 0,
-      pendingRechargesSum: 0,
-      monthlyEstRevenue: 0,
-      monthlyEstCost: 0,
-      activeUsersCount: 0,
-      pausedUsersCount: 0,
-      topSpenders: [] as { name: string; phone: string; amount: number }[],
-      lowBalanceUsersCount: 0,
-    };
+  let metrics = {
+    todayCollection: 0,
+    monthlyCollection: 0,
+    yearlyCollection: 0,
+    todayExpenses: 0,
+    netProfit: 0,
+    outstandingBalance: 0,
+    totalWalletBalance: 0,
+    totalRefunds: 0,
+    permanentRevenue: 0,
+    guestRevenue: 0,
+    totalCollected: 0,
+    totalSpent: 0,
+    netReserve: 0,
+    pendingRechargesCount: 0,
+    pendingRechargesSum: 0,
+    monthlyEstRevenue: 0,
+    monthlyEstCost: 0,
+    activeUsersCount: 0,
+    pausedUsersCount: 0,
+    topSpenders: [] as { name: string; phone: string; amount: number }[],
+    lowBalanceUsersCount: 0,
+  };
 
+  try {
     if (process.env.DATABASE_URL) {
       try {
         const now = new Date();
@@ -148,6 +148,7 @@ export async function GET() {
 
     return NextResponse.json(metrics);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed to fetch financial metrics' }, { status: 500 });
+    console.error('Error in financial-metrics route:', error);
+    return NextResponse.json(metrics);
   }
 }

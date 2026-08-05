@@ -48,6 +48,6 @@ export async function GET() {
     return NextResponse.json(users);
   } catch (error: any) {
     console.error('Error fetching users via Prisma:', error);
-    return NextResponse.json({ error: error.message || 'Failed to fetch users from database' }, { status: 500 });
+    return NextResponse.json([]);
   }
 }

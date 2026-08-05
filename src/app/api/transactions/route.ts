@@ -21,6 +21,7 @@ export async function GET(req: Request) {
       const formatted = txs.map((t) => ({
         id: t.id,
         userId: t.userId,
+        adminId: t.createdBy || null,
         amount: Number(t.amount),
         type: (t.transactionType as string) === 'ADMIN_TOPUP' ? 'RECHARGE' : t.transactionType,
         balanceBefore: Number(t.balanceBefore),
@@ -34,6 +35,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json([]);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed to fetch transactions' }, { status: 500 });
+    console.error('Error fetching transactions:', error);
+    return NextResponse.json([]);
   }
 }
