@@ -109,6 +109,7 @@ const MainApplication: React.FC = () => {
         const updatedSelf = usrs.find((u) => u.id === currentUser.id);
         if (updatedSelf) {
           setCurrentUser(updatedSelf);
+          ApiService.setCurrentUser(updatedSelf);
         }
       });
     }

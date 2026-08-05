@@ -271,10 +271,18 @@ export class ApiService {
     meals: { breakfast: boolean; lunch: boolean; dinner: boolean },
     isAdminOverride = false,
   ): Promise<MealDeclaration> {
-    return apiFetch<MealDeclaration>(`${API_BASE}/declarations`, {
+    const res = await apiFetch<MealDeclaration & { walletBalance?: number }>(`${API_BASE}/declarations`, {
       method: 'POST',
       body: JSON.stringify({ userId, date, ...meals, isAdminOverride }),
     });
+
+    const current = await this.getCurrentUser();
+    if (current?.id === userId && res.walletBalance !== undefined) {
+      const updatedUser = { ...current, walletBalance: res.walletBalance };
+      await this.setCurrentUser(updatedUser);
+    }
+
+    return res;
   }
 
   static async bulkUpdateDeclarations(
@@ -335,20 +343,26 @@ export class ApiService {
       if (args[3]) note    = String(args[3]);
     }
 
-    const tx = await apiFetch<{ id: string; userId: string; amount: number; timestamp: string; description: string }>(
+    const tx = await apiFetch<{ id: string; userId: string; amount: number; type: string; balanceBefore: number; balanceAfter: number; date: string; description: string }>(
       `${API_BASE}/wallets/topup`,
       { method: 'POST', body: JSON.stringify({ adminId, userId: targetUserId, amount, note }) },
     );
+
+    const current = await this.getCurrentUser();
+    if (current?.id === targetUserId && tx.balanceAfter !== undefined) {
+      const updatedUser = { ...current, walletBalance: tx.balanceAfter };
+      await this.setCurrentUser(updatedUser);
+    }
 
     return {
       id:            tx.id,
       userId:        targetUserId,
       type:          'RECHARGE',
-      amount,
-      balanceBefore: 0,   // server returns these on the tx but topup response is minimal
-      balanceAfter:  amount,
+      amount:        tx.amount,
+      balanceBefore: tx.balanceBefore,
+      balanceAfter:  tx.balanceAfter,
       description:   tx.description ?? note,
-      date:          tx.timestamp ?? new Date().toISOString(),
+      date:          tx.date ?? new Date().toISOString(),
       adminId,
     };
   }
