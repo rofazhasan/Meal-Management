@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { pool } from '../../../api/db.js';
 
+export const dynamic = 'force-dynamic';
+
 const defaultConfig = {
   permanent: { breakfast: 25, lunch: 50, dinner: 50, monthlyCharge: 300 },
   guest: { breakfast: 35, lunch: 70, dinner: 70, monthlyCharge: 0 },

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { pool } from '../../../api/db.js';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const metrics = {
