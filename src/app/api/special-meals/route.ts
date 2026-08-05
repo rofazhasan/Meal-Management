@@ -10,7 +10,7 @@ export async function GET() {
         SELECT 
           id, 
           to_char(meal_date, 'YYYY-MM-DD') AS date, 
-          meal_type AS "mealType", 
+          LOWER(meal_type) AS "mealType", 
           title, 
           custom_rate::float AS "customRate", 
           description, 
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     let meal: any = {
       id: `sm-${Date.now()}`,
       date,
-      mealType,
+      mealType: String(mealType).toLowerCase(),
       title,
       customRate: Number(customRate),
       description,
@@ -47,17 +47,19 @@ export async function POST(req: Request) {
     };
 
     if (process.env.DATABASE_URL) {
+      const dbMealType = String(mealType).toUpperCase();
       const res = await pool.query(
         `INSERT INTO special_meals (meal_date, meal_type, title, custom_rate, description, is_recurring, repeat_day_of_week, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
-         RETURNING id, to_char(meal_date, 'YYYY-MM-DD') AS date, meal_type AS "mealType", title, custom_rate::float AS "customRate", description, is_recurring AS "isRecurring", repeat_day_of_week AS "repeatDayOfWeek", is_active AS "isActive", to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt";`,
-        [date, mealType, title, Number(customRate), description || null, Boolean(isRecurring), repeatDayOfWeek || null]
+         VALUES ($1, $2::meal_type, $3, $4, $5, $6, $7, TRUE)
+         RETURNING id, to_char(meal_date, 'YYYY-MM-DD') AS date, LOWER(meal_type) AS "mealType", title, custom_rate::float AS "customRate", description, is_recurring AS "isRecurring", repeat_day_of_week AS "repeatDayOfWeek", is_active AS "isActive", to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt";`,
+        [date, dbMealType, title, Number(customRate), description || null, Boolean(isRecurring), repeatDayOfWeek || null]
       );
       if (res.rows.length > 0) meal = res.rows[0];
     }
 
     return NextResponse.json(meal, { status: 201 });
   } catch (error: any) {
+    console.error('Error adding special meal:', error);
     return NextResponse.json({ error: error.message || 'Failed to add special meal' }, { status: 500 });
   }
 }
@@ -71,7 +73,7 @@ export async function PATCH(req: Request) {
 
     if (process.env.DATABASE_URL) {
       const res = await pool.query(
-        `UPDATE special_meals SET is_active = $1 WHERE id = $2 RETURNING id, to_char(meal_date, 'YYYY-MM-DD') AS date, meal_type AS "mealType", title, custom_rate::float AS "customRate", description, is_recurring AS "isRecurring", repeat_day_of_week AS "repeatDayOfWeek", is_active AS "isActive";`,
+        `UPDATE special_meals SET is_active = $1 WHERE id = $2 RETURNING id, to_char(meal_date, 'YYYY-MM-DD') AS date, LOWER(meal_type) AS "mealType", title, custom_rate::float AS "customRate", description, is_recurring AS "isRecurring", repeat_day_of_week AS "repeatDayOfWeek", is_active AS "isActive";`,
         [Boolean(isActive), id]
       );
       if (res.rows.length > 0) {
