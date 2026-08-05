@@ -12,43 +12,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Phone number is required.' }, { status: 400 });
     }
 
-    let userRow: any = null;
-
-    if (process.env.DATABASE_URL) {
-      try {
-        userRow = await prisma.user.findUnique({
-          where: { phoneNumber: cleanPhone },
-          include: { profile: true, wallet: true },
-        });
-      } catch (err) {
-        console.error('Prisma query error on login:', err);
-      }
-    }
+    const userRow = await prisma.user.findUnique({
+      where: { phoneNumber: cleanPhone },
+      include: { profile: true, wallet: true },
+    });
 
     if (!userRow) {
-      const role = cleanPhone === '01700000000' || cleanPhone === '01700000001' ? 'SUPERADMIN' : 'USER';
-      const status = 'APPROVED';
-      return NextResponse.json({
-        id: cleanPhone === '01700000000' ? 'admin-1' : `user-${cleanPhone}`,
-        name: cleanPhone === '01700000000' ? 'System Administrator' : 'Resident User',
-        phone: cleanPhone,
-        password: password || '123456',
-        role,
-        userType: 'PERMANENT',
-        status,
-        isIndefinitelyPaused: false,
-        walletBalance: 1500,
-        isDualMode: role === 'SUPERADMIN',
-        activeMode: role === 'SUPERADMIN' ? 'ADMIN' : 'USER',
-        createdAt: new Date().toISOString(),
-        profile: {
-          studentId: 'RM-101',
-          department: 'Computer Science',
-          bloodGroup: 'B+',
-          emergencyContact: '01800000000',
-          hostelName: 'Main Hall',
-        },
-      });
+      return NextResponse.json({ error: 'User not found with this phone number.' }, { status: 404 });
     }
 
     if (password && userRow.passwordHash && password !== userRow.passwordHash) {
@@ -79,6 +49,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(user);
   } catch (error: any) {
+    console.error('Login error:', error);
     return NextResponse.json({ error: error.message || 'Login failed' }, { status: 500 });
   }
 }
