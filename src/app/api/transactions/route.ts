@@ -15,15 +15,17 @@ export async function GET(req: Request) {
       const txs = await prisma.walletTransaction.findMany({
         where: whereClause,
         orderBy: { createdAt: 'desc' },
-        take: 100,
+        take: 200,
       });
 
       const formatted = txs.map((t) => ({
         id: t.id,
         userId: t.userId,
         amount: Number(t.amount),
-        type: t.transactionType,
-        description: t.note || t.referenceType,
+        type: (t.transactionType as string) === 'ADMIN_TOPUP' ? 'RECHARGE' : t.transactionType,
+        balanceBefore: Number(t.balanceBefore),
+        balanceAfter: Number(t.balanceAfter),
+        description: t.note || t.referenceType || 'অর্থ সংক্রান্ত লেনদেন',
         date: t.createdAt.toISOString(),
       }));
 

@@ -16,8 +16,10 @@ export async function POST(req: Request) {
       id: `tx-${Date.now()}`,
       userId,
       amount: numAmount,
-      type: numAmount >= 0 ? 'CREDIT' : 'DEBIT',
-      description: note || 'Admin Topup',
+      type: numAmount >= 0 ? 'RECHARGE' : 'DEBIT',
+      balanceBefore: 0,
+      balanceAfter: numAmount,
+      description: note || 'অ্যাডমিন পার্স রিচার্জ',
       date: new Date().toISOString(),
     };
 
@@ -40,23 +42,25 @@ export async function POST(req: Request) {
           data: {
             walletId: wallet.id,
             userId,
-            transactionType: numAmount >= 0 ? 'ADMIN_TOPUP' : 'DEBIT',
+            transactionType: numAmount >= 0 ? 'RECHARGE' : 'DEBIT',
             amount: Math.abs(numAmount),
             balanceBefore: prevBal,
             balanceAfter: newBal,
             referenceType: 'ADMIN_ACTION',
             referenceId: wallet.id,
             createdBy: adminId || null,
-            note: note || 'Admin Topup',
+            note: note || 'অ্যাডমিন পার্স রিচার্জ',
           },
         });
 
         return {
           id: createdTx.id,
           userId: createdTx.userId,
-          amount: numAmount,
+          amount: Math.abs(numAmount),
           type: createdTx.transactionType,
-          description: createdTx.note || 'Admin Topup',
+          balanceBefore: prevBal,
+          balanceAfter: newBal,
+          description: createdTx.note || 'অ্যাডমিন পার্স রিচার্জ',
           date: createdTx.createdAt.toISOString(),
         };
       });

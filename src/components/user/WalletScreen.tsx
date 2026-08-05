@@ -77,15 +77,17 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
 
   const filteredTx = userTxs.filter(tx => {
     if (filterType === 'ALL') return true;
+    if (filterType === 'RECHARGE') return ['RECHARGE', 'CREDIT', 'ADMIN_TOPUP', 'REFUND'].includes(tx.type);
+    if (filterType === 'MEAL_DEDUCTION') return ['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE'].includes(tx.type);
     return tx.type === filterType;
   });
 
   const totalRecharge = userTxs
-    .filter(t => t.type === 'RECHARGE')
+    .filter(t => ['RECHARGE', 'CREDIT', 'ADMIN_TOPUP', 'REFUND'].includes(t.type))
     .reduce((acc, t) => acc + t.amount, 0);
 
   const totalDeduction = userTxs
-    .filter(t => t.type === 'MEAL_DEDUCTION' || t.type === 'MONTHLY_CHARGE')
+    .filter(t => ['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE'].includes(t.type))
     .reduce((acc, t) => acc + t.amount, 0);
 
   return (
