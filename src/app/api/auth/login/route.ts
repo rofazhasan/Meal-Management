@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { normalizePhoneNumber } from '../../../../utils/phoneUtils';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
     const { phone, password } = await req.json();
-    const cleanPhone = (phone || '').trim();
+    const cleanPhone = normalizePhoneNumber(phone);
 
     if (!cleanPhone) {
       return NextResponse.json({ error: 'Phone number is required.' }, { status: 400 });
@@ -29,10 +30,8 @@ export async function POST(req: Request) {
       if (isBcrypt) {
         isMatch = await bcrypt.compare(password, userRow.passwordHash);
       } else {
-        // Plaintext fallback comparison for legacy records
         isMatch = password === userRow.passwordHash;
         if (isMatch) {
-          // Re-hash legacy password on first successful login
           const newHash = await bcrypt.hash(password, 10);
           await prisma.user.update({
             where: { id: userRow.id },

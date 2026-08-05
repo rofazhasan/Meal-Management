@@ -73,16 +73,19 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
     updatedAt: new Date().toISOString(),
   };
 
-  // Live 10 AM Deadline Calculator in Bangladesh Standard Time (UTC+6)
+  // Dynamic Cutoff Deadline Calculator in Bangladesh Standard Time (UTC+6)
   useEffect(() => {
     const updateCountdown = () => {
+      const cutoffStr = rates.cutoffTime || '10:00';
+      const [cutoffHour, cutoffMinute] = cutoffStr.split(':').map(Number);
+
       const now = getBangladeshNow();
       const cutoff = getBangladeshNow();
-      cutoff.setHours(10, 0, 0, 0);
+      cutoff.setHours(cutoffHour, cutoffMinute, 0, 0);
 
       if (now > cutoff) {
         setIsPassed10AM(true);
-        setTimeLeft('আজকের ১০:০০ AM ডেডলাইন শেষ');
+        setTimeLeft(`আজকের ${cutoffStr} ডেডলাইন শেষ`);
       } else {
         setIsPassed10AM(false);
         const diffMs = cutoff.getTime() - now.getTime();
@@ -96,7 +99,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
     updateCountdown();
     const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [rates.cutoffTime]);
 
   const handleToggleTodayMeal = async (meal: 'breakfast' | 'lunch' | 'dinner') => {
     // Block if emergency is active for today
@@ -315,7 +318,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               </div>
               <div>
                 <h3 className="font-bold text-slate-100 text-sm font-display">{BN.deadlineNotice}</h3>
-                <p className="text-[11px] text-slate-400 font-sans">প্রতিদিন সকাল ১০:০০ AM এর পূর্বে</p>
+                <p className="text-[11px] text-slate-400 font-sans">প্রতিদিন {rates.cutoffTime || '10:00'} এর পূর্বে</p>
               </div>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-bold ${

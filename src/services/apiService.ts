@@ -14,6 +14,7 @@ import {
   RechargeRequest,
   PaymentMethod,
 } from '../types';
+import { normalizePhoneNumber } from '../utils/phoneUtils';
 
 const API_BASE = '/api';
 
@@ -73,9 +74,10 @@ export class ApiService {
   // AUTHENTICATION
   // ---------------------------------------------------------------------------
   static async login(phone: string, password?: string): Promise<User> {
+    const cleanPhone = normalizePhoneNumber(phone);
     const user = await apiFetch<User>(`${API_BASE}/auth/login`, {
       method: 'POST',
-      body: JSON.stringify({ phone: phone.trim(), password }),
+      body: JSON.stringify({ phone: cleanPhone, password }),
     });
     await this.setCurrentUser(user);
     return user;
@@ -88,9 +90,10 @@ export class ApiService {
     userType: UserType;
     role?: UserRole;
   }): Promise<User> {
+    const cleanPhone = normalizePhoneNumber(data.phone);
     return apiFetch<User>(`${API_BASE}/auth/register`, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, phone: cleanPhone }),
     });
   }
 

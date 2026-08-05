@@ -48,7 +48,7 @@ export const BN = {
   autoCopied: "স্বয়ংক্রিয় যুক্ত (Auto Copied)",
   userDeclared: "ম্যানুয়ালি এন্ট্রি (User Declared)",
   todayMealStatus: "আজকের মিল স্ট্যাটাস",
-  deadlineNotice: "১০:০০ AM ডেডলাইন নোটিশ",
+  deadlineNotice: "কাট-অফ ডেডলাইন নোটিশ",
   autoCopyNotice: "ডেডলাইন পার হলে গতকালের মিল কপি হবে",
   masterMealSwitch: "মাস্টার মিল অন/অফ সুইচ",
 

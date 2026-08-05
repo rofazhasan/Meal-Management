@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { Phone, Lock, User as UserIcon, Home, ArrowRight, ShieldAlert, Utensils, KeyRound, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { getBangladeshDateStr } from '../../utils/dateUtils';
+import { normalizePhoneNumber } from '../../utils/phoneUtils';
 import { User, UserType } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { ApiService } from '../../services/apiService';
@@ -185,7 +187,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                     type="text"
                     required
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(normalizePhoneNumber(e.target.value))}
                     placeholder="01711111111"
                     className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl py-3 pl-11 pr-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 font-mono"
                   />

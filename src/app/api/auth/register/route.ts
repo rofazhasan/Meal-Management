@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { UserRole, UserType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { normalizePhoneNumber } from '../../../../utils/phoneUtils';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
     const { name, phone, password, userType = 'PERMANENT', role = 'USER' } = await req.json();
-    const cleanPhone = (phone || '').trim();
+    const cleanPhone = normalizePhoneNumber(phone);
 
     if (!cleanPhone || !name) {
       return NextResponse.json({ error: 'Name and phone number are required.' }, { status: 400 });
