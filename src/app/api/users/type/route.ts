@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+import { UserType } from '@prisma/client';
+
+export const dynamic = 'force-dynamic';
 
 export async function PATCH(req: Request) {
   try {
@@ -9,12 +12,16 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'userId and userType are required' }, { status: 400 });
     }
 
-    if (process.env.DATABASE_URL) {
-      await pool.query(`UPDATE users SET user_type = $1 WHERE id = $2;`, [userType, userId]);
-    }
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        userType: userType as UserType,
+      },
+    });
 
-    return NextResponse.json({ success: true, userId, userType });
+    return NextResponse.json({ success: true, userId: updated.id, userType: updated.userType });
   } catch (error: any) {
+    console.error('Failed to update user type:', error);
     return NextResponse.json({ error: error.message || 'Failed to update user type' }, { status: 500 });
   }
 }

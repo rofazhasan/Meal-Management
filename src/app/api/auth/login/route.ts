@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,15 +22,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User not found with this phone number.' }, { status: 404 });
     }
 
-    if (password && userRow.passwordHash && password !== userRow.passwordHash) {
-      return NextResponse.json({ error: 'Invalid password.' }, { status: 401 });
+    if (password && userRow.passwordHash) {
+      let isMatch = false;
+      const isBcrypt = userRow.passwordHash.startsWith('$2a$') || userRow.passwordHash.startsWith('$2b$');
+
+      if (isBcrypt) {
+        isMatch = await bcrypt.compare(password, userRow.passwordHash);
+      } else {
+        // Plaintext fallback comparison for legacy records
+        isMatch = password === userRow.passwordHash;
+        if (isMatch) {
+          // Re-hash legacy password on first successful login
+          const newHash = await bcrypt.hash(password, 10);
+          await prisma.user.update({
+            where: { id: userRow.id },
+            data: { passwordHash: newHash },
+          });
+        }
+      }
+
+      if (!isMatch) {
+        return NextResponse.json({ error: 'Invalid password.' }, { status: 401 });
+      }
     }
 
     const user = {
       id: userRow.id,
       name: userRow.fullName,
       phone: userRow.phoneNumber,
-      password: userRow.passwordHash,
       role: userRow.role,
       userType: userRow.userType,
       status: userRow.approvalStatus,
@@ -41,8 +61,8 @@ export async function POST(req: Request) {
       profile: {
         studentId: userRow.profile?.roomNumber || '',
         department: userRow.profile?.department || '',
-        bloodGroup: 'B+',
-        emergencyContact: '',
+        bloodGroup: userRow.profile?.bloodGroup || 'B+',
+        emergencyContact: userRow.profile?.emergencyContact || '',
         hostelName: userRow.profile?.hostelName || 'Main Hostel',
       },
     };

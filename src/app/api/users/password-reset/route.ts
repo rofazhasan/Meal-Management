@@ -1,23 +1,29 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
     const { phone } = await req.json();
+    const cleanPhone = (phone || '').trim();
 
-    if (!phone) {
-      return NextResponse.json({ error: 'phone is required' }, { status: 400 });
+    if (!cleanPhone) {
+      return NextResponse.json({ error: 'Phone number is required.' }, { status: 400 });
     }
 
-    if (process.env.DATABASE_URL) {
-      await pool.query(
-        `UPDATE users SET is_password_reset_requested = TRUE, password_reset_requested_at = CURRENT_TIMESTAMP WHERE phone_number = $1;`,
-        [phone.trim()]
-      );
-    }
+    await prisma.user.update({
+      where: { phoneNumber: cleanPhone },
+      data: {
+        isPasswordResetRequested: true,
+        passwordResetRequestedAt: new Date(),
+      },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    console.error('Password reset request error:', error);
     return NextResponse.json({ error: error.message || 'Password reset request failed' }, { status: 500 });
   }
 }
@@ -30,22 +36,29 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
-    if (process.env.DATABASE_URL) {
-      if (action === 'reject') {
-        await pool.query(
-          `UPDATE users SET is_password_reset_requested = FALSE, password_reset_requested_at = NULL WHERE id = $1;`,
-          [userId]
-        );
-      } else {
-        await pool.query(
-          `UPDATE users SET password_hash = $1, is_password_reset_requested = FALSE, password_reset_requested_at = NULL WHERE id = $2;`,
-          [newPassword || '123456', userId]
-        );
-      }
+    if (action === 'reject') {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          isPasswordResetRequested: false,
+          passwordResetRequestedAt: null,
+        },
+      });
+    } else {
+      const hashedPassword = await bcrypt.hash(newPassword || '123456', 10);
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          passwordHash: hashedPassword,
+          isPasswordResetRequested: false,
+          passwordResetRequestedAt: null,
+        },
+      });
     }
 
     return NextResponse.json({ success: true, userId });
   } catch (error: any) {
+    console.error('Password reset action error:', error);
     return NextResponse.json({ error: error.message || 'Password reset action failed' }, { status: 500 });
   }
 }

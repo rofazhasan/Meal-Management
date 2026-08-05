@@ -1,23 +1,24 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    if (process.env.DATABASE_URL) {
-      const res = await pool.query(`
-        SELECT 
-          id, 
-          to_char(start_date, 'YYYY-MM-DD') AS date, 
-          to_char(end_date, 'YYYY-MM-DD') AS "endDate", 
-          reason, 
-          closed_meals AS "closedMeals", 
-          to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt"
-        FROM emergency_closures
-        ORDER BY start_date DESC;
-      `);
-      return NextResponse.json(res.rows);
-    }
-    return NextResponse.json([]);
+    const settings = await prisma.mealSetting.findMany({
+      where: { emergencyOff: true },
+      orderBy: { mealDate: 'desc' },
+    });
+
+    const formatted = settings.map((s) => ({
+      id: s.id,
+      date: s.mealDate.toISOString().split('T')[0],
+      reason: s.emergencyReason || 'Emergency Closure',
+      closedMeals: ['breakfast', 'lunch', 'dinner'],
+      createdAt: s.createdAt.toISOString(),
+    }));
+
+    return NextResponse.json(formatted);
   } catch (error: any) {
     return NextResponse.json([]);
   }
@@ -25,26 +26,32 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { date, endDate, reason, closedMeals } = await req.json();
+    const { date, reason } = await req.json();
+    const mealDate = new Date(date || new Date());
 
-    let closure: any = {
-      id: `em-${Date.now()}`,
-      date,
-      endDate: endDate || date,
-      reason,
-      closedMeals: closedMeals || ['breakfast', 'lunch', 'dinner'],
-      createdAt: new Date().toISOString(),
+    const upserted = await prisma.mealSetting.upsert({
+      where: { mealDate },
+      update: {
+        emergencyOff: true,
+        emergencyReason: reason || 'Emergency Closure',
+      },
+      create: {
+        mealDate,
+        emergencyOff: true,
+        emergencyReason: reason || 'Emergency Closure',
+        breakfastOn: false,
+        lunchOn: false,
+        dinnerOn: false,
+      },
+    });
+
+    const closure = {
+      id: upserted.id,
+      date: upserted.mealDate.toISOString().split('T')[0],
+      reason: upserted.emergencyReason || 'Emergency Closure',
+      closedMeals: ['breakfast', 'lunch', 'dinner'],
+      createdAt: upserted.createdAt.toISOString(),
     };
-
-    if (process.env.DATABASE_URL) {
-      const res = await pool.query(
-        `INSERT INTO emergency_closures (start_date, end_date, reason, closed_meals)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, to_char(start_date, 'YYYY-MM-DD') AS date, to_char(end_date, 'YYYY-MM-DD') AS "endDate", reason, closed_meals AS "closedMeals", to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt";`,
-        [date, endDate || date, reason, closedMeals || ['breakfast', 'lunch', 'dinner']]
-      );
-      if (res.rows.length > 0) closure = res.rows[0];
-    }
 
     return NextResponse.json(closure, { status: 201 });
   } catch (error: any) {

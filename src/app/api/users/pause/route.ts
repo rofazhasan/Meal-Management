@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
@@ -9,20 +11,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
-    let isIndefinitelyPaused = false;
+    const current = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isIndefinitelyPaused: true, isActive: true },
+    });
 
-    if (process.env.DATABASE_URL) {
-      const res = await pool.query(
-        `UPDATE users SET is_indefinitely_paused = NOT COALESCE(is_indefinitely_paused, FALSE) WHERE id = $1 RETURNING is_indefinitely_paused AS "isIndefinitelyPaused";`,
-        [userId]
-      );
-      if (res.rows.length > 0) {
-        isIndefinitelyPaused = res.rows[0].isIndefinitelyPaused;
-      }
+    if (!current) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, userId, isIndefinitelyPaused });
+    const nextPausedState = !current.isIndefinitelyPaused;
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        isIndefinitelyPaused: nextPausedState,
+        isActive: !nextPausedState,
+      },
+    });
+
+    return NextResponse.json({ success: true, userId: updated.id, isIndefinitelyPaused: updated.isIndefinitelyPaused });
   } catch (error: any) {
+    console.error('Failed to toggle pause status:', error);
     return NextResponse.json({ error: error.message || 'Failed to toggle pause' }, { status: 500 });
   }
 }

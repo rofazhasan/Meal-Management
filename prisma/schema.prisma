@@ -1,7 +1,3 @@
-// ==============================================================================
-// MEAL MANAGEMENT APP - PRISMA ORM SCHEMA (V4 ENTERPRISE EDITION)
-// ==============================================================================
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -13,14 +9,7 @@ generator client {
 
 enum UserRole {
   SUPERADMIN
-  OWNER
-  FINANCE_ADMIN
-  MEAL_MANAGER
-  HOSTEL_MANAGER
-  BRANCH_MANAGER
-  AUDITOR
-  SUPPORT_ADMIN
-  READONLY_ADMIN
+  ADMIN
   USER
 }
 
@@ -70,103 +59,34 @@ enum TransactionType {
   DISCOUNT
 }
 
-enum NotificationType {
-  APPROVAL
-  MEAL_CUT
-  WALLET_TOPUP
-  EMERGENCY_OFF
-  LOW_BALANCE
-  MONTHLY_BILL
-  SYSTEM
-  AI_ALERT
-  SECURITY
-}
-
-enum NotificationStatus {
-  UNREAD
-  READ
-}
-
-enum JobStatus {
-  PENDING
-  RUNNING
-  COMPLETED
-  FAILED
-}
-
-enum OutboxStatus {
-  PENDING
-  PROCESSING
-  PUBLISHED
-  FAILED
-}
-
-model Branch {
-  id          String   @id @default(uuid()) @db.Uuid
-  code        String   @unique @db.VarChar(20)
-  name        String   @db.VarChar(100)
-  address     String?  @db.VarChar(255)
-  city        String?  @db.VarChar(50)
-  phone       String?  @db.VarChar(20)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
-
-  users       User[]
-  settings    BranchSetting[]
-  aiInsights  AiInsightSnapshot[]
-
-  @@map("branches")
-}
-
-model RolePermission {
-  id             String   @id @default(uuid()) @db.Uuid
-  role           UserRole
-  permissionKey  String   @map("permission_key") @db.VarChar(100)
-  isAllowed      Boolean  @default(true) @map("is_allowed")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
-
-  @@unique([role, permissionKey], name: "uq_role_permission")
-  @@map("role_permissions")
-}
-
 model User {
-  id              String          @id @default(uuid()) @db.Uuid
-  phoneNumber     String          @unique @map("phone_number") @db.VarChar(15)
-  passwordHash    String          @map("password_hash") @db.VarChar(255)
-  fullName        String          @map("full_name") @db.VarChar(100)
-  email           String?         @db.VarChar(150)
-  role            UserRole        @default(USER)
-  userType        UserType        @default(PERMANENT) @map("user_type")
-  approvalStatus  ApprovalStatus  @default(PENDING) @map("approval_status")
-  branchId        String?         @map("branch_id") @db.Uuid
-  approvedBy      String?         @map("approved_by") @db.Uuid
-  approvedAt      DateTime?       @map("approved_at") @db.Timestamptz
-  isActive        Boolean         @default(true) @map("is_active")
-  isDualMode      Boolean         @default(false) @map("is_dual_mode")
-  activeMode      String          @default("USER") @map("active_mode") @db.VarChar(10) // 'ADMIN' or 'USER'
-  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz
+  id                        String             @id @default(uuid()) @db.Uuid
+  phoneNumber               String             @unique @map("phone_number") @db.VarChar(15)
+  passwordHash              String             @map("password_hash") @db.VarChar(255)
+  fullName                  String             @map("full_name") @db.VarChar(100)
+  email                     String?            @db.VarChar(150)
+  role                      UserRole           @default(USER)
+  userType                  UserType           @default(PERMANENT) @map("user_type")
+  approvalStatus            ApprovalStatus     @default(PENDING) @map("approval_status")
+  isActive                  Boolean            @default(true) @map("is_active")
+  isDualMode                Boolean            @default(false) @map("is_dual_mode")
+  activeMode                String             @default("USER") @map("active_mode") @db.VarChar(10)
+  isIndefinitelyPaused      Boolean            @default(false) @map("is_indefinitely_paused")
+  isPasswordResetRequested  Boolean            @default(false) @map("is_password_reset_requested")
+  passwordResetRequestedAt  DateTime?          @map("password_reset_requested_at") @db.Timestamptz
+  createdAt                 DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                 DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt                 DateTime?          @map("deleted_at") @db.Timestamptz
 
-  branch          Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  approver        User?           @relation("UserApprover", fields: [approvedBy], references: [id])
-  approvedUsers   User[]          @relation("UserApprover")
-  profile         Profile?
-  wallet          Wallet?
-  declarations    MealDeclaration[]
-  consumptions    MealConsumption[]
-  transactions    WalletTransaction[]
-  notifications   Notification[]
-  approvalRequests ApprovalRequest[] @relation("UserApprovalRequest")
-  reviewedRequests ApprovalRequest[] @relation("AdminReviewer")
-  adminActions    AdminAction[]
-  auditLogs       AuditLog[]
-  reportSnapshots ReportSnapshot[]
-  mealSettingsChanged MealSetting[]
+  profile                   Profile?
+  wallet                    Wallet?
+  declarations              MealDeclaration[]
+  consumptions              MealConsumption[]
+  transactions              WalletTransaction[]
+  notifications             Notification[]
+  approvalRequests          ApprovalRequest[]
+  auditLogs                 AuditLog[]
 
-  @@index([approvalStatus, createdAt(sort: Desc)])
-  @@index([branchId, role])
   @@map("users")
 }
 
@@ -174,22 +94,13 @@ model Profile {
   id               String    @id @default(uuid()) @db.Uuid
   userId           String    @unique @map("user_id") @db.Uuid
   avatarUrl        String?   @map("avatar_url")
-  dateOfBirth      DateTime? @map("date_of_birth") @db.Date
-  gender           String?   @db.VarChar(20)
   bloodGroup       String?   @map("blood_group") @db.VarChar(10)
   emergencyContact String?   @map("emergency_contact") @db.VarChar(20)
-  nationalId       String?   @map("national_id") @db.VarChar(50)
   studentId        String?   @map("student_id") @db.VarChar(50)
   department       String?   @db.VarChar(100)
   batch            String?   @db.VarChar(50)
-  semester         String?   @db.VarChar(50)
-  rollNumber       String?   @map("roll_number") @db.VarChar(50)
   hostelName       String?   @map("hostel_name") @db.VarChar(100)
-  building         String?   @db.VarChar(50)
-  floor            String?   @db.VarChar(50)
   roomNumber       String?   @map("room_number") @db.VarChar(50)
-  seatNumber       String?   @map("seat_number") @db.VarChar(50)
-  notes            String?
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -203,7 +114,6 @@ model Wallet {
   userId         String              @unique @map("user_id") @db.Uuid
   currentBalance Decimal             @default(0.00) @map("current_balance") @db.Decimal(12, 2)
   currency       String              @default("BDT") @db.VarChar(3)
-  version        Int                 @default(1)
   createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -221,16 +131,15 @@ model WalletTransaction {
   amount          Decimal         @db.Decimal(12, 2)
   balanceBefore   Decimal         @map("balance_before") @db.Decimal(12, 2)
   balanceAfter    Decimal         @map("balance_after") @db.Decimal(12, 2)
-  referenceType   String          @map("reference_type") @db.VarChar(50)
-  referenceId     String          @map("reference_id") @db.Uuid
+  referenceType   String?         @map("reference_type") @db.VarChar(50)
+  referenceId     String?         @map("reference_id") @db.Uuid
   createdBy       String?         @map("created_by") @db.Uuid
   note            String?
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
 
-  wallet          Wallet          @relation(fields: [walletId], references: [id], onDelete: Restrict)
-  user            User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  wallet          Wallet          @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([walletId, createdAt(sort: Desc)])
   @@map("wallet_transactions")
 }
 
@@ -242,57 +151,10 @@ model MealSetting {
   dinnerOn        Boolean   @default(true) @map("dinner_on")
   emergencyOff    Boolean   @default(false) @map("emergency_off")
   emergencyReason String?   @map("emergency_reason")
-  changedBy       String?   @map("changed_by") @db.Uuid
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  changer         User?     @relation(fields: [changedBy], references: [id], onDelete: SetNull)
-  consumptions    MealConsumption[]
-
   @@map("meal_settings")
-}
-
-model BranchSetting {
-  id            String   @id @default(uuid()) @db.Uuid
-  branchId      String   @map("branch_id") @db.Uuid
-  cutoffTime    String   @default("10:00") @map("cutoff_time") @db.VarChar(5)
-  monthlyCharge Decimal  @default(500.00) @map("monthly_charge") @db.Decimal(12, 2)
-  breakfastCost Decimal  @default(45.00) @map("breakfast_cost") @db.Decimal(12, 2)
-  lunchCost     Decimal  @default(75.00) @map("lunch_cost") @db.Decimal(12, 2)
-  dinnerCost    Decimal  @default(75.00) @map("dinner_cost") @db.Decimal(12, 2)
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
-
-  branch        Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-
-  @@map("branch_settings")
-}
-
-model MealPrice {
-  id            String    @id @default(uuid()) @db.Uuid
-  userType      UserType  @map("user_type")
-  mealType      MealType  @map("meal_type")
-  price         Decimal   @db.Decimal(12, 2)
-  effectiveFrom DateTime  @map("effective_from") @db.Date
-  effectiveTo   DateTime? @map("effective_to") @db.Date
-  createdBy     String?   @map("created_by") @db.Uuid
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-
-  @@map("meal_prices")
-}
-
-model MonthlyCharge {
-  id            String    @id @default(uuid()) @db.Uuid
-  userType      UserType  @map("user_type")
-  month         Int
-  year          Int
-  monthlyAmount Decimal   @map("monthly_amount") @db.Decimal(12, 2)
-  createdBy     String?   @map("created_by") @db.Uuid
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-
-  @@unique([userType, month, year], name: "uq_monthly_charge")
-  @@map("monthly_charges")
 }
 
 model MealDeclaration {
@@ -303,13 +165,10 @@ model MealDeclaration {
   lunchSelected         Boolean        @default(false) @map("lunch_selected")
   dinnerSelected        Boolean        @default(false) @map("dinner_selected")
   sourceType            MealSourceType @default(MANUAL) @map("source_type")
-  copiedFromDate        DateTime?      @map("copied_from_date") @db.Date
-  declaredBeforeDeadline Boolean        @default(true) @map("declared_before_deadline")
   createdAt             DateTime       @default(now()) @map("created_at") @db.Timestamptz
   updatedAt             DateTime       @updatedAt @map("updated_at") @db.Timestamptz
 
   user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  consumptions          MealConsumption[]
 
   @@unique([userId, declarationDate], name: "uq_user_declaration_date")
   @@map("meal_declarations")
@@ -323,145 +182,50 @@ model MealConsumption {
   status              MealConsumptionStatus
   chargeAmount        Decimal               @default(0.00) @map("charge_amount") @db.Decimal(12, 2)
   deductedFromWallet  Boolean               @default(false) @map("deducted_from_wallet")
-  declarationId       String?               @map("declaration_id") @db.Uuid
-  mealSettingId       String?               @map("meal_setting_id") @db.Uuid
   createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz
   updatedAt           DateTime              @updatedAt @map("updated_at") @db.Timestamptz
 
   user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  declaration         MealDeclaration?      @relation(fields: [declarationId], references: [id], onDelete: SetNull)
-  mealSetting         MealSetting?          @relation(fields: [mealSettingId], references: [id], onDelete: SetNull)
 
   @@unique([userId, mealDate, mealType], name: "uq_user_meal_date_type")
-  @@index([mealDate, mealType, status])
   @@map("meal_consumptions")
 }
 
 model ApprovalRequest {
   id          String         @id @default(uuid()) @db.Uuid
   userId      String         @map("user_id") @db.Uuid
-  submittedAt DateTime       @default(now()) @map("submitted_at") @db.Timestamptz
-  reviewedBy  String?        @map("reviewed_by") @db.Uuid
-  reviewedAt  DateTime?      @map("reviewed_at") @db.Timestamptz
   status      ApprovalStatus @default(PENDING)
   remark      String?
   createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz
 
-  user        User           @relation("UserApprovalRequest", fields: [userId], references: [id], onDelete: Cascade)
-  reviewer    User?          @relation("AdminReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("approval_requests")
 }
 
 model Notification {
-  id        String             @id @default(uuid()) @db.Uuid
-  userId    String             @map("user_id") @db.Uuid
-  title     String             @db.VarChar(150)
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  title     String   @db.VarChar(150)
   message   String
-  type      NotificationType   @default(SYSTEM)
-  status    NotificationStatus @default(UNREAD)
-  readAt    DateTime?          @map("read_at") @db.Timestamptz
-  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, createdAt(sort: Desc)])
   @@map("notifications")
-}
-
-model AdminAction {
-  id           String   @id @default(uuid()) @db.Uuid
-  adminUserId  String   @map("admin_user_id") @db.Uuid
-  actionType   String   @map("action_type") @db.VarChar(100)
-  targetEntity String   @map("target_entity") @db.VarChar(50)
-  targetId     String   @map("target_id") @db.Uuid
-  payloadJson  Json     @default("{}") @map("payload_json")
-  reason       String
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
-
-  admin        User     @relation(fields: [adminUserId], references: [id], onDelete: Restrict)
-
-  @@map("admin_actions")
 }
 
 model AuditLog {
   id          String    @id @default(uuid()) @db.Uuid
   actorUserId String?   @map("actor_user_id") @db.Uuid
-  actorRole   UserRole? @map("actor_role")
-  entityType  String    @map("entity_type") @db.VarChar(50)
-  entityId    String    @map("entity_id") @db.Uuid
   action      String    @db.VarChar(50)
-  beforeJson  Json?     @map("before_json")
-  afterJson   Json?     @map("after_json")
+  details     String?
   ipAddress   String?   @map("ip_address") @db.VarChar(45)
-  userAgent   String?   @map("user_agent")
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
   actor       User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@map("audit_logs")
-}
-
-model AiInsightSnapshot {
-  id                 String   @id @default(uuid()) @db.Uuid
-  branchId           String?  @map("branch_id") @db.Uuid
-  summaryText        String   @map("summary_text")
-  revenueForecast    Decimal  @map("revenue_forecast") @db.Decimal(12, 2)
-  predictedMealCount Int      @map("predicted_meal_count")
-  riskScore          String   @map("risk_score") @db.VarChar(20) // 'LOW', 'MODERATE', 'HIGH'
-  recommendations    Json     @default("[]")
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
-
-  branch             Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
-
-  @@map("ai_insight_snapshots")
-}
-
-model SystemJob {
-  id           String    @id @default(uuid()) @db.Uuid
-  jobName      String    @map("job_name") @db.VarChar(100)
-  jobDate      DateTime  @map("job_date") @db.Date
-  status       JobStatus @default(PENDING)
-  startedAt    DateTime? @map("started_at") @db.Timestamptz
-  finishedAt   DateTime? @map("finished_at") @db.Timestamptz
-  errorMessage String?   @map("error_message")
-  metadataJson Json      @default("{}") @map("metadata_json")
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
-
-  @@unique([jobName, jobDate], name: "uq_job_name_date")
-  @@map("system_jobs")
-}
-
-model OutboxEvent {
-  id            String       @id @default(uuid()) @db.Uuid
-  aggregateType String       @map("aggregate_type") @db.VarChar(50)
-  aggregateId   String       @map("aggregate_id") @db.Uuid
-  eventType     String       @map("event_type") @db.VarChar(100)
-  payloadJson   Json         @map("payload_json")
-  status        OutboxStatus @default(PENDING)
-  attempts      Int          @default(0)
-  nextRetryAt   DateTime     @default(now()) @map("next_retry_at") @db.Timestamptz
-  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz
-  publishedAt   DateTime?    @map("published_at") @db.Timestamptz
-
-  @@index([status, nextRetryAt])
-  @@map("outbox_events")
-}
-
-model ReportSnapshot {
-  id             String                @id @default(uuid()) @db.Uuid
-  snapshotDate   DateTime              @map("snapshot_date") @db.Date
-  userId         String                @map("user_id") @db.Uuid
-  breakfastStatus MealConsumptionStatus @map("breakfast_status")
-  lunchStatus    MealConsumptionStatus @map("lunch_status")
-  dinnerStatus   MealConsumptionStatus @map("dinner_status")
-  totalMealCost  Decimal               @default(0.00) @map("total_meal_cost") @db.Decimal(12, 2)
-  balanceAfter   Decimal               @map("balance_after") @db.Decimal(12, 2)
-  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz
-
-  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([snapshotDate, userId], name: "uq_report_snapshot_user_date")
-  @@map("report_snapshots")
 }

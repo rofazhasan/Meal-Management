@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { UserRole, UserType } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,10 +14,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Name and phone number are required.' }, { status: 400 });
     }
 
+    const rawPassword = password || '123456';
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
+
     const created = await prisma.user.create({
       data: {
         phoneNumber: cleanPhone,
-        passwordHash: password || '123456',
+        passwordHash: hashedPassword,
         fullName: name,
         role: (role in UserRole ? role : 'USER') as UserRole,
         userType: (userType in UserType ? userType : 'PERMANENT') as UserType,
@@ -37,7 +41,6 @@ export async function POST(req: Request) {
       id: created.id,
       name: created.fullName,
       phone: created.phoneNumber,
-      password: created.passwordHash,
       role: created.role,
       userType: created.userType,
       status: created.approvalStatus,
