@@ -569,7 +569,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
             <div>
               <div className="flex justify-between text-xs font-semibold mb-1">
                 <span className="text-slate-300">{BN.permanentRevenue}</span>
-                <span className="text-cyan-300 font-mono">৳{metrics.permanentRevenue.toLocaleString()}</span>
+                <span className="text-cyan-300 font-mono">৳{(metrics.permanentRevenue || 0).toLocaleString()}</span>
               </div>
               <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
                 <div className="bg-gradient-to-r from-cyan-500 to-sky-400 h-full w-[80%]" />
@@ -579,7 +579,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
             <div>
               <div className="flex justify-between text-xs font-semibold mb-1">
                 <span className="text-slate-300">{BN.guestRevenue}</span>
-                <span className="text-amber-300 font-mono">৳{metrics.guestRevenue.toLocaleString()}</span>
+                <span className="text-amber-300 font-mono">৳{(metrics.guestRevenue || 0).toLocaleString()}</span>
               </div>
               <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
                 <div className="bg-gradient-to-r from-amber-500 to-yellow-400 h-full w-[25%]" />

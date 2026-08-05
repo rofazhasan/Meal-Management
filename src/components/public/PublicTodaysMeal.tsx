@@ -384,7 +384,7 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
             <div>
               <div className="text-xs font-semibold text-slate-400 font-sans">আজকের মেসের মোট মিলের আনুমানিক মূল্য / টাকা (Grand Total)</div>
               <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight flex items-baseline gap-2">
-                <span>৳ {stats.totalMealMoney.toLocaleString('bn-BD')}</span>
+                <span>৳ {(stats.totalMealMoney || 0).toLocaleString('bn-BD')}</span>
                 <span className="text-xs font-normal text-emerald-300/70 font-sans">আজকের সর্বমোট বরাদ্দ</span>
               </div>
             </div>

@@ -38,7 +38,7 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
     window.requestAnimationFrame(step);
   }, [value]);
 
-  const formatted = displayValue.toLocaleString('bn-BD', {
+  const formatted = (displayValue ?? 0).toLocaleString('bn-BD', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });

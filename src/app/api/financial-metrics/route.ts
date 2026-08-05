@@ -6,6 +6,16 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const metrics = {
+      todayCollection: 15000,
+      monthlyCollection: 125000,
+      yearlyCollection: 1450000,
+      todayExpenses: 8500,
+      netProfit: 41000,
+      outstandingBalance: 12000,
+      totalWalletBalance: 85000,
+      totalRefunds: 2500,
+      permanentRevenue: 95000,
+      guestRevenue: 30000,
       totalCollected: 125000,
       totalSpent: 84000,
       netReserve: 41000,
@@ -15,6 +25,11 @@ export async function GET() {
       monthlyEstCost: 110000,
       activeUsersCount: 45,
       pausedUsersCount: 2,
+      topSpenders: [
+        { name: 'Tanvir Hossain', phone: '01711111111', amount: 3500 },
+        { name: 'Saiko Saikat', phone: '01846145521', amount: 2800 },
+      ],
+      lowBalanceUsersCount: 3,
     };
 
     if (process.env.DATABASE_URL) {
@@ -38,6 +53,7 @@ export async function GET() {
         });
 
         metrics.totalCollected = Number(collected._sum.amount || 0);
+        metrics.monthlyCollection = metrics.totalCollected;
         metrics.activeUsersCount = activeCount;
         metrics.pausedUsersCount = pausedCount;
         metrics.pendingRechargesCount = pendingRecharges._count || 0;
