@@ -41,6 +41,7 @@ const queryClient = new QueryClient({
 
 const MainApplication: React.FC = () => {
   const qc = useQueryClient();
+  const [mounted, setMounted] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [unauthView, setUnauthView] = useState<'public-meals' | 'login'>('public-meals');
@@ -49,6 +50,7 @@ const MainApplication: React.FC = () => {
 
   // Load active user on mount
   useEffect(() => {
+    setMounted(true);
     ApiService.getCurrentUser().then((u) => {
       if (u) {
         setCurrentUser(u);
@@ -177,6 +179,10 @@ const MainApplication: React.FC = () => {
       setActiveTab('dashboard');
     }
   }, [isAdmin, activeTab, currentUser]);
+
+  if (!mounted) {
+    return null;
+  }
 
   if (!currentUser || currentUser.status === 'PENDING') {
     return (
