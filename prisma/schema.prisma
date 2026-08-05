@@ -18,23 +18,31 @@ enum UserRole {
   AUDITOR
   SUPPORT_ADMIN
   READONLY_ADMIN
+
+  @@map("user_role")
 }
 
 enum UserType {
   PERMANENT
   GUEST
+
+  @@map("user_type")
 }
 
 enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+
+  @@map("approval_status")
 }
 
 enum MealType {
   BREAKFAST
   LUNCH
   DINNER
+
+  @@map("meal_type")
 }
 
 enum MealSourceType {
@@ -42,6 +50,8 @@ enum MealSourceType {
   COPIED
   ADMIN_OVERRIDE
   SYSTEM_DEFAULT
+
+  @@map("meal_source_type")
 }
 
 enum MealConsumptionStatus {
@@ -52,6 +62,8 @@ enum MealConsumptionStatus {
   COPIED
   PAID
   FAILED
+
+  @@map("meal_consumption_status")
 }
 
 enum TransactionType {
@@ -66,6 +78,8 @@ enum TransactionType {
   DISCOUNT
   RECHARGE
   CASH_PAID
+
+  @@map("transaction_type")
 }
 
 model User {
