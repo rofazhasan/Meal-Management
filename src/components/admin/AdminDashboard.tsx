@@ -10,6 +10,7 @@ import { EmptyState } from '../common/EmptyState';
 import { ApiService } from '../../services/apiService';
 import { ReceiptModal } from '../common/ReceiptModal';
 import { getBangladeshDateStr } from '../../utils/dateUtils';
+import { getUserMealStateForDate } from '../../utils/mealUtils';
 
 interface AdminDashboardProps {
   currentAdmin: User;
@@ -108,25 +109,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const todayStr = getBangladeshDateStr();
-  const todayDecs = declarations.filter(d => d.date === todayStr);
 
-  const isBGlobalOff = rates?.globalMealStatus?.breakfast === false;
-  const isLGlobalOff = rates?.globalMealStatus?.lunch === false;
-  const isDGlobalOff = rates?.globalMealStatus?.dinner === false;
-
-  // FIX 14: Check per-meal emergency closure instead of blanking ALL meals on any emergency
   const emergencyToday = emergencies.find(em => {
     const start = em.date;
     const end = em.endDate || em.date;
     return todayStr >= start && todayStr <= end;
   });
-  const isBEmergencyOff = !!emergencyToday && emergencyToday.closedMeals.includes('breakfast');
-  const isLEmergencyOff = !!emergencyToday && emergencyToday.closedMeals.includes('lunch');
-  const isDEmergencyOff = !!emergencyToday && emergencyToday.closedMeals.includes('dinner');
 
-  const todayBreakfasts = (isBEmergencyOff || isBGlobalOff) ? 0 : todayDecs.filter(d => d.breakfast).length;
-  const todayLunches = (isLEmergencyOff || isLGlobalOff) ? 0 : todayDecs.filter(d => d.lunch).length;
-  const todayDinners = (isDEmergencyOff || isDGlobalOff) ? 0 : todayDecs.filter(d => d.dinner).length;
+  let todayBreakfasts = 0;
+  let todayLunches = 0;
+  let todayDinners = 0;
+
+  activeUsers.forEach((u) => {
+    const dec = declarations.find((d) => d.userId === u.id && d.date === todayStr);
+    const state = getUserMealStateForDate(u, todayStr, dec, rates, emergencyToday);
+    if (state.breakfast) todayBreakfasts++;
+    if (state.lunch) todayLunches++;
+    if (state.dinner) todayDinners++;
+  });
 
   // Emergency Off Form state (Supports Date Range)
   const [emergencyStartDate, setEmergencyStartDate] = useState(todayStr);

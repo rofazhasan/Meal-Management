@@ -7,6 +7,7 @@ import { User, MealDeclaration, MealRateConfig, SpecialMeal, EmergencyClosure } 
 import { BN } from '../../constants/banglaText';
 import { getBangladeshDateStr, getDayOfWeekFromDateStr } from '../../utils/dateUtils';
 import { ApiService } from '../../services/apiService';
+import { getUserMealStateForDate } from '../../utils/mealUtils';
 
 interface CookReportProps {
   users: User[];
@@ -74,18 +75,11 @@ export const CookReport: React.FC<CookReportProps> = ({
   if (!isFetching) {
     activeUsers.forEach((user) => {
       const userDec = rawDeclarations.find((d) => d.userId === user.id);
-      
-      const userRates = user.userType === 'GUEST' ? (rates?.guest || { breakfast: 40, lunch: 80, dinner: 80 }) : (rates?.permanent || { breakfast: 30, lunch: 60, dinner: 60 });
-      const minMealCost = Math.min(userRates.breakfast, userRates.lunch, userRates.dinner);
-      const defaultActive = !user.isIndefinitelyPaused && user.walletBalance >= minMealCost;
+      const state = getUserMealStateForDate(user, selectedDate, userDec, rates, emergencyForDate);
 
-      const breakfastOn = userDec ? userDec.breakfast : defaultActive;
-      const lunchOn = userDec ? userDec.lunch : defaultActive;
-      const dinnerOn = userDec ? userDec.dinner : defaultActive;
-
-      if (!isBGlobalOff && !isBEmergencyOff && breakfastOn) breakfastMembers.push(user);
-      if (!isLGlobalOff && !isLEmergencyOff && lunchOn)     lunchMembers.push(user);
-      if (!isDGlobalOff && !isDEmergencyOff && dinnerOn)    dinnerMembers.push(user);
+      if (state.breakfast) breakfastMembers.push(user);
+      if (state.lunch)     lunchMembers.push(user);
+      if (state.dinner)    dinnerMembers.push(user);
     });
   }
 

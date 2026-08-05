@@ -6,6 +6,7 @@ import { User, MealDeclaration, SpecialMeal, MealRateConfig, EmergencyClosure } 
 import { ApiService } from '../../services/apiService';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { getBangladeshDateStr, getBangladeshTomorrowStr } from '../../utils/dateUtils';
+import { getUserMealStateForDate } from '../../utils/mealUtils';
 
 interface BulkMealControlProps {
   users: User[];
@@ -65,29 +66,11 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
 
     approvedUsers.forEach((u) => {
       const dec = declarations.find((d) => d.userId === u.id && d.date === selectedDate);
-      const userRates = u.userType === 'GUEST' ? (rates?.guest || { breakfast: 40, lunch: 80, dinner: 80 }) : (rates?.permanent || { breakfast: 30, lunch: 60, dinner: 60 });
-      const minMealCost = Math.min(userRates.breakfast, userRates.lunch, userRates.dinner);
-      const isBalanceSufficient = u.walletBalance >= minMealCost;
-
-      if (dec) {
-        newMap[u.id] = {
-          breakfast: isBEmergencyOff || isBGlobalOff ? false : dec.breakfast,
-          lunch: isLEmergencyOff || isLGlobalOff ? false : dec.lunch,
-          dinner: isDEmergencyOff || isDGlobalOff ? false : dec.dinner,
-        };
-      } else {
-        // Safe Default Rule: If user is indefinitely paused OR has insufficient balance (< min meal cost), default to false!
-        const defaultActive = !u.isIndefinitelyPaused && isBalanceSufficient;
-        newMap[u.id] = {
-          breakfast: isBEmergencyOff || isBGlobalOff ? false : defaultActive,
-          lunch: isLEmergencyOff || isLGlobalOff ? false : defaultActive,
-          dinner: isDEmergencyOff || isDGlobalOff ? false : defaultActive,
-        };
-      }
+      newMap[u.id] = getUserMealStateForDate(u, selectedDate, dec, rates, emergencyForDate);
     });
 
     setMealMap(newMap);
-  }, [selectedDate, declarations, users, emergencies, rates, isBEmergencyOff, isLEmergencyOff, isDEmergencyOff, isBGlobalOff, isLGlobalOff, isDGlobalOff]);
+  }, [selectedDate, declarations, users, emergencies, rates, emergencyForDate]);
 
   // Special meal info for selected date
   const specialObj = specialMeals.find(

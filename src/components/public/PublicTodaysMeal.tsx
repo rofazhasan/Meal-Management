@@ -35,6 +35,7 @@ import { User, MealDeclaration, MealRateConfig, SpecialMeal } from '../../types'
 import { BN } from '../../constants/banglaText';
 import { AppLogo } from '../common/AppLogo';
 import { getBangladeshDateStr, getBangladeshNow } from '../../utils/dateUtils';
+import { getUserMealStateForDate } from '../../utils/mealUtils';
 
 interface PublicTodaysMealProps {
   users: User[];
