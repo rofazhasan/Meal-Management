@@ -11,6 +11,13 @@ enum UserRole {
   SUPERADMIN
   ADMIN
   USER
+  OWNER
+  FINANCE_ADMIN
+  MEAL_MANAGER
+  HOSTEL_MANAGER
+  AUDITOR
+  SUPPORT_ADMIN
+  READONLY_ADMIN
 }
 
 enum UserType {
@@ -57,6 +64,8 @@ enum TransactionType {
   MONTHLY_CHARGE
   PENALTY
   DISCOUNT
+  RECHARGE
+  CASH_PAID
 }
 
 model User {
