@@ -8,18 +8,21 @@ import { UserRole } from '@prisma/client';
  */
 export function getBgdNow(): Date {
   const now = new Date();
-  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-  return new Date(utc + 3600000 * 6);
+  const bdTimeString = now.toLocaleString('en-US', { timeZone: 'Asia/Dhaka' });
+  return new Date(bdTimeString);
 }
 
 /**
  * Converts a Date or ISO string to standard BST 'YYYY-MM-DD' date string.
  */
-export function getBgdDateStr(d: Date | string = new Date()): string {
-  const dateObj = typeof d === 'string' ? new Date(d) : d;
-  const utc = dateObj.getTime() + dateObj.getTimezoneOffset() * 60000;
-  const bgdDate = new Date(utc + 3600000 * 6);
-  return bgdDate.toISOString().split('T')[0];
+export function getBgdDateStr(d: Date | string = getBgdNow()): string {
+  if (typeof d === 'string') {
+    return d.split('T')[0];
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**

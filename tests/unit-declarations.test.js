@@ -85,5 +85,14 @@ export async function runSuite() {
     assert.strictEqual(lockCheck.reason, "Today's meal cutoff time (09:00) has passed.");
   });
 
+  test('isMealDateLocked allows modifying tomorrow date even after today evening cutoff has passed', () => {
+    // Simulate time at 07:44 PM (19:44) on Aug 6 with cutoff set to 09:00 AM
+    const simNowEvening = new Date('2026-08-06T19:44:00+06:00');
+    // Tomorrow is Aug 7
+    const lockCheckTomorrow = isMealDateLocked('2026-08-07', '09:00', simNowEvening);
+
+    assert.strictEqual(lockCheckTomorrow.isLocked, false);
+  });
+
   return { total: passed + failed, passed, failed };
 }
