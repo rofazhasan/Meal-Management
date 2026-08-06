@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
-import { BarChart3, Calendar, Utensils, CheckCircle2, Copy, PieChart, Printer, DollarSign } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { BarChart3, Calendar, Utensils, CheckCircle2, Copy, PieChart, Printer, DollarSign, Download, Filter, Search, AlertCircle } from 'lucide-react';
 import { User, MealDeclaration, MealRateConfig, SpecialMeal, EmergencyClosure } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
-
-import { getDayOfWeekFromDateStr } from '../../utils/dateUtils';
+import { getDayOfWeekFromDateStr, getBangladeshDateStr, getBangladeshNow } from '../../utils/dateUtils';
 
 interface UserReportsProps {
   currentUser: User;
@@ -18,9 +17,8 @@ interface UserReportsProps {
 }
 
 export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarations, rates, specialMeals = [], emergencies = [] }) => {
-  const [activeRange, setActiveRange] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
-
-  const userDecs = declarations.filter(d => d.userId === currentUser.id);
+  const [activeRange, setActiveRange] = useState<'daily' | 'weekly' | 'monthly' | 'all'>('monthly');
+  const [searchDate, setSearchDate] = useState('');
 
   const defaultRates = {
     breakfast: currentUser.userType === 'PERMANENT' ? 40 : 50,
@@ -32,11 +30,14 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
     ? (currentUser.userType === 'PERMANENT' ? rates.permanent : rates.guest)
     : defaultRates;
 
-  const totalBreakfasts = userDecs.filter(d => d.breakfast).length;
-  const totalLunches = userDecs.filter(d => d.lunch).length;
-  const totalDinners = userDecs.filter(d => d.dinner).length;
-  const autoCopiedCount = userDecs.filter(d => d.isAutoCopied).length;
-  const totalMealsCount = totalBreakfasts + totalLunches + totalDinners;
+  const isBGlobalOff = rates?.globalMealStatus?.breakfast === false;
+  const isLGlobalOff = rates?.globalMealStatus?.lunch === false;
+  const isDGlobalOff = rates?.globalMealStatus?.dinner === false;
+
+  const rawUserDecs = useMemo(
+    () => declarations.filter(d => d.userId === currentUser.id),
+    [declarations, currentUser.id]
+  );
 
   const getSpecialMealForTypeAndDate = (dateStr: string, type: 'breakfast' | 'lunch' | 'dinner') => {
     const dayOfWeek = getDayOfWeekFromDateStr(dateStr);
@@ -49,25 +50,137 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
     });
   };
 
-  const totalMoneySpent = userDecs.reduce((sum, dec) => {
-    const specB = getSpecialMealForTypeAndDate(dec.date, 'breakfast');
-    const specL = getSpecialMealForTypeAndDate(dec.date, 'lunch');
-    const specD = getSpecialMealForTypeAndDate(dec.date, 'dinner');
+  // Filter declarations based on active range (daily / weekly / monthly / all)
+  const rangeFilteredDecs = useMemo(() => {
+    const todayStr = getBangladeshDateStr();
 
-    const bPrice = specB ? specB.customRate : userRates.breakfast;
-    const lPrice = specL ? specL.customRate : userRates.lunch;
-    const dPrice = specD ? specD.customRate : userRates.dinner;
+    if (activeRange === 'daily') {
+      return rawUserDecs.filter(d => d.date === todayStr);
+    }
 
-    return sum + (dec.breakfast ? bPrice : 0) + (dec.lunch ? lPrice : 0) + (dec.dinner ? dPrice : 0);
-  }, 0);
+    if (activeRange === 'weekly') {
+      const now = getBangladeshNow();
+      const past7 = new Date(now);
+      past7.setDate(past7.getDate() - 7);
+      const past7Str = getBangladeshDateStr(past7);
+      return rawUserDecs.filter(d => d.date >= past7Str && d.date <= todayStr);
+    }
+
+    if (activeRange === 'monthly') {
+      const now = getBangladeshNow();
+      const past30 = new Date(now);
+      past30.setDate(past30.getDate() - 30);
+      const past30Str = getBangladeshDateStr(past30);
+      return rawUserDecs.filter(d => d.date >= past30Str && d.date <= todayStr);
+    }
+
+    return rawUserDecs;
+  }, [rawUserDecs, activeRange]);
+
+  // Enrich each declaration with accurate global/emergency status and effective pricing
+  const processedDecs = useMemo(() => {
+    return rangeFilteredDecs.map((dec) => {
+      const dayEm = emergencies.find(e => dec.date >= e.date && dec.date <= (e.endDate || e.date));
+
+      const isBEm = !!dayEm && (!dayEm.closedMeals || dayEm.closedMeals.length === 0 || dayEm.closedMeals.includes('breakfast'));
+      const isLEm = !!dayEm && (!dayEm.closedMeals || dayEm.closedMeals.length === 0 || dayEm.closedMeals.includes('lunch'));
+      const isDEm = !!dayEm && (!dayEm.closedMeals || dayEm.closedMeals.length === 0 || dayEm.closedMeals.includes('dinner'));
+
+      // Meal is ON ONLY IF not globally off, not emergency closed, and selected by user
+      const isBOn = !isBGlobalOff && !isBEm && dec.breakfast;
+      const isLOn = !isLGlobalOff && !isLEm && dec.lunch;
+      const isDOn = !isDGlobalOff && !isDEm && dec.dinner;
+
+      const specB = getSpecialMealForTypeAndDate(dec.date, 'breakfast');
+      const specL = getSpecialMealForTypeAndDate(dec.date, 'lunch');
+      const specD = getSpecialMealForTypeAndDate(dec.date, 'dinner');
+
+      const bPrice = isBGlobalOff || isBEm ? 0 : (specB ? specB.customRate : userRates.breakfast);
+      const lPrice = isLGlobalOff || isLEm ? 0 : (specL ? specL.customRate : userRates.lunch);
+      const dPrice = isDGlobalOff || isDEm ? 0 : (specD ? specD.customRate : userRates.dinner);
+
+      const dailyCost = (isBOn ? bPrice : 0) + (isLOn ? lPrice : 0) + (isDOn ? dPrice : 0);
+
+      return {
+        ...dec,
+        dayEm,
+        isBEm,
+        isLEm,
+        isDEm,
+        isBGlobalOff,
+        isLGlobalOff,
+        isDGlobalOff,
+        isBOn,
+        isLOn,
+        isDOn,
+        specB,
+        specL,
+        specD,
+        bPrice,
+        lPrice,
+        dPrice,
+        dailyCost,
+      };
+    });
+  }, [rangeFilteredDecs, emergencies, isBGlobalOff, isLGlobalOff, isDGlobalOff, userRates]);
+
+  // Final table list after user search/date filter
+  const displayedDecs = useMemo(() => {
+    if (!searchDate.trim()) return processedDecs;
+    const term = searchDate.trim();
+    return processedDecs.filter(d => d.date.includes(term));
+  }, [processedDecs, searchDate]);
+
+  // Metrics computed STRICTLY using processed effective meal states
+  const totalBreakfasts = processedDecs.filter(d => d.isBOn).length;
+  const totalLunches = processedDecs.filter(d => d.isLOn).length;
+  const totalDinners = processedDecs.filter(d => d.isDOn).length;
+  const autoCopiedCount = processedDecs.filter(d => d.isAutoCopied).length;
+  const totalMealsCount = totalBreakfasts + totalLunches + totalDinners;
+  const totalMoneySpent = processedDecs.reduce((sum, d) => sum + d.dailyCost, 0);
 
   const breakfastPercentage = totalMealsCount > 0 ? Math.round((totalBreakfasts / totalMealsCount) * 100) : 0;
   const lunchPercentage = totalMealsCount > 0 ? Math.round((totalLunches / totalMealsCount) * 100) : 0;
   const dinnerPercentage = totalMealsCount > 0 ? Math.round((totalDinners / totalMealsCount) * 100) : 0;
 
+  // CSV Exporter
+  const handleExportCSV = () => {
+    const headers = ['তারিখ', 'নাস্তা', 'দুপুর', 'রাত', 'দৈনিক খরচ (টাকা)', 'এন্ট্রি টাইপ'];
+    const rows = processedDecs.map(d => [
+      d.date,
+      d.isBEm ? 'জরুরি বন্ধ' : d.isBGlobalOff ? 'গ্লোবাল বন্ধ' : d.isBOn ? `অন (${d.bPrice}tk)` : 'অফ',
+      d.isLEm ? 'জরুরি বন্ধ' : d.isLGlobalOff ? 'গ্লোবাল বন্ধ' : d.isLOn ? `অন (${d.lPrice}tk)` : 'অফ',
+      d.isDEm ? 'জরুরি বন্ধ' : d.isDGlobalOff ? 'গ্লোবাল বন্ধ' : d.isDOn ? `অন (${d.dPrice}tk)` : 'অফ',
+      d.dailyCost,
+      d.dayEm ? 'জরুরি নোটিশ' : d.isAutoCopied ? 'অটো-কপি' : 'ইউজার ডিক্লেয়ারড'
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `meal_report_${currentUser.name}_${activeRange}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6 pb-24 max-w-4xl mx-auto animate-scale-in">
       
+      {/* Global Off Notice Banner if any meal is globally disabled */}
+      {(isBGlobalOff || isLGlobalOff || isDGlobalOff) && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-3 shadow-lg">
+          <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+          <div>
+            <span className="font-bold text-amber-200">এডমিন গ্লোবাল অফ অ্যালার্ট: </span>
+            {isBGlobalOff && 'সকালের নাস্তা '}
+            {isLGlobalOff && 'দুপুরের খাবার '}
+            {isDGlobalOff && 'রাতের খাবার '}
+            এডমিন কর্তৃক বিশ্বব্যাপী বন্ধ রাখা হয়েছে। বন্ধকৃত মিলগুলোর বাবদ কোনো টাকা কাটা বা হিসেব করা হবে না।
+          </div>
+        </div>
+      )}
+
       {/* Header & Range Selector */}
       <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xl">
         <div>
@@ -78,23 +191,32 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
             {BN.reports} ও এনালিটিক্স
           </h2>
           <p className="text-xs text-slate-400 mt-1 font-sans">
-            আপনার খাবার গ্রহণ ও প্রতিদিনের আনুমানিক খরচের বিবরণী
+            আপনার খাবার গ্রহণ ও প্রতিদিনের নিখুঁত খরচের বিবরণী
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button
+            onClick={handleExportCSV}
+            className="px-3.5 py-2 rounded-2xl bg-slate-900 border border-slate-700 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 shadow-sm print:hidden"
+            title="CSV এক্সপোর্ট"
+          >
+            <Download className="w-4 h-4 text-emerald-400" />
+            <span>CSV ডাউনলোড</span>
+          </button>
+
+          <button
             onClick={() => window.print()}
-            className="px-4 py-2 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold flex items-center gap-2 transition-all active:scale-95 shadow-sm print:hidden"
+            className="px-3.5 py-2 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 shadow-sm print:hidden"
           >
             <Printer className="w-4 h-4 text-cyan-400" />
-            <span>প্রিন্ট স্টেটমেন্ট (Print Report)</span>
+            <span>প্রিন্ট স্টেটমেন্ট</span>
           </button>
 
           <div className="flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 text-xs font-bold shadow-inner print:hidden">
             <button
               onClick={() => setActiveRange('daily')}
-              className={`px-3.5 py-1.5 rounded-xl transition-all active:scale-95 ${
+              className={`px-3 py-1.5 rounded-xl transition-all active:scale-95 ${
                 activeRange === 'daily' ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -102,7 +224,7 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
             </button>
             <button
               onClick={() => setActiveRange('weekly')}
-              className={`px-3.5 py-1.5 rounded-xl transition-all active:scale-95 ${
+              className={`px-3 py-1.5 rounded-xl transition-all active:scale-95 ${
                 activeRange === 'weekly' ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -110,11 +232,19 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
             </button>
             <button
               onClick={() => setActiveRange('monthly')}
-              className={`px-3.5 py-1.5 rounded-xl transition-all active:scale-95 ${
+              className={`px-3 py-1.5 rounded-xl transition-all active:scale-95 ${
                 activeRange === 'monthly' ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               মাসিক
+            </button>
+            <button
+              onClick={() => setActiveRange('all')}
+              className={`px-3 py-1.5 rounded-xl transition-all active:scale-95 ${
+                activeRange === 'all' ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              সব
             </button>
           </div>
         </div>
@@ -160,7 +290,7 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-slate-100 text-sm font-display flex items-center gap-2">
             <PieChart className="w-4 h-4 text-cyan-400" />
-            মিল খাবার বন্টন অনুপাত
+            মিল খাবার বন্টন অনুপাত ({activeRange === 'daily' ? 'আজ' : activeRange === 'weekly' ? 'গত ৭ দিন' : activeRange === 'monthly' ? 'গত ৩০ দিন' : 'সমগ্র ইতিহাস'})
           </h3>
           <span className="text-xs text-slate-400 font-mono">মোট: {totalMealsCount} টি</span>
         </div>
@@ -180,19 +310,32 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
 
       {/* Declaration Log Table */}
       <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-slate-800/80 space-y-4 shadow-xl">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h3 className="font-bold text-slate-100 text-base flex items-center gap-2 font-display">
             <Calendar className="w-5 h-5 text-cyan-400" />
             তারিখভিত্তিক মিল হিস্ট্রি ও খরচের হিসাব
           </h3>
-          <span className="text-xs text-slate-400 font-mono">বর্তমান ব্যালেন্স: ৳{currentUser.walletBalance}</span>
+
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="তারিখ খুঁজুন (YYYY-MM-DD)..."
+                value={searchDate}
+                onChange={(e) => setSearchDate(e.target.value)}
+                className="pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-cyan-300 font-mono focus:border-cyan-500 focus:outline-none w-48"
+              />
+            </div>
+            <span className="text-xs text-slate-400 font-mono">ব্যালেন্স: ৳{currentUser.walletBalance}</span>
+          </div>
         </div>
 
-        {userDecs.length === 0 ? (
+        {displayedDecs.length === 0 ? (
           <EmptyState
             icon="calendar"
             title="কোনো মিল রেকর্ড পাওয়া যায়নি"
-            description="এখনও কোনো দিনের মিল হিস্ট্রি নেই।"
+            description="নির্বাচিত সময়সীমার মধ্যে কোনো মিল হিস্ট্রি নেই।"
           />
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-slate-800/80">
@@ -208,53 +351,61 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 bg-slate-950/40">
-                {userDecs.map((dec) => {
-                  const spec = specialMeals.find(sm => sm.date === dec.date);
-                  const dayEm = emergencies.find(e => dec.date >= e.date && dec.date <= (e.endDate || e.date));
-
-                  const bPrice = (spec && spec.mealType === 'breakfast') ? spec.customRate : userRates.breakfast;
-                  const lPrice = (spec && spec.mealType === 'lunch') ? spec.customRate : userRates.lunch;
-                  const dPrice = (spec && spec.mealType === 'dinner') ? spec.customRate : userRates.dinner;
-
-                  const isBEm = !!dayEm && dayEm.closedMeals.includes('breakfast');
-                  const isLEm = !!dayEm && dayEm.closedMeals.includes('lunch');
-                  const isDEm = !!dayEm && dayEm.closedMeals.includes('dinner');
-
-                  const isBOn = !isBEm && dec.breakfast;
-                  const isLOn = !isLEm && dec.lunch;
-                  const isDOn = !isDEm && dec.dinner;
-
-                  const dailyCost =
-                    (isBOn ? bPrice : 0) +
-                    (isLOn ? lPrice : 0) +
-                    (isDOn ? dPrice : 0);
-
+                {displayedDecs.map((dec) => {
                   return (
                     <tr key={dec.id} className="hover:bg-slate-900/60 transition-colors">
                       <td className="p-3.5 font-bold font-mono text-slate-200">{dec.date}</td>
+                      
+                      {/* Breakfast Column */}
                       <td className="p-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${isBEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : isBOn ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800/80 text-slate-500'}`}>
-                          {isBEm ? '🚨 জরুরি বন্ধ' : isBOn ? `${BN.mealOn} (৳${bPrice})` : BN.mealOff}
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                          dec.isBEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
+                          dec.isBGlobalOff ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+                          dec.isBOn ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                          'bg-slate-800/80 text-slate-500'
+                        }`}>
+                          {dec.isBEm ? '🚨 জরুরি বন্ধ' : dec.isBGlobalOff ? '🚫 গ্লোবাল বন্ধ (এডমিন)' : dec.isBOn ? `${BN.mealOn} (৳${dec.bPrice})` : BN.mealOff}
                         </span>
                       </td>
+
+                      {/* Lunch Column */}
                       <td className="p-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${isLEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : isLOn ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800/80 text-slate-500'}`}>
-                          {isLEm ? '🚨 জরুরি বন্ধ' : isLOn ? `${BN.mealOn} (৳${lPrice})` : BN.mealOff}
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                          dec.isLEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
+                          dec.isLGlobalOff ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+                          dec.isLOn ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                          'bg-slate-800/80 text-slate-500'
+                        }`}>
+                          {dec.isLEm ? '🚨 জরুরি বন্ধ' : dec.isLGlobalOff ? '🚫 গ্লোবাল বন্ধ (এডমিন)' : dec.isLOn ? `${BN.mealOn} (৳${dec.lPrice})` : BN.mealOff}
                         </span>
                       </td>
+
+                      {/* Dinner Column */}
                       <td className="p-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${isDEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : isDOn ? (spec?.mealType === 'dinner' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20') : 'bg-slate-800/80 text-slate-500'}`}>
-                          {isDEm ? '🚨 জরুরি বন্ধ' : isDOn ? `${BN.mealOn} (৳${dPrice}${spec?.mealType === 'dinner' ? ' - স্পেশাল' : ''})` : BN.mealOff}
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                          dec.isDEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
+                          dec.isDGlobalOff ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+                          dec.isDOn ? (dec.specD ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20') :
+                          'bg-slate-800/80 text-slate-500'
+                        }`}>
+                          {dec.isDEm ? '🚨 জরুরি বন্ধ' : dec.isDGlobalOff ? '🚫 গ্লোবাল বন্ধ (এডমিন)' : dec.isDOn ? `${BN.mealOn} (৳${dec.dPrice}${dec.specD ? ' - স্পেশাল' : ''})` : BN.mealOff}
                         </span>
                       </td>
+
+                      {/* Daily Cost Column */}
                       <td className="p-3.5 font-bold font-mono text-cyan-300">
-                        ৳{dailyCost}
+                        ৳{dec.dailyCost}
                       </td>
+
+                      {/* Entry Type Column */}
                       <td className="p-3.5">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold ${
-                          dayEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : dec.isAutoCopied ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                          dec.dayEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
+                          (dec.isBGlobalOff || dec.isLGlobalOff || dec.isDGlobalOff) ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+                          dec.isAutoCopied ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                          'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
                         }`}>
-                          {dayEm ? '🚨 জরুরি নোটিশ' : dec.isAutoCopied ? BN.autoCopied : BN.userDeclared}
+                          {dec.dayEm ? '🚨 জরুরি নোটিশ' : (dec.isBGlobalOff || dec.isLGlobalOff || dec.isDGlobalOff) ? '🚫 গ্লোবাল বন্ধ' : dec.isAutoCopied ? BN.autoCopied : BN.userDeclared}
                         </span>
                       </td>
                     </tr>
@@ -269,4 +420,5 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
     </div>
   );
 };
+
 

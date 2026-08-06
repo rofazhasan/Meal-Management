@@ -117,9 +117,9 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
 
   const emergencyForDate = emergencies.find(e => selectedDate >= e.date && selectedDate <= (e.endDate || e.date));
 
-  const isBOff = rates.globalMealStatus?.breakfast === false || (!!emergencyForDate && emergencyForDate.closedMeals.includes('breakfast'));
-  const isLOff = rates.globalMealStatus?.lunch === false || (!!emergencyForDate && emergencyForDate.closedMeals.includes('lunch'));
-  const isDOff = rates.globalMealStatus?.dinner === false || (!!emergencyForDate && emergencyForDate.closedMeals.includes('dinner'));
+  const isBOff = rates.globalMealStatus?.breakfast === false || (!!emergencyForDate && (!emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 0 || emergencyForDate.closedMeals.includes('breakfast')));
+  const isLOff = rates.globalMealStatus?.lunch === false || (!!emergencyForDate && (!emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 0 || emergencyForDate.closedMeals.includes('lunch')));
+  const isDOff = rates.globalMealStatus?.dinner === false || (!!emergencyForDate && (!emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 0 || emergencyForDate.closedMeals.includes('dinner')));
 
   const effectiveBRate = isBOff ? 0 : (specB ? specB.customRate : userRates.breakfast);
   const effectiveLRate = isLOff ? 0 : (specL ? specL.customRate : userRates.lunch);
@@ -157,52 +157,47 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
 
   // Helper: compute meal defaults for a date
   const computeMealsForDate = useCallback((dateStr: string) => {
-    // If this date is under emergency closure — respect per-meal closedMeals
+    const isBGlobalOff = rates.globalMealStatus?.breakfast === false;
+    const isLGlobalOff = rates.globalMealStatus?.lunch === false;
+    const isDGlobalOff = rates.globalMealStatus?.dinner === false;
+
     const em = emergencies.find(e => dateStr >= e.date && dateStr <= (e.endDate || e.date));
-    if (em) {
-      // Only force OFF the specifically closed meals; leave others as declared/default
-      const dec = declarations.find(d => d.date === dateStr && d.userId === currentUser.id);
-      const baseB = dec ? dec.breakfast : true;
-      const baseL = dec ? dec.lunch : true;
-      const baseD = dec ? dec.dinner : true;
-      return {
-        breakfast: em.closedMeals.includes('breakfast') ? false : baseB,
-        lunch: em.closedMeals.includes('lunch') ? false : baseL,
-        dinner: em.closedMeals.includes('dinner') ? false : baseD,
-      };
-    }
+    const isBEmergencyOff = !!em && (!em.closedMeals || em.closedMeals.length === 0 || em.closedMeals.includes('breakfast'));
+    const isLEmergencyOff = !!em && (!em.closedMeals || em.closedMeals.length === 0 || em.closedMeals.includes('lunch'));
+    const isDEmergencyOff = !!em && (!em.closedMeals || em.closedMeals.length === 0 || em.closedMeals.includes('dinner'));
+
+    const bOff = isBGlobalOff || isBEmergencyOff;
+    const lOff = isLGlobalOff || isLEmergencyOff;
+    const dOff = isDGlobalOff || isDEmergencyOff;
 
     const dec = declarations.find(d => d.date === dateStr && d.userId === currentUser.id);
-    // Use parseDateStr to avoid UTC midnight issues
     const dt = parseDateStr(dateStr);
     const dayOfWeek = dt.getDay();
     const sB = specialMeals.find(sm => sm.isActive !== false && sm.mealType === 'breakfast' && (sm.date === dateStr || (sm.isRecurring && sm.repeatDayOfWeek === dayOfWeek)));
     const sL = specialMeals.find(sm => sm.isActive !== false && sm.mealType === 'lunch' && (sm.date === dateStr || (sm.isRecurring && sm.repeatDayOfWeek === dayOfWeek)));
     const sD = specialMeals.find(sm => sm.isActive !== false && sm.mealType === 'dinner' && (sm.date === dateStr || (sm.isRecurring && sm.repeatDayOfWeek === dayOfWeek)));
 
-    const bPrice = sB ? sB.customRate : userRates.breakfast;
-    const lPrice = sL ? sL.customRate : userRates.lunch;
-    const dPrice = sD ? sD.customRate : userRates.dinner;
+    const bPrice = bOff ? 0 : (sB ? sB.customRate : userRates.breakfast);
+    const lPrice = lOff ? 0 : (sL ? sL.customRate : userRates.lunch);
+    const dPrice = dOff ? 0 : (sD ? sD.customRate : userRates.dinner);
 
     const balance = currentUser.walletBalance;
 
-    // FIX 13: Use cumulative greedy balance check (same logic as service-layer updateDeclaration)
-    // so the UI initial state is consistent with what will actually be saved.
     const desiredB = dec ? dec.breakfast : true;
     const desiredL = dec ? dec.lunch : true;
     const desiredD = dec ? dec.dinner : true;
 
     let sum = 0;
-    const safeB = desiredB && (sum + bPrice <= balance) ? (sum += bPrice, true) : false;
-    const safeL = desiredL && (sum + lPrice <= balance) ? (sum += lPrice, true) : false;
-    const safeD = desiredD && (sum + dPrice <= balance) ? (sum += dPrice, true) : false;
+    const safeB = !bOff && desiredB && (sum + bPrice <= balance) ? (sum += bPrice, true) : false;
+    const safeL = !lOff && desiredL && (sum + lPrice <= balance) ? (sum += lPrice, true) : false;
+    const safeD = !dOff && desiredD && (sum + dPrice <= balance) ? (sum += dPrice, true) : false;
 
     return {
       breakfast: safeB,
       lunch: safeL,
       dinner: safeD,
     };
-  }, [declarations, specialMeals, emergencies, userRates, currentUser.walletBalance, currentUser.id]);
+  }, [declarations, specialMeals, emergencies, userRates, currentUser.walletBalance, currentUser.id, rates.globalMealStatus]);
 
   // Sync state when date, declarations, specialMeals, or emergencies change
   useEffect(() => {
@@ -226,8 +221,10 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
     }
 
     if (emergencyForDate) {
-      if (emergencyForDate.closedMeals.includes(type)) {
-        setBalanceAlertMsg('জরুরি মিল বন্ধের কারণে এই মিলটি পরিবর্তন করা সম্ভব নয়।');
+      const isClosed = !emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 0 || emergencyForDate.closedMeals.includes(type);
+      if (isClosed) {
+        const mealName = type === 'breakfast' ? 'সকালের নাস্তা' : type === 'lunch' ? 'দুপুরের খাবার' : 'রাতের খাবার';
+        setBalanceAlertMsg(`🚨 ${selectedDate} তারিখে জরুরি নোটিশের কারণে (${emergencyForDate.reason || 'Emergency Closure'}) ${mealName} বন্ধ রাখা হয়েছে। এই মুহূর্তে অন করা সম্ভব নয়।`);
         return;
       }
     }
@@ -278,9 +275,13 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
       setBalanceAlertMsg(`আজকের মিল পরিবর্তনের নির্ধারিত সময় (${rates.cutoffTime || '10:00'} AM) পার হয়ে গেছে।`);
       return;
     }
+    const safeB = isBOff ? false : breakfast;
+    const safeL = isLOff ? false : lunch;
+    const safeD = isDOff ? false : dinner;
+
     setSaving(true);
     try {
-      await ApiService.updateDeclaration(currentUser.id, selectedDate, { breakfast, lunch, dinner });
+      await ApiService.updateDeclaration(currentUser.id, selectedDate, { breakfast: safeB, lunch: safeL, dinner: safeD });
       setSuccessMsg(true);
       setTimeout(() => setSuccessMsg(false), 2500);
       onRefreshData();
@@ -334,9 +335,9 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
     if (rates.globalMealStatus?.dinner === false) d = false;
 
     if (emergencyForDate) {
-      if (emergencyForDate.closedMeals.includes('breakfast')) b = false;
-      if (emergencyForDate.closedMeals.includes('lunch')) l = false;
-      if (emergencyForDate.closedMeals.includes('dinner')) d = false;
+      if (!emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 0 || emergencyForDate.closedMeals.includes('breakfast')) b = false;
+      if (!emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 0 || emergencyForDate.closedMeals.includes('lunch')) l = false;
+      if (!emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 0 || emergencyForDate.closedMeals.includes('dinner')) d = false;
     }
 
     const reqBalance =
@@ -371,9 +372,9 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
         if (day.dateStr === todayDateStr && isPassed10AM) continue;
         const dayEmergency = emergencies.find(e => day.dateStr >= e.date && day.dateStr <= (e.endDate || e.date));
         const dayMeals = {
-          breakfast: dayEmergency?.closedMeals.includes('breakfast') ? false : rates.globalMealStatus?.breakfast !== false,
-          lunch: dayEmergency?.closedMeals.includes('lunch') ? false : rates.globalMealStatus?.lunch !== false,
-          dinner: dayEmergency?.closedMeals.includes('dinner') ? false : rates.globalMealStatus?.dinner !== false,
+          breakfast: (dayEmergency && (!dayEmergency.closedMeals || dayEmergency.closedMeals.length === 0 || dayEmergency.closedMeals.includes('breakfast'))) ? false : rates.globalMealStatus?.breakfast !== false,
+          lunch: (dayEmergency && (!dayEmergency.closedMeals || dayEmergency.closedMeals.length === 0 || dayEmergency.closedMeals.includes('lunch'))) ? false : rates.globalMealStatus?.lunch !== false,
+          dinner: (dayEmergency && (!dayEmergency.closedMeals || dayEmergency.closedMeals.length === 0 || dayEmergency.closedMeals.includes('dinner'))) ? false : rates.globalMealStatus?.dinner !== false,
         };
         await ApiService.updateDeclaration(currentUser.id, day.dateStr, dayMeals);
       }
@@ -571,7 +572,7 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
           <div>
             <h4 className="font-bold text-sm font-display text-rose-300">
               জরুরি নোটিশ:{' '}
-              {emergencyForDate.closedMeals.length === 3
+              {(!emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 3 || emergencyForDate.closedMeals.length === 0)
                 ? 'এই দিনে সমস্ত মিল বন্ধ!'
                 : `এই দিনে ${emergencyForDate.closedMeals.map(m => m === 'breakfast' ? 'সকালের নাস্তা' : m === 'lunch' ? 'দুপুরের খাবার' : 'রাতের খাবার').join(', ')} বন্ধ!`}
             </h4>
@@ -601,7 +602,7 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
         
         {/* Breakfast Card */}
         {(() => {
-          const bEmergencyBlocked = !!emergencyForDate && emergencyForDate.closedMeals.includes('breakfast');
+          const bEmergencyBlocked = !!emergencyForDate && (!emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 0 || emergencyForDate.closedMeals.includes('breakfast'));
           const bGlobalOff = rates.globalMealStatus?.breakfast === false;
           const bBlocked = bEmergencyBlocked || bGlobalOff;
           return (
@@ -647,7 +648,7 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
 
         {/* Lunch Card */}
         {(() => {
-          const lEmergencyBlocked = !!emergencyForDate && emergencyForDate.closedMeals.includes('lunch');
+          const lEmergencyBlocked = !!emergencyForDate && (!emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 0 || emergencyForDate.closedMeals.includes('lunch'));
           const lGlobalOff = rates.globalMealStatus?.lunch === false;
           const lBlocked = lEmergencyBlocked || lGlobalOff;
           return (
@@ -693,7 +694,7 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
 
         {/* Dinner Card */}
         {(() => {
-          const dEmergencyBlocked = !!emergencyForDate && emergencyForDate.closedMeals.includes('dinner');
+          const dEmergencyBlocked = !!emergencyForDate && (!emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 0 || emergencyForDate.closedMeals.includes('dinner'));
           const dGlobalOff = rates.globalMealStatus?.dinner === false;
           const dBlocked = dEmergencyBlocked || dGlobalOff;
           return (

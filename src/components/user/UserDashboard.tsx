@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Wallet, Clock, CheckCircle2, XCircle, ArrowUpRight, ArrowDownRight, Calendar, AlertCircle, UtensilsCrossed, Sparkles, ShieldAlert, ChevronRight, UserCheck, Lock, Edit3, X } from 'lucide-react';
+import { Wallet, Clock, CheckCircle2, XCircle, ArrowUpRight, ArrowDownRight, Calendar, AlertCircle, UtensilsCrossed, Sparkles, ShieldAlert, ChevronRight, UserCheck, Lock, Edit3, X, Activity, TrendingUp, PieChart } from 'lucide-react';
 import { User, MealRateConfig, MealDeclaration, WalletTransaction, EmergencyClosure, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
@@ -66,7 +66,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   // todayDec defaults: if emergency, all OFF; otherwise use wallet-safe defaults using correct user rates
   const propTodayDec = useMemo(() => {
     return (
-      declarations.find((d) => d.date === todayStr) || {
+      declarations.find((d) => d.date === todayStr && d.userId === currentUser.id) || {
         id: 'temp',
         userId: currentUser.id,
         date: todayStr,
@@ -78,6 +78,38 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
       }
     );
   }, [declarations, todayStr, currentUser.id, currentUser.walletBalance, todayEmergency, userRates]);
+
+  const monthlyStats = useMemo(() => {
+    const currentMonthStr = todayStr.substring(0, 7);
+    const userDecls = declarations.filter((d) => d.userId === currentUser.id && d.date.startsWith(currentMonthStr));
+
+    let bCount = 0, lCount = 0, dCount = 0;
+    userDecls.forEach((d) => {
+      if (d.breakfast) bCount++;
+      if (d.lunch) lCount++;
+      if (d.dinner) dCount++;
+    });
+
+    const totalMeals = bCount + lCount + dCount;
+
+    const userTrxs = transactions.filter((t) => (t.userId === currentUser.id || !t.userId) && t.date.startsWith(currentMonthStr));
+    const totalRecharged = userTrxs
+      .filter((t) => ['RECHARGE', 'CREDIT', 'ADMIN_TOPUP'].includes(t.type))
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+    const totalMealSpent = userTrxs
+      .filter((t) => t.type === 'MEAL_DEDUCTION')
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+    return {
+      totalMeals,
+      bCount,
+      lCount,
+      dCount,
+      totalRecharged,
+      totalMealSpent,
+    };
+  }, [declarations, transactions, currentUser.id, todayStr]);
 
   const [localTodayDec, setLocalTodayDec] = useState(propTodayDec);
   const [togglingMeal, setTogglingMeal] = useState(false);
@@ -179,7 +211,16 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
     setTogglingMeal(true);
 
     try {
-      await ApiService.updateDeclaration(currentUser.id, todayStr, newMeals);
+      const updated = await ApiService.updateDeclaration(currentUser.id, todayStr, newMeals);
+      if (updated && updated.breakfast !== undefined) {
+        setLocalTodayDec((prev: any) => ({
+          ...prev,
+          breakfast: updated.breakfast,
+          lunch: updated.lunch,
+          dinner: updated.dinner,
+          isAutoCopied: updated.isAutoCopied ?? false,
+        }));
+      }
       onRefreshData();
     } catch (err: any) {
       setLocalTodayDec(propTodayDec);
@@ -500,6 +541,69 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             );
           })()}
 
+        </div>
+      </div>
+
+      {/* Monthly Overview & Analytics Card */}
+      <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-slate-800/80 space-y-5 shadow-xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+              <Activity className="w-5 h-5 text-cyan-400" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-100 text-base font-display">চলতি মাসের মিল ও খরচ অ্যানালিটিক্স</h3>
+              <p className="text-xs text-slate-400 font-sans">সারসংক্ষেপ তথ্য ও মোট মিলের পরিসংখ্যান</p>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigateTab('reports')}
+            className="text-xs text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1"
+          >
+            <span>বিস্তারিত রিপোর্ট</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2">
+            <div className="flex items-center justify-between text-xs text-slate-400 font-sans">
+              <span>মোট গ্রহণকৃত মিল</span>
+              <PieChart className="w-4 h-4 text-cyan-400" />
+            </div>
+            <div className="text-2xl font-extrabold text-white font-mono">
+              <AnimatedNumber value={monthlyStats.totalMeals} decimals={0} /> টি
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono pt-1">
+              <span>নাস্তা: {monthlyStats.bCount}</span>
+              <span>•</span>
+              <span>দুপুর: {monthlyStats.lCount}</span>
+              <span>•</span>
+              <span>রাত: {monthlyStats.dCount}</span>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2">
+            <div className="flex items-center justify-between text-xs text-slate-400 font-sans">
+              <span>মোট মিল বাবদ কর্তন</span>
+              <TrendingUp className="w-4 h-4 text-rose-400" />
+            </div>
+            <div className="text-2xl font-extrabold text-rose-400 font-mono">
+              ৳<AnimatedNumber value={monthlyStats.totalMealSpent} decimals={0} />
+            </div>
+            <p className="text-[11px] text-slate-400 font-sans pt-1">চলতি মাসে হিসাবকৃত চার্জ</p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2">
+            <div className="flex items-center justify-between text-xs text-slate-400 font-sans">
+              <span>মোট রিচার্জকৃত অর্থ</span>
+              <ArrowDownRight className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div className="text-2xl font-extrabold text-emerald-400 font-mono">
+              ৳<AnimatedNumber value={monthlyStats.totalRecharged} decimals={0} />
+            </div>
+            <p className="text-[11px] text-slate-400 font-sans pt-1">চলতি মাসে ওয়ালেটে জমাকৃত</p>
+          </div>
         </div>
       </div>
 

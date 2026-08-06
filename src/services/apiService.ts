@@ -261,8 +261,7 @@ export class ApiService {
   }
 
   static async getDeclarationsForDate(date: string): Promise<MealDeclaration[]> {
-    const all = await this.getDeclarations();
-    return all.filter((d) => d.date === date);
+    return apiFetch<MealDeclaration[]>(`${API_BASE}/declarations?date=${date}`);
   }
 
   static async updateDeclaration(
@@ -368,7 +367,7 @@ export class ApiService {
     return {
       id:            tx.id,
       userId:        targetUserId,
-      type:          'RECHARGE',
+      type:          (tx.type as any) || (amount >= 0 ? 'RECHARGE' : 'DEBIT'),
       amount:        tx.amount,
       balanceBefore: tx.balanceBefore,
       balanceAfter:  tx.balanceAfter,
@@ -476,12 +475,11 @@ export class ApiService {
     return rows.map((r) => ({
       id:       String(r.id),
       date:     r.date as string,
+      endDate:  (r.endDate as string) ?? (r.date as string),
       reason:   (r.reason as string) ?? 'Emergency closure',
-      closedMeals: [
-        ...(r.breakfastOn === false ? ['breakfast' as const] : []),
-        ...(r.lunchOn === false     ? ['lunch'     as const] : []),
-        ...(r.dinnerOn === false    ? ['dinner'    as const] : []),
-      ],
+      closedMeals: Array.isArray(r.closedMeals) && r.closedMeals.length > 0
+        ? (r.closedMeals as ('breakfast' | 'lunch' | 'dinner')[])
+        : ['breakfast', 'lunch', 'dinner'],
       createdAt: (r.createdAt as string) ?? new Date().toISOString(),
     }));
   }
@@ -503,13 +501,12 @@ export class ApiService {
     });
     return {
       id:         String(raw.id),
-      date:       raw.date as string,
-      reason:     (raw.reason as string) ?? 'Emergency closure',
-      closedMeals: [
-        ...(raw.breakfastOn === false ? ['breakfast' as const] : []),
-        ...(raw.lunchOn === false     ? ['lunch'     as const] : []),
-        ...(raw.dinnerOn === false    ? ['dinner'    as const] : []),
-      ],
+      date:       (raw.date as string) ?? data.date,
+      endDate:    (raw.endDate as string) ?? data.endDate ?? data.date,
+      reason:     (raw.reason as string) ?? data.reason ?? 'Emergency closure',
+      closedMeals: Array.isArray(raw.closedMeals) && raw.closedMeals.length > 0
+        ? (raw.closedMeals as ('breakfast' | 'lunch' | 'dinner')[])
+        : ['breakfast', 'lunch', 'dinner'],
       createdAt: new Date().toISOString(),
     };
   }

@@ -81,10 +81,12 @@ export function isMealDateLocked(
 export async function resolveMealPricing(
   dateStr: string,
   userType: 'PERMANENT' | 'GUEST' = 'PERMANENT',
-  tx?: any
+  tx?: any,
+  ignoreGlobalOff: boolean = false
 ): Promise<{ breakfast: number; lunch: number; dinner: number }> {
   const ratesConfig: SystemRates = await getSystemRatesFromDb(tx);
   const baseRates = userType === 'GUEST' ? ratesConfig.guest : ratesConfig.permanent;
+  const globalStatus = ratesConfig.globalMealStatus || { breakfast: true, lunch: true, dinner: true };
 
   let specB: number | null = null;
   let specL: number | null = null;
@@ -93,8 +95,15 @@ export async function resolveMealPricing(
   try {
     const db = tx || defaultPrisma;
     const mealDate = parseDateToUtcMidday(dateStr);
+    const dayOfWeek = mealDate.getUTCDay();
     const specMeals = await db.specialMeal.findMany({
-      where: { mealDate, isActive: true },
+      where: {
+        isActive: true,
+        OR: [
+          { mealDate },
+          { isRecurring: true, repeatDayOfWeek: dayOfWeek },
+        ],
+      },
     });
 
     for (const sm of specMeals) {
@@ -106,10 +115,18 @@ export async function resolveMealPricing(
     // Fall back to base rates if special_meals table is missing or errors
   }
 
+  const bPrice = specB !== null ? specB : baseRates.breakfast;
+  const lPrice = specL !== null ? specL : baseRates.lunch;
+  const dPrice = specD !== null ? specD : baseRates.dinner;
+
+  if (ignoreGlobalOff) {
+    return { breakfast: bPrice, lunch: lPrice, dinner: dPrice };
+  }
+
   return {
-    breakfast: specB !== null ? specB : baseRates.breakfast,
-    lunch: specL !== null ? specL : baseRates.lunch,
-    dinner: specD !== null ? specD : baseRates.dinner,
+    breakfast: globalStatus.breakfast === false ? 0 : bPrice,
+    lunch: globalStatus.lunch === false ? 0 : lPrice,
+    dinner: globalStatus.dinner === false ? 0 : dPrice,
   };
 }
 
@@ -142,7 +159,7 @@ export async function processEmergencyClosureWithRefunds(
     if (!hasAnyMeal) continue;
 
     const userType = decl.user.userType;
-    const rates = await resolveMealPricing(dateStr, userType, db);
+    const rates = await resolveMealPricing(dateStr, userType, db, true);
 
     const costToRefund =
       (decl.breakfastSelected ? rates.breakfast : 0) +
@@ -364,3 +381,315 @@ export async function reconcileUserWalletsAndDetectAnomalies(txPrisma?: any) {
     anomalies,
   };
 }
+
+/**
+ * Auto-Copy Previous Day Declarations Algorithm:
+ * For a given target date (defaults to current Bangladesh date), if cutoff time has passed (or if date < today):
+ * 1. Checks all active, approved, non-paused users.
+ * 2. If a user does NOT have a declaration record for target date:
+ *    - Looks up their declaration for targetDate - 1 day (or latest prior declaration date).
+ *    - If found, copies their breakfast, lunch, dinner selections (respecting global meal off settings).
+ *    - Resolves target date pricing for user.
+ *    - If total cost > 0:
+ *      - Deducts cost from user's wallet.
+ *      - Records 'MEAL_DEDUCTION' transaction: `স্বয়ংক্রিয় কপি করা মিল ফি কর্তন (${targetDate})`.
+ *    - Saves meal declaration with sourceType: 'COPIED'.
+ */
+export async function autoCopyPreviousDayDeclarations(
+  targetDateStr: string = getBgdDateStr(),
+  txPrisma?: any
+): Promise<{ copiedCount: number; totalDeductedAmount: number }> {
+  const db = txPrisma || defaultPrisma;
+  const ratesConfig: SystemRates = await getSystemRatesFromDb(db);
+  const declDate = parseDateToUtcMidday(targetDateStr);
+
+  // Check if targetDateStr is under emergency closure
+  const emSetting = await db.mealSetting.findFirst({
+    where: { mealDate: declDate, emergencyOff: true },
+  });
+
+  // Calculate previous date string
+  const targetDt = new Date(`${targetDateStr}T12:00:00Z`);
+  targetDt.setUTCDate(targetDt.getUTCDate() - 1);
+  const prevDateStr = targetDt.toISOString().split('T')[0];
+  const prevDeclDate = parseDateToUtcMidday(prevDateStr);
+
+  // Fetch all active approved users who are not indefinitely paused
+  const activeUsers = await db.user.findMany({
+    where: {
+      deletedAt: null,
+      isActive: true,
+      isIndefinitelyPaused: false,
+      approvalStatus: 'APPROVED',
+    },
+    include: { wallet: true },
+  });
+
+  const globalStatus = ratesConfig.globalMealStatus || { breakfast: true, lunch: true, dinner: true };
+
+  let copiedCount = 0;
+  let totalDeductedAmount = 0;
+
+  for (const user of activeUsers) {
+    // Check if user already has declaration for targetDate
+    const existing = await db.mealDeclaration.findUnique({
+      where: {
+        uq_user_declaration_date: {
+          userId: user.id,
+          declarationDate: declDate,
+        },
+      },
+    });
+
+    if (existing) continue; // Already declared by user or admin
+
+    if (emSetting && emSetting.emergencyOff) {
+      await db.mealDeclaration.create({
+        data: {
+          userId: user.id,
+          declarationDate: declDate,
+          breakfastSelected: false,
+          lunchSelected: false,
+          dinnerSelected: false,
+          sourceType: 'COPIED',
+        },
+      });
+      copiedCount++;
+      continue;
+    }
+
+    // Find previous day declaration (or latest prior declaration)
+    let prevDecl = await db.mealDeclaration.findUnique({
+      where: {
+        uq_user_declaration_date: {
+          userId: user.id,
+          declarationDate: prevDeclDate,
+        },
+      },
+    });
+
+    if (!prevDecl) {
+      // Find latest prior declaration
+      prevDecl = await db.mealDeclaration.findFirst({
+        where: {
+          userId: user.id,
+          declarationDate: { lt: declDate },
+        },
+        orderBy: { declarationDate: 'desc' },
+      });
+    }
+
+    let targetB = prevDecl ? prevDecl.breakfastSelected : true;
+    let targetL = prevDecl ? prevDecl.lunchSelected : true;
+    let targetD = prevDecl ? prevDecl.dinnerSelected : true;
+
+    // Force off if globally off
+    if (globalStatus.breakfast === false) targetB = false;
+    if (globalStatus.lunch === false) targetL = false;
+    if (globalStatus.dinner === false) targetD = false;
+
+    // Calculate cost and wallet constraint
+    const effectiveRates = await resolveMealPricing(targetDateStr, user.userType, db);
+    const bCost = targetB ? effectiveRates.breakfast : 0;
+    const lCost = targetL ? effectiveRates.lunch : 0;
+    const dCost = targetD ? effectiveRates.dinner : 0;
+
+    let wallet = user.wallet;
+    if (!wallet) {
+      wallet = await db.wallet.create({
+        data: { userId: user.id, currentBalance: 0 },
+      });
+    }
+
+    const currentBal = Number(wallet.currentBalance);
+
+    // Wallet balance guard: adjust choices if wallet balance is lower than total desired cost
+    let finalB = targetB;
+    let finalL = targetL;
+    let finalD = targetD;
+    let mealCost = bCost + lCost + dCost;
+
+    if (mealCost > currentBal) {
+      finalB = false;
+      finalL = false;
+      finalD = false;
+      let remBal = currentBal;
+
+      if (targetB && bCost <= remBal) {
+        finalB = true;
+        remBal -= bCost;
+      }
+      if (targetL && lCost <= remBal) {
+        finalL = true;
+        remBal -= lCost;
+      }
+      if (targetD && dCost <= remBal) {
+        finalD = true;
+        remBal -= dCost;
+      }
+      mealCost = (finalB ? bCost : 0) + (finalL ? lCost : 0) + (finalD ? dCost : 0);
+    }
+
+    let newBal = currentBal;
+
+    if (mealCost > 0) {
+      newBal = currentBal - mealCost;
+      await db.wallet.update({
+        where: { id: wallet.id },
+        data: { currentBalance: newBal },
+      });
+
+      await db.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          userId: user.id,
+          transactionType: 'MEAL_DEDUCTION',
+          amount: mealCost,
+          balanceBefore: currentBal,
+          balanceAfter: newBal,
+          referenceType: 'AUTO_COPY_DECLARATION',
+          referenceId: wallet.id,
+          note: `স্বয়ংক্রিয় কপি করা মিল ফি কর্তন (${targetDateStr})`,
+        },
+      });
+
+      totalDeductedAmount += mealCost;
+    }
+
+    await db.mealDeclaration.create({
+      data: {
+        userId: user.id,
+        declarationDate: declDate,
+        breakfastSelected: finalB,
+        lunchSelected: finalL,
+        dinnerSelected: finalD,
+        sourceType: 'COPIED',
+      },
+    });
+
+    copiedCount++;
+  }
+
+  return { copiedCount, totalDeductedAmount };
+}
+
+/**
+ * Restore Declarations On Emergency Off Algorithm:
+ * When an emergency closure for dateStr is turned off by admin:
+ * 1. Finds all active, approved, non-paused users.
+ * 2. Finds their previous active declaration (before emergency stopped it).
+ * 3. Restores their meal choices for dateStr with sourceType = 'COPIED'.
+ * 4. Deducts meal cost from their wallet balance and logs MEAL_DEDUCTION transaction with note:
+ *    `জরুরি অবস্থা প্রত্যাহার পরবর্তী মিল কর্তন (${dateStr})`.
+ */
+export async function restoreDeclarationsOnEmergencyOff(
+  dateStr: string,
+  txPrisma?: any
+): Promise<{ restoredUsersCount: number; totalDeductedAmount: number }> {
+  const db = txPrisma || defaultPrisma;
+  const ratesConfig: SystemRates = await getSystemRatesFromDb(db);
+  const declDate = parseDateToUtcMidday(dateStr);
+
+  const activeUsers = await db.user.findMany({
+    where: {
+      deletedAt: null,
+      isActive: true,
+      isIndefinitelyPaused: false,
+      approvalStatus: 'APPROVED',
+    },
+    include: { wallet: true },
+  });
+
+  const globalStatus = ratesConfig.globalMealStatus || { breakfast: true, lunch: true, dinner: true };
+
+  let restoredUsersCount = 0;
+  let totalDeductedAmount = 0;
+
+  for (const user of activeUsers) {
+    // Find latest prior declaration before emergency date
+    const prevDecl = await db.mealDeclaration.findFirst({
+      where: {
+        userId: user.id,
+        declarationDate: { lt: declDate },
+      },
+      orderBy: { declarationDate: 'desc' },
+    });
+
+    let targetB = prevDecl ? prevDecl.breakfastSelected : true;
+    let targetL = prevDecl ? prevDecl.lunchSelected : true;
+    let targetD = prevDecl ? prevDecl.dinnerSelected : true;
+
+    // Respect global off
+    if (globalStatus.breakfast === false) targetB = false;
+    if (globalStatus.lunch === false) targetL = false;
+    if (globalStatus.dinner === false) targetD = false;
+
+    const effectiveRates = await resolveMealPricing(dateStr, user.userType, db);
+    const mealCost =
+      (targetB ? effectiveRates.breakfast : 0) +
+      (targetL ? effectiveRates.lunch : 0) +
+      (targetD ? effectiveRates.dinner : 0);
+
+    let wallet = user.wallet;
+    if (!wallet) {
+      wallet = await db.wallet.create({
+        data: { userId: user.id, currentBalance: 0 },
+      });
+    }
+
+    const currentBal = Number(wallet.currentBalance);
+    let newBal = currentBal;
+
+    if (mealCost > 0) {
+      newBal = currentBal - mealCost;
+      await db.wallet.update({
+        where: { id: wallet.id },
+        data: { currentBalance: newBal },
+      });
+
+      await db.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          userId: user.id,
+          transactionType: 'MEAL_DEDUCTION',
+          amount: mealCost,
+          balanceBefore: currentBal,
+          balanceAfter: newBal,
+          referenceType: 'EMERGENCY_RESTORE_DEDUCTION',
+          referenceId: wallet.id,
+          note: `জরুরি অবস্থা প্রত্যাহার পরবর্তী মিল কর্তন (${dateStr})`,
+        },
+      });
+
+      totalDeductedAmount += mealCost;
+    }
+
+    await db.mealDeclaration.upsert({
+      where: {
+        uq_user_declaration_date: {
+          userId: user.id,
+          declarationDate: declDate,
+        },
+      },
+      update: {
+        breakfastSelected: targetB,
+        lunchSelected: targetL,
+        dinnerSelected: targetD,
+        sourceType: 'COPIED',
+      },
+      create: {
+        userId: user.id,
+        declarationDate: declDate,
+        breakfastSelected: targetB,
+        lunchSelected: targetL,
+        dinnerSelected: targetD,
+        sourceType: 'COPIED',
+      },
+    });
+
+    restoredUsersCount++;
+  }
+
+  return { restoredUsersCount, totalDeductedAmount };
+}
+

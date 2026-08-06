@@ -53,9 +53,9 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
     return selectedDate >= start && selectedDate <= end;
   });
 
-  const isBEmergencyOff = !!emergencyForDate && emergencyForDate.closedMeals.includes('breakfast');
-  const isLEmergencyOff = !!emergencyForDate && emergencyForDate.closedMeals.includes('lunch');
-  const isDEmergencyOff = !!emergencyForDate && emergencyForDate.closedMeals.includes('dinner');
+  const isBEmergencyOff = !!emergencyForDate && (!emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 0 || emergencyForDate.closedMeals.includes('breakfast'));
+  const isLEmergencyOff = !!emergencyForDate && (!emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 0 || emergencyForDate.closedMeals.includes('lunch'));
+  const isDEmergencyOff = !!emergencyForDate && (!emergencyForDate.closedMeals || emergencyForDate.closedMeals.length === 0 || emergencyForDate.closedMeals.includes('dinner'));
   const isBGlobalOff = rates?.globalMealStatus?.breakfast === false;
   const isLGlobalOff = rates?.globalMealStatus?.lunch === false;
   const isDGlobalOff = rates?.globalMealStatus?.dinner === false;
@@ -130,6 +130,52 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
   const totalL = Object.values(mealMap).filter((m) => m.lunch).length;
   const totalD = Object.values(mealMap).filter((m) => m.dinner).length;
 
+  // Calculate live financial impact preview between stored declarations and modified mealMap
+  const calcFinancialImpact = () => {
+    let estDeductions = 0;
+    let estRefunds = 0;
+    let changedUserCount = 0;
+
+    approvedUsers.forEach((u) => {
+      const origDec = declarations.find((d) => d.userId === u.id && d.date === selectedDate);
+      const origB = origDec ? origDec.breakfast : false;
+      const origL = origDec ? origDec.lunch : false;
+      const origD = origDec ? origDec.dinner : false;
+
+      const current = mealMap[u.id] || { breakfast: false, lunch: false, dinner: false };
+      const curB = isBEmergencyOff || isBGlobalOff ? false : current.breakfast;
+      const curL = isLEmergencyOff || isLGlobalOff ? false : current.lunch;
+      const curD = isDEmergencyOff || isDGlobalOff ? false : current.dinner;
+
+      if (origB !== curB || origL !== curL || origD !== curD) {
+        changedUserCount++;
+      }
+
+      const uRates = u.userType === 'GUEST'
+        ? (rates?.guest || { breakfast: 40, lunch: 80, dinner: 80 })
+        : (rates?.permanent || { breakfast: 30, lunch: 60, dinner: 60 });
+
+      const specB = specialMeals.find((sm) => sm.isActive !== false && sm.mealType === 'breakfast' && (sm.date === selectedDate || sm.isRecurring));
+      const specL = specialMeals.find((sm) => sm.isActive !== false && sm.mealType === 'lunch' && (sm.date === selectedDate || sm.isRecurring));
+      const specD = specialMeals.find((sm) => sm.isActive !== false && sm.mealType === 'dinner' && (sm.date === selectedDate || sm.isRecurring));
+
+      const bRate = isBEmergencyOff || isBGlobalOff ? 0 : (specB ? specB.customRate : uRates.breakfast);
+      const lRate = isLEmergencyOff || isLGlobalOff ? 0 : (specL ? specL.customRate : uRates.lunch);
+      const dRate = isDEmergencyOff || isDGlobalOff ? 0 : (specD ? specD.customRate : uRates.dinner);
+
+      const origCost = (origB ? bRate : 0) + (origL ? lRate : 0) + (origD ? dRate : 0);
+      const newCost = (curB ? bRate : 0) + (curL ? lRate : 0) + (curD ? dRate : 0);
+      const diff = newCost - origCost;
+
+      if (diff > 0) estDeductions += diff;
+      else if (diff < 0) estRefunds += Math.abs(diff);
+    });
+
+    return { changedUserCount, estDeductions, estRefunds };
+  };
+
+  const financialStats = calcFinancialImpact();
+
   const handleToggleSingleMeal = (userId: string, meal: 'breakfast' | 'lunch' | 'dinner') => {
     setAlertMsg(null);
 
@@ -140,7 +186,8 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
       (meal === 'dinner' && (isDEmergencyOff || isDGlobalOff))
     ) {
       const mealTitle = meal === 'breakfast' ? 'সকালের নাস্তা' : meal === 'lunch' ? 'দুপুরের খাবার' : 'রাতের খাবার';
-      setAlertMsg(`🚨 ${selectedDate} তারিখে ${mealTitle} জরুরি নোটিশের কারণে বন্ধ রয়েছে। জরুরি অবস্থায় এই মিল অন করা সম্ভব নয়।`);
+      const reasonStr = emergencyForDate?.reason ? ` (${emergencyForDate.reason})` : '';
+      setAlertMsg(`🚨 ${selectedDate} তারিখে ${mealTitle} জরুরি নোটিশের কারণে বন্ধ রয়েছে${reasonStr}। জরুরি অবস্থায় এই মিল অন করা সম্ভব নয়।`);
       return;
     }
 
@@ -174,7 +221,8 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
         (meal === 'dinner' && isDEmergencyOff))
     ) {
       const mealTitle = meal === 'breakfast' ? 'সকালের নাস্তা' : meal === 'lunch' ? 'দুপুরের খাবার' : 'রাতের খাবার';
-      setAlertMsg(`🚨 ${selectedDate} তারিখে ${mealTitle} জরুরি বন্ধ রাখা হয়েছে। জরুরি অবস্থায় এডমিনও মিল অন করতে পারবেন না।`);
+      const reasonStr = emergencyForDate?.reason ? ` (${emergencyForDate.reason})` : '';
+      setAlertMsg(`🚨 ${selectedDate} তারিখে ${mealTitle} জরুরি বন্ধ রাখা হয়েছে${reasonStr}। জরুরি অবস্থায় এডমিনও মিল অন করতে পারবেন না।`);
       return;
     }
 
@@ -212,6 +260,27 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
       });
       return next;
     });
+  };
+
+  // Preset: Turn ON meals only for users with sufficient balance
+  const handlePresetSufficientBalanceOnly = () => {
+    setAlertMsg(null);
+    const targetUsers = getTargetUsers();
+    setMealMap((prev) => {
+      const next = { ...prev };
+      targetUsers.forEach((u) => {
+        const uRates = u.userType === 'GUEST' ? (rates?.guest || { breakfast: 40, lunch: 80, dinner: 80 }) : (rates?.permanent || { breakfast: 30, lunch: 60, dinner: 60 });
+        const minRate = Math.min(uRates.breakfast, uRates.lunch, uRates.dinner);
+        const canAfford = !u.isIndefinitelyPaused && u.walletBalance >= minRate;
+        next[u.id] = {
+          breakfast: isBEmergencyOff ? false : canAfford,
+          lunch: isLEmergencyOff ? false : canAfford,
+          dinner: isDEmergencyOff ? false : canAfford,
+        };
+      });
+      return next;
+    });
+    setAlertMsg('⚡ পজিটিভ ব্যালেন্স থাকা সক্রিয় মেম্বারদের মিল অন করা হয়েছে।');
   };
 
   // Toggle single user indefinite pause (অনির্দিষ্টকালের জন্য অফ)
@@ -356,7 +425,7 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
                 🚨 {selectedDate} তারিখে এডমিন কর্তৃক জরুরি বন্ধ কার্যকর রয়েছে ({emergencyForDate.reason})
               </p>
               <p className="text-[11px] text-rose-200/90 font-sans mt-0.5">
-                বন্ধ থাকা মিলসমূহ: <span className="underline font-mono">{emergencyForDate.closedMeals.map(m => m === 'breakfast' ? 'সকালের নাস্তা' : m === 'lunch' ? 'দুপুরের খাবার' : 'রাতের খাবার').join(', ')}</span>। জরুরি বন্ধের সময় এডমিনও উক্ত মিলসমূহ অন করতে পারবেন না।
+                বন্ধ থাকা মিলসমূহ: <span className="underline font-mono">{(emergencyForDate.closedMeals && emergencyForDate.closedMeals.length > 0 ? emergencyForDate.closedMeals : ['breakfast', 'lunch', 'dinner']).map(m => m === 'breakfast' ? 'সকালের নাস্তা' : m === 'lunch' ? 'দুপুরের খাবার' : 'রাতের খাবার').join(', ')}</span>। জরুরি বন্ধের সময় এডমিনও উক্ত মিলসমূহ অন করতে পারবেন না।
               </p>
             </div>
           </div>
@@ -460,6 +529,28 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
           <span>{saving ? 'সংরক্ষণ হচ্ছে...' : 'এক ক্লিকে সমস্ত মিল সেভ করুন'}</span>
         </button>
       </div>
+
+      {/* Live Financial Impact Preview Bar */}
+      {financialStats.changedUserCount > 0 && (
+        <div className="p-4 rounded-2xl bg-slate-900/95 border border-amber-500/40 text-xs flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            </div>
+            <div>
+              <span className="font-extrabold text-amber-300">
+                পরিবর্তনের সম্ভাব্য হিসাব ({financialStats.changedUserCount} জন মেম্বার):
+              </span>
+              <span className="text-slate-300 ml-2">
+                মোট আনুমানিক ফি কর্তন: <strong className="text-rose-400 font-mono">৳{financialStats.estDeductions}</strong> | মোট আনুমানিক রিফান্ড: <strong className="text-emerald-400 font-mono">৳{financialStats.estRefunds}</strong>
+              </span>
+            </div>
+          </div>
+          <span className="text-[11px] text-amber-400/90 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20 font-bold whitespace-nowrap">
+            সেভ করলে ওয়ালেটে অটোমেটিক রিফান্ড/কর্তন সম্পন্ন হবে
+          </span>
+        </div>
+      )}
 
       {/* Master Toggle Controls & Selection Hub */}
       <div className="glass-panel p-5 rounded-3xl border border-slate-800/80 space-y-4 shadow-xl">
@@ -661,13 +752,20 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
                 </button>
               </div>
 
-              {/* All Meals Master Switch */}
-              <div className="flex items-center rounded-xl bg-amber-500/10 border border-amber-500/30 p-1">
+              {/* All Meals Master Switch & Smart Presets */}
+              <div className="flex items-center rounded-xl bg-amber-500/10 border border-amber-500/30 p-1 flex-wrap gap-1">
                 <button
                   onClick={() => handleMasterToggleAllMeals(true)}
                   className="px-3 py-1 rounded-lg bg-amber-500/20 text-amber-300 font-extrabold hover:bg-amber-500/30 text-[11px]"
                 >
                   ৩ বেলা ALL ON
+                </button>
+                <button
+                  onClick={handlePresetSufficientBalanceOnly}
+                  className="px-3 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 font-extrabold hover:bg-cyan-500/30 text-[11px]"
+                  title="পজিটিভ ব্যালেন্স থাকা সক্রিয় মেম্বারদের মিল অন করুন"
+                >
+                  ⚡ ব্যালেন্স অনুযায়ী অন
                 </button>
                 <button
                   onClick={() => handleMasterToggleAllMeals(false)}

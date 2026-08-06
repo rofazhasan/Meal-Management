@@ -98,9 +98,10 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'requestId and status are required' }, { status: 400 });
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
+    const resultData = await prisma.$transaction(async (tx) => {
       const appReq = await tx.approvalRequest.findUnique({
         where: { id: requestId },
+        include: { user: true },
       });
 
       if (!appReq) {
@@ -112,10 +113,16 @@ export async function PATCH(req: Request) {
       }
 
       let reqAmount = 500;
+      let paymentMethod = 'BKASH';
+      let trxId = '';
+      let note = '';
       try {
         if (appReq.remark && appReq.remark.startsWith('{')) {
           const parsed = JSON.parse(appReq.remark);
           reqAmount = Number(parsed.amount || 500);
+          paymentMethod = parsed.paymentMethod || 'BKASH';
+          trxId = parsed.trxId || '';
+          note = parsed.note || '';
         }
       } catch (e) {}
 
@@ -125,6 +132,8 @@ export async function PATCH(req: Request) {
         where: { id: requestId },
         data: { status: status as ApprovalStatus },
       });
+
+      let createdTxObj: any = null;
 
       if (status === 'APPROVED') {
         let wallet = await tx.wallet.findUnique({ where: { userId: appReq.userId } });
@@ -140,7 +149,7 @@ export async function PATCH(req: Request) {
           data: { currentBalance: newBal },
         });
 
-        await tx.walletTransaction.create({
+        const dbTx = await tx.walletTransaction.create({
           data: {
             walletId: wallet.id,
             userId: appReq.userId,
@@ -151,15 +160,43 @@ export async function PATCH(req: Request) {
             referenceType: 'RECHARGE_APPROVAL',
             referenceId: appReq.id,
             createdBy: adminId || null,
-            note: `রিচার্জ রিকোয়েস্ট অনুমোদন (৳${finalAmount})`,
+            note: note ? `রিচার্জ অনুমোদন (৳${finalAmount}): ${note}` : `রিচার্জ রিকোয়েস্ট অনুমোদন (৳${finalAmount})`,
           },
         });
+
+        createdTxObj = {
+          id: dbTx.id,
+          userId: dbTx.userId,
+          amount: Number(dbTx.amount),
+          type: 'RECHARGE',
+          balanceBefore: Number(dbTx.balanceBefore),
+          balanceAfter: Number(dbTx.balanceAfter),
+          description: dbTx.note || `রিচার্জ অনুমোদন (৳${finalAmount})`,
+          date: dbTx.createdAt.toISOString(),
+          adminId: dbTx.createdBy || adminId || null,
+        };
       }
 
-      return updatedReq;
+      const formattedReq = {
+        id: updatedReq.id,
+        userId: updatedReq.userId,
+        userName: appReq.user?.fullName || '',
+        userPhone: appReq.user?.phoneNumber || '',
+        amount: finalAmount,
+        paymentMethod: paymentMethod as any,
+        trxId,
+        note,
+        status: updatedReq.status,
+        requestedAt: updatedReq.createdAt.toISOString(),
+      };
+
+      return {
+        request: formattedReq,
+        transaction: createdTxObj,
+      };
     });
 
-    return NextResponse.json({ success: true, requestId: updated.id, status: updated.status });
+    return NextResponse.json(resultData);
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to process recharge request' }, { status: 500 });
   }

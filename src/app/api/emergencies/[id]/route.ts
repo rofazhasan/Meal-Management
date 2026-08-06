@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSystemRatesFromDb } from '@/lib/rates';
-import { isMealDateLocked, getBgdDateStr } from '@/lib/mealEngine';
+import { isMealDateLocked, getBgdDateStr, restoreDeclarationsOnEmergencyOff } from '@/lib/mealEngine';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +48,20 @@ export async function DELETE(
       },
     });
 
-    return NextResponse.json({ success: true, id, date: targetDateStr });
+    let restoreStats = { restoredUsersCount: 0, totalDeductedAmount: 0 };
+    try {
+      restoreStats = await restoreDeclarationsOnEmergencyOff(targetDateStr);
+    } catch (restoreErr) {
+      console.error('Failed to restore declarations on emergency off:', restoreErr);
+    }
+
+    return NextResponse.json({
+      success: true,
+      id,
+      date: targetDateStr,
+      restoredUsersCount: restoreStats.restoredUsersCount,
+      totalDeductedAmount: restoreStats.totalDeductedAmount,
+    });
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || 'Failed to remove emergency closure' },
@@ -56,3 +69,4 @@ export async function DELETE(
     );
   }
 }
+

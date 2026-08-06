@@ -1,7 +1,5 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
-import { Wallet, ArrowDownRight, ArrowUpRight, History, CreditCard, AlertTriangle, Printer, Sparkles, Send, CheckCircle2, Clock, XCircle, X } from 'lucide-react';
+import { Wallet, ArrowDownRight, ArrowUpRight, History, CreditCard, AlertTriangle, Printer, Sparkles, Send, CheckCircle2, Clock, XCircle, X, Search, RefreshCw } from 'lucide-react';
 import { User, WalletTransaction, MealDeclaration, MealRateConfig, RechargeRequest, PaymentMethod } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { ReceiptModal } from '../common/ReceiptModal';
@@ -14,11 +12,17 @@ interface WalletScreenProps {
   transactions: WalletTransaction[];
   declarations?: MealDeclaration[];
   rates?: MealRateConfig;
+  onRefreshData?: () => void;
 }
 
-export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transactions, declarations, rates }) => {
+const CREDIT_TYPES = ['RECHARGE', 'CREDIT', 'ADMIN_TOPUP', 'REFUND', 'DISCOUNT', 'CASH_PAID'];
+const DEBIT_TYPES = ['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE', 'PENALTY'];
+
+export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transactions, declarations, rates, onRefreshData }) => {
   const [filterType, setFilterType] = useState<'ALL' | 'RECHARGE' | 'MEAL_DEDUCTION'>('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedTxForReceipt, setSelectedTxForReceipt] = useState<WalletTransaction | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Recharge Request Modal States
   const [showRechargeModal, setShowRechargeModal] = useState(false);
@@ -39,6 +43,18 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
       setMyRequests(reqs.filter((r) => r.userId === currentUser.id));
     } catch {
       // Fallback
+    }
+  };
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchMyRequests();
+      if (onRefreshData) {
+        onRefreshData();
+      }
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
     }
   };
 
@@ -64,10 +80,11 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
       setReqTrxId('');
       setReqNote('');
       fetchMyRequests();
+      if (onRefreshData) onRefreshData();
     } catch (err: any) {
       alert(`রিকুয়েস্ট পাঠাতে ব্যর্থ: ${err.message}`);
     } finally {
-      setSubmittingReq(false);
+      submittingReq && setSubmittingReq(false);
     }
   };
 
@@ -76,19 +93,35 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
   const userTxs = transactions.filter(t => t.userId === currentUser.id);
 
   const filteredTx = userTxs.filter(tx => {
-    if (filterType === 'ALL') return true;
-    if (filterType === 'RECHARGE') return ['RECHARGE', 'CREDIT', 'ADMIN_TOPUP', 'REFUND'].includes(tx.type);
-    if (filterType === 'MEAL_DEDUCTION') return ['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE'].includes(tx.type);
-    return tx.type === filterType;
+    const isCredit = CREDIT_TYPES.includes(tx.type);
+    const isDebit = DEBIT_TYPES.includes(tx.type);
+
+    if (filterType === 'RECHARGE' && !isCredit) return false;
+    if (filterType === 'MEAL_DEDUCTION' && !isDebit) return false;
+
+    if (searchTerm.trim() !== '') {
+      const query = searchTerm.toLowerCase();
+      const matchDesc = (tx.description || '').toLowerCase().includes(query);
+      const matchDate = (tx.date || '').toLowerCase().includes(query);
+      const matchAmt = tx.amount.toString().includes(query);
+      return matchDesc || matchDate || matchAmt;
+    }
+
+    return true;
   });
 
   const totalRecharge = userTxs
-    .filter(t => ['RECHARGE', 'CREDIT', 'ADMIN_TOPUP', 'REFUND'].includes(t.type))
+    .filter(t => CREDIT_TYPES.includes(t.type))
     .reduce((acc, t) => acc + t.amount, 0);
 
   const totalDeduction = userTxs
-    .filter(t => ['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE'].includes(t.type))
+    .filter(t => DEBIT_TYPES.includes(t.type))
     .reduce((acc, t) => acc + t.amount, 0);
+
+  // Financial ratio progress metrics
+  const totalFlow = totalRecharge || 1;
+  const spentPercent = Math.min(100, Math.round((totalDeduction / totalFlow) * 100));
+  const remainingPercent = Math.max(0, 100 - spentPercent);
 
   return (
     <div className="space-y-6 pb-24 max-w-4xl mx-auto animate-scale-in">
@@ -117,9 +150,18 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
               {BN.wallet} ডিজিটাল লেজার
             </span>
           </div>
-          <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-200 border border-cyan-400/30 backdrop-blur-md">
-            {currentUser.userType === 'PERMANENT' ? BN.permanentUser : BN.guestUser}
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleManualRefresh}
+              title="রিফ্রেশ করুন"
+              className="p-1.5 rounded-xl bg-cyan-500/20 text-cyan-200 border border-cyan-400/30 hover:bg-cyan-500/30 transition-all active:scale-95"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-amber-300' : ''}`} />
+            </button>
+            <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-200 border border-cyan-400/30 backdrop-blur-md">
+              {currentUser.userType === 'PERMANENT' ? BN.permanentUser : BN.guestUser}
+            </span>
+          </div>
         </div>
 
         <div className="my-5 z-10">
@@ -132,19 +174,35 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-cyan-500/20 z-10 text-xs">
-          <div>
-            <p className="text-cyan-200/70 font-sans">{BN.totalRecharge}</p>
-            <p className="text-lg sm:text-xl font-extrabold text-emerald-300 font-mono mt-0.5">
-              <AnimatedNumber value={totalRecharge} prefix="+ ৳" decimals={0} />
-            </p>
+        <div className="space-y-2 z-10">
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-cyan-500/20 text-xs">
+            <div>
+              <p className="text-cyan-200/70 font-sans">{BN.totalRecharge}</p>
+              <p className="text-lg sm:text-xl font-extrabold text-emerald-300 font-mono mt-0.5">
+                <AnimatedNumber value={totalRecharge} prefix="+ ৳" decimals={0} />
+              </p>
+            </div>
+            <div>
+              <p className="text-cyan-200/70 font-sans">{BN.totalDeduction}</p>
+              <p className="text-lg sm:text-xl font-extrabold text-rose-300 font-mono mt-0.5">
+                <AnimatedNumber value={totalDeduction} prefix="- ৳" decimals={0} />
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-cyan-200/70 font-sans">{BN.totalDeduction}</p>
-            <p className="text-lg sm:text-xl font-extrabold text-rose-300 font-mono mt-0.5">
-              <AnimatedNumber value={totalDeduction} prefix="- ৳" decimals={0} />
-            </p>
-          </div>
+
+          {/* Wallet Balance Usage Progress Indicator */}
+          {totalRecharge > 0 && (
+            <div className="pt-2">
+              <div className="flex items-center justify-between text-[11px] text-cyan-200/80 mb-1 font-mono">
+                <span>ব্যয়িত: {spentPercent}%</span>
+                <span>অবশিষ্ট ফান্ড: {remainingPercent}%</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-950/60 overflow-hidden flex border border-cyan-500/20">
+                <div className="h-full bg-rose-400/80 transition-all duration-500" style={{ width: `${spentPercent}%` }} />
+                <div className="h-full bg-emerald-400 transition-all duration-500" style={{ width: `${remainingPercent}%` }} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Quick Recharge Request Action Button */}
@@ -209,16 +267,36 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
           </div>
         </div>
 
+        {/* Transaction Search Bar */}
+        <div className="relative print:hidden">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="লেনদেন খুঁজুন (বিবরণ, পরিমাণ বা তারিখ দিয়ে...)"
+            className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-900/90 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-cyan-500/50 transition-all font-sans"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
         {filteredTx.length === 0 ? (
           <EmptyState
             icon="wallet"
             title="কোনো লেনদেন রেকর্ড পাওয়া যায়নি"
-            description="আপনার নির্বাচিত ক্যাটাগরিতে এখনও কোনো রেকর্ড যুক্ত হয়নি।"
+            description={searchTerm ? "আপনার সার্চ অনুযায়ী কোনো লেনদেন খুঁজে পাওয়া যায়নি।" : "আপনার নির্বাচিত ক্যাটাগরিতে এখনও কোনো রেকর্ড যুক্ত হয়নি।"}
           />
         ) : (
           <div className="space-y-3">
             {filteredTx.map((tx) => {
-              const isCredit = ['RECHARGE', 'CREDIT', 'ADMIN_TOPUP', 'REFUND'].includes(tx.type);
+              const isCredit = CREDIT_TYPES.includes(tx.type);
               return (
                 <div
                   key={tx.id}
@@ -238,7 +316,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
                           রসিদ
                         </span>
                       </div>
-                      <p className="text-xs text-slate-400 font-mono mt-0.5">{tx.date}</p>
+                      <p className="text-xs text-slate-400 font-mono mt-0.5">{new Date(tx.date).toLocaleDateString('bn-BD', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
                     </div>
                   </div>
 
@@ -262,14 +340,23 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
       {/* User Sent Recharge Requests Tracking Card */}
       {myRequests.length > 0 && (
         <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-slate-800/80 space-y-4 shadow-xl">
-          <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
-              <Send className="w-5 h-5 text-amber-400" />
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <Send className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-100 text-base font-display">আমার পাঠানো রিচার্জ রিকুয়েস্ট ট্র্যাকার</h3>
+                <p className="text-xs text-slate-400 font-sans">এডমিন পর্যালোচনার স্ট্যাটাস</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-slate-100 text-base font-display">আমার পাঠানো রিচার্জ রিকুয়েস্ট ট্র্যাকার</h3>
-              <p className="text-xs text-slate-400 font-sans">এডমিন পর্যালোচনার স্ট্যাটাস</p>
-            </div>
+            <button
+              onClick={fetchMyRequests}
+              className="text-xs text-cyan-400 hover:underline flex items-center gap-1"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>আপডেট স্ট্যাটাস</span>
+            </button>
           </div>
 
           <div className="space-y-2.5">
@@ -362,7 +449,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
                 </div>
               </div>
 
-              {/* Amount Input */}
+              {/* Amount Input & Preset Chips */}
               <div>
                 <label className="block text-slate-300 font-bold mb-1.5">টাকার পরিমাণ (৳)</label>
                 <input
@@ -373,8 +460,26 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
                   value={reqAmount}
                   onChange={(e) => setReqAmount(Number(e.target.value))}
                   placeholder="যেমন: 500"
-                  className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 font-mono text-sm focus:outline-none focus:border-emerald-500/60 transition-all"
+                  className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 font-mono text-sm focus:outline-none focus:border-emerald-500/60 transition-all mb-2"
                 />
+                
+                {/* Preset Chips */}
+                <div className="flex items-center gap-2">
+                  {[200, 500, 1000, 2000].map((amt) => (
+                    <button
+                      type="button"
+                      key={amt}
+                      onClick={() => setReqAmount(amt)}
+                      className={`px-3 py-1 rounded-xl text-[11px] font-mono font-bold border transition-all ${
+                        reqAmount === amt
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      +৳{amt}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* TrxID / Reference Input */}

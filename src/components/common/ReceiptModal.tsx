@@ -191,26 +191,67 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
         </div>
 
         {/* Transaction Amount Hero Box */}
-        <div className="my-3 p-5 rounded-2xl bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 border border-emerald-500/30 text-center print:bg-gray-50 print:border-gray-300 relative overflow-hidden shadow-inner">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider print:text-gray-600">
-            মোট পরিশোধিত রিচার্জ পরিমাণ
-          </span>
+        {(() => {
+          const isRefund = transaction.type === 'REFUND';
+          const isDeduction = ['MEAL_DEDUCTION', 'DEBIT'].includes(transaction.type);
+          const isMonthly = transaction.type === 'MONTHLY_CHARGE';
+          const isCash = transaction.type === 'CASH_PAID';
+          const isDiscount = transaction.type === 'DISCOUNT';
+          const isPenalty = transaction.type === 'PENALTY';
 
-          <div className="text-4xl font-black my-1.5 font-sans text-emerald-400 print:text-emerald-700 flex items-center justify-center gap-1">
-            <span className="text-2xl text-emerald-500">+</span> ৳{transaction.amount}
-          </div>
+          let heroTitle = 'মোট পরিশোধিত রিচার্জ পরিমাণ';
+          let sign = '+';
+          let textColor = 'text-emerald-400 print:text-emerald-700';
 
-          <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-800/80 print:border-gray-300 text-xs">
-            <div className="text-center">
-              <span className="text-[10px] text-slate-400 print:text-gray-500 block">পূর্বের ব্যালেন্স</span>
-              <span className="font-extrabold text-slate-300 print:text-black font-mono text-sm">৳{transaction.balanceBefore}</span>
+          if (isRefund) {
+            heroTitle = 'মিল বন্ধের রিফান্ড জমাকৃত পরিমাণ';
+            sign = '+';
+            textColor = 'text-cyan-300 print:text-cyan-700';
+          } else if (isDiscount) {
+            heroTitle = 'বিশেষ ছাড় / ডিসকাউন্ট জমাকৃত পরিমাণ';
+            sign = '+';
+            textColor = 'text-emerald-300 print:text-emerald-700';
+          } else if (isPenalty) {
+            heroTitle = 'জরিমানা / পেনাল্টি কর্তন পরিমাণ';
+            sign = '-';
+            textColor = 'text-rose-400 print:text-rose-700';
+          } else if (isDeduction) {
+            heroTitle = 'মিল খাবার ফি কর্তন পরিমাণ';
+            sign = '-';
+            textColor = 'text-rose-400 print:text-rose-700';
+          } else if (isMonthly) {
+            heroTitle = 'মাসিক মেস ফি কর্তন পরিমাণ';
+            sign = '-';
+            textColor = 'text-amber-300 print:text-amber-700';
+          } else if (isCash) {
+            heroTitle = 'হাতে গ্রহণকৃত নগদ ফি পরিমাণ';
+            sign = '+';
+            textColor = 'text-purple-300 print:text-purple-700';
+          }
+
+          return (
+            <div className="my-3 p-5 rounded-2xl bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 border border-slate-800 text-center print:bg-gray-50 print:border-gray-300 relative overflow-hidden shadow-inner">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider print:text-gray-600">
+                {heroTitle}
+              </span>
+
+              <div className={`text-4xl font-black my-1.5 font-sans ${textColor} flex items-center justify-center gap-1`}>
+                {sign && <span className="text-2xl">{sign}</span>} ৳{transaction.amount}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-800/80 print:border-gray-300 text-xs">
+                <div className="text-center">
+                  <span className="text-[10px] text-slate-400 print:text-gray-500 block">পূর্বের ব্যালেন্স</span>
+                  <span className="font-extrabold text-slate-300 print:text-black font-mono text-sm">৳{transaction.balanceBefore}</span>
+                </div>
+                <div className="text-center border-l border-slate-800/80 print:border-gray-300">
+                  <span className="text-[10px] text-slate-400 print:text-gray-500 block">আপডেটকৃত ব্যালেন্স</span>
+                  <span className="font-extrabold text-emerald-300 print:text-emerald-800 font-mono text-sm">৳{transaction.balanceAfter}</span>
+                </div>
+              </div>
             </div>
-            <div className="text-center border-l border-slate-800/80 print:border-gray-300">
-              <span className="text-[10px] text-slate-400 print:text-gray-500 block">আপডেটকৃত ব্যালেন্স</span>
-              <span className="font-extrabold text-emerald-300 print:text-emerald-800 font-mono text-sm">৳{transaction.balanceAfter}</span>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
 
         {/* Average Meal Consumption & Estimated Finish Date Assumption Box */}
         <div className="my-4 p-4 rounded-2xl bg-gradient-to-r from-slate-950 via-cyan-950/20 to-slate-950 border border-cyan-500/30 text-left print:bg-gray-50 print:border-gray-300 space-y-3 shadow-lg">
@@ -250,7 +291,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 </span>
               </div>
               <span className="text-[10px] text-emerald-400 print:text-emerald-900 font-extrabold font-mono">
-                (আর প্রায় {estimatedDaysRemaining} দিন चलेगा)
+                (আর প্রায় {estimatedDaysRemaining} দিন চলবে)
               </span>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { processEmergencyClosureWithRefunds, getBgdDateStr, parseDateToUtcMidday } from '@/lib/mealEngine';
+import { processEmergencyClosureWithRefunds, restoreDeclarationsOnEmergencyOff, getBgdDateStr, parseDateToUtcMidday } from '@/lib/mealEngine';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,42 +27,85 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { date, reason } = await req.json();
-    const dateStr = date || getBgdDateStr();
-    const mealDate = parseDateToUtcMidday(dateStr);
+    const { date, endDate, reason, emergencyOff = true } = await req.json();
+    const startDateStr = date || getBgdDateStr();
+    const endDateStr = endDate || startDateStr;
 
-    const upserted = await prisma.mealSetting.upsert({
-      where: { mealDate },
-      update: {
-        emergencyOff: true,
-        emergencyReason: reason || 'Emergency Closure',
-      },
-      create: {
-        mealDate,
-        emergencyOff: true,
-        emergencyReason: reason || 'Emergency Closure',
-        breakfastOn: false,
-        lunchOn: false,
-        dinnerOn: false,
-      },
-    });
+    if (emergencyOff === false) {
+      const mealDate = parseDateToUtcMidday(startDateStr);
+      const existing = await prisma.mealSetting.findFirst({ where: { mealDate } });
+      if (existing) {
+        await prisma.mealSetting.update({
+          where: { id: existing.id },
+          data: { emergencyOff: false, emergencyReason: null, breakfastOn: true, lunchOn: true, dinnerOn: true },
+        });
+      }
+      let restoreStats = { restoredUsersCount: 0, totalDeductedAmount: 0 };
+      try {
+        restoreStats = await restoreDeclarationsOnEmergencyOff(startDateStr);
+      } catch (err) {
+        console.error('Failed to restore declarations on emergency off:', err);
+      }
+      return NextResponse.json({
+        success: true,
+        date: startDateStr,
+        restoredUsersCount: restoreStats.restoredUsersCount,
+        totalDeductedAmount: restoreStats.totalDeductedAmount,
+      });
+    }
 
-    // Run batch emergency refund algorithm for affected users
-    let refundStats = { refundedUsersCount: 0, totalRefundedAmount: 0 };
-    try {
-      refundStats = await processEmergencyClosureWithRefunds(dateStr, reason || 'Emergency Closure');
-    } catch (refundErr) {
-      console.error('Failed to process automated emergency refunds:', refundErr);
+    // Generate list of date strings from startDateStr to endDateStr
+    const datesToClose: string[] = [];
+    const cur = new Date(`${startDateStr}T12:00:00Z`);
+    const end = new Date(`${endDateStr}T12:00:00Z`);
+
+    while (cur <= end) {
+      datesToClose.push(cur.toISOString().split('T')[0]);
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+
+    let totalRefundedUsersCount = 0;
+    let totalRefundedAmount = 0;
+    let primaryUpserted: any = null;
+
+    for (const currDateStr of datesToClose) {
+      const mealDate = parseDateToUtcMidday(currDateStr);
+      const upserted = await prisma.mealSetting.upsert({
+        where: { mealDate },
+        update: {
+          emergencyOff: true,
+          emergencyReason: reason || 'Emergency Closure',
+        },
+        create: {
+          mealDate,
+          emergencyOff: true,
+          emergencyReason: reason || 'Emergency Closure',
+          breakfastOn: false,
+          lunchOn: false,
+          dinnerOn: false,
+        },
+      });
+
+      if (!primaryUpserted) primaryUpserted = upserted;
+
+      try {
+        const refundStats = await processEmergencyClosureWithRefunds(currDateStr, reason || 'Emergency Closure');
+        totalRefundedUsersCount += refundStats.refundedUsersCount;
+        totalRefundedAmount += refundStats.totalRefundedAmount;
+      } catch (refundErr) {
+        console.error(`Failed to process automated emergency refunds for ${currDateStr}:`, refundErr);
+      }
     }
 
     const closure = {
-      id: upserted.id,
-      date: upserted.mealDate.toISOString().split('T')[0],
-      reason: upserted.emergencyReason || 'Emergency Closure',
+      id: primaryUpserted ? primaryUpserted.id : 'temp',
+      date: startDateStr,
+      endDate: endDateStr,
+      reason: reason || 'Emergency Closure',
       closedMeals: ['breakfast', 'lunch', 'dinner'],
-      createdAt: upserted.createdAt.toISOString(),
-      refundedUsersCount: refundStats.refundedUsersCount,
-      totalRefundedAmount: refundStats.totalRefundedAmount,
+      createdAt: primaryUpserted ? primaryUpserted.createdAt.toISOString() : new Date().toISOString(),
+      refundedUsersCount: totalRefundedUsersCount,
+      totalRefundedAmount: totalRefundedAmount,
     };
 
     return NextResponse.json(closure, { status: 201 });

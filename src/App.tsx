@@ -358,6 +358,7 @@ const MainApplication: React.FC = () => {
                     transactions={transactions.filter((t) => t.userId === currentUser.id)}
                     declarations={declarations}
                     rates={effectiveRates}
+                    onRefreshData={handleRefreshAll}
                   />
                 )}
 

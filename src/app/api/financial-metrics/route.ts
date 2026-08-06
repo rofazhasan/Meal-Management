@@ -112,6 +112,43 @@ export async function GET() {
           },
         });
 
+        const todayExpensesAgg = await prisma.walletTransaction.aggregate({
+          _sum: { amount: true },
+          where: {
+            transactionType: { in: ['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE'] },
+            createdAt: { gte: startOfToday },
+          },
+        });
+
+        const topSpendersGroup = await prisma.walletTransaction.groupBy({
+          by: ['userId'],
+          _sum: { amount: true },
+          where: {
+            transactionType: { in: ['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE'] },
+            createdAt: { gte: startOfMonth },
+          },
+          orderBy: {
+            _sum: { amount: 'desc' },
+          },
+          take: 5,
+        });
+
+        const topSpenderUserIds = topSpendersGroup.map((g) => g.userId);
+        const topSpenderUsers = await prisma.user.findMany({
+          where: { id: { in: topSpenderUserIds } },
+          select: { id: true, fullName: true, phoneNumber: true },
+        });
+        const userMap = new Map(topSpenderUsers.map((u) => [u.id, u]));
+
+        const topSpenders = topSpendersGroup.map((g) => {
+          const u = userMap.get(g.userId);
+          return {
+            name: u?.fullName || 'অজানা মেম্বার',
+            phone: u?.phoneNumber || 'N/A',
+            amount: Number(g._sum.amount || 0),
+          };
+        });
+
         const totalColl = Number(totalRechargesAgg._sum.amount || 0);
         const totalDeduct = Number(totalDeductionsAgg._sum.amount || 0);
         const totalRef = Number(totalRefundsAgg._sum.amount || 0);
@@ -122,7 +159,7 @@ export async function GET() {
           todayCollection: Number(todayRechargesAgg._sum.amount || 0),
           monthlyCollection: Number(monthRechargesAgg._sum.amount || 0),
           yearlyCollection: Number(yearRechargesAgg._sum.amount || 0),
-          todayExpenses: 0,
+          todayExpenses: Number(todayExpensesAgg._sum.amount || 0),
           netProfit: netDeduct,
           outstandingBalance: 0,
           totalWalletBalance: walletBal,
@@ -138,7 +175,7 @@ export async function GET() {
           monthlyEstCost: 0,
           activeUsersCount,
           pausedUsersCount,
-          topSpenders: [],
+          topSpenders,
           lowBalanceUsersCount: lowBalCount,
         };
       } catch (e) {

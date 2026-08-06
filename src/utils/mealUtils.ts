@@ -19,9 +19,9 @@ export function getUserMealStateForDate(
   const isLGlobalOff = rates?.globalMealStatus?.lunch === false;
   const isDGlobalOff = rates?.globalMealStatus?.dinner === false;
 
-  const isBEmergencyOff = !!emergency && emergency.closedMeals.includes('breakfast');
-  const isLEmergencyOff = !!emergency && emergency.closedMeals.includes('lunch');
-  const isDEmergencyOff = !!emergency && emergency.closedMeals.includes('dinner');
+  const isBEmergencyOff = !!emergency && (!emergency.closedMeals || emergency.closedMeals.length === 0 || emergency.closedMeals.includes('breakfast'));
+  const isLEmergencyOff = !!emergency && (!emergency.closedMeals || emergency.closedMeals.length === 0 || emergency.closedMeals.includes('lunch'));
+  const isDEmergencyOff = !!emergency && (!emergency.closedMeals || emergency.closedMeals.length === 0 || emergency.closedMeals.includes('dinner'));
 
   const minMealCost = Math.min(userRates.breakfast, userRates.lunch, userRates.dinner);
   const defaultActive = (user.walletBalance ?? 0) >= minMealCost;

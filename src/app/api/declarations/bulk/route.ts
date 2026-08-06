@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { pool } from '@/lib/db';
 import { getSystemRatesFromDb } from '@/lib/rates';
+import { resolveMealPricing, parseDateToUtcMidday } from '@/lib/mealEngine';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,13 +15,18 @@ export async function POST(req: Request) {
 
     if (process.env.DATABASE_URL) {
       const ratesConfig = await getSystemRatesFromDb();
+      const globalStatus = ratesConfig.globalMealStatus || { breakfast: true, lunch: true, dinner: true };
+
+      let emergencyApplied = false;
+      let emergencyReasonStr: string | null = null;
+      let totalDeductions = 0;
+      let totalRefunds = 0;
 
       await prisma.$transaction(async (tx) => {
         for (const item of updates) {
           const { userId, date, breakfast, lunch, dinner } = item;
-          const [year, month, day] = date.split('-').map(Number);
-          const declDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
           const dateStr = date;
+          const declDate = parseDateToUtcMidday(dateStr);
 
           const user = await tx.user.findUnique({
             where: { id: userId },
@@ -39,37 +44,29 @@ export async function POST(req: Request) {
           let newL = item.meals ? Boolean(item.meals.lunch) : Boolean(item.lunch);
           let newD = item.meals ? Boolean(item.meals.dinner) : Boolean(item.dinner);
 
+          // Force off if globally off
+          if (globalStatus.breakfast === false) newB = false;
+          if (globalStatus.lunch === false) newL = false;
+          if (globalStatus.dinner === false) newD = false;
+
           // Force off if emergency
           if (emSetting && emSetting.emergencyOff) {
             newB = false;
             newL = false;
             newD = false;
+            emergencyApplied = true;
+            emergencyReasonStr = emSetting.emergencyReason || 'Emergency Closure';
           }
 
-          const userRates = user.userType === 'GUEST' ? ratesConfig.guest : ratesConfig.permanent;
+          // Fetch rates dynamically using central meal pricing resolver (includes special meal custom rates)
+          const effectiveRates = await resolveMealPricing(dateStr, user.userType, tx, true);
+          const bPrice = effectiveRates.breakfast;
+          const lPrice = effectiveRates.lunch;
+          const dPrice = effectiveRates.dinner;
 
-          // Check Special Meals for this date via SQL pool
-          let specB: any = null;
-          let specL: any = null;
-          let specD: any = null;
-
-          try {
-            const specRes = await pool.query(
-              `SELECT LOWER(meal_type::text) AS "mealType", custom_rate::float AS "customRate"
-               FROM special_meals
-               WHERE meal_date = $1 AND is_active = TRUE;`,
-              [dateStr]
-            );
-            specB = specRes.rows.find((s: any) => s.mealType === 'breakfast');
-            specL = specRes.rows.find((s: any) => s.mealType === 'lunch');
-            specD = specRes.rows.find((s: any) => s.mealType === 'dinner');
-          } catch (e) {
-            // Fallback to normal rates if special_meals table is not populated
-          }
-
-          const effectiveBRate = specB ? Number(specB.customRate) : userRates.breakfast;
-          const effectiveLRate = specL ? Number(specL.customRate) : userRates.lunch;
-          const effectiveDRate = specD ? Number(specD.customRate) : userRates.dinner;
+          const effectiveBRate = (globalStatus.breakfast === false || (emSetting && emSetting.emergencyOff)) ? 0 : bPrice;
+          const effectiveLRate = (globalStatus.lunch === false || (emSetting && emSetting.emergencyOff)) ? 0 : lPrice;
+          const effectiveDRate = (globalStatus.dinner === false || (emSetting && emSetting.emergencyOff)) ? 0 : dPrice;
 
           const prevDecl = await tx.mealDeclaration.findUnique({
             where: {
@@ -118,6 +115,7 @@ export async function POST(req: Request) {
                 note: `বাল্ক মিল ফি কর্তন (${dateStr})`,
               },
             });
+            totalDeductions += costDiff;
           } else if (costDiff < 0 && isAdminOverride) {
             const refundAmt = Math.abs(costDiff);
             newBal = currentBal + refundAmt;
@@ -139,6 +137,7 @@ export async function POST(req: Request) {
                 note: `বাল্ক মিল রিফান্ড (${dateStr})`,
               },
             });
+            totalRefunds += refundAmt;
           }
 
           await tx.mealDeclaration.upsert({
@@ -166,7 +165,14 @@ export async function POST(req: Request) {
         }
       });
 
-      return NextResponse.json({ success: true, count: updates.length });
+      return NextResponse.json({
+        success: true,
+        count: updates.length,
+        emergencyApplied,
+        emergencyReason: emergencyReasonStr,
+        totalDeductions,
+        totalRefunds,
+      });
     }
 
     return NextResponse.json({ success: true, count: updates.length });

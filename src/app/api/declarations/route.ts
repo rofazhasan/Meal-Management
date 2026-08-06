@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSystemRatesFromDb } from '@/lib/rates';
-import { isMealDateLocked, resolveMealPricing, parseDateToUtcMidday } from '@/lib/mealEngine';
+import { isMealDateLocked, resolveMealPricing, parseDateToUtcMidday, autoCopyPreviousDayDeclarations } from '@/lib/mealEngine';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,8 +9,17 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
+    const dateParam = searchParams.get('date');
+    const startDate = searchParams.get('startDate') || dateParam;
+    const endDate = searchParams.get('endDate') || dateParam;
+
+    if (process.env.DATABASE_URL) {
+      try {
+        await autoCopyPreviousDayDeclarations(dateParam || undefined);
+      } catch (autoErr) {
+        console.error('Failed to run auto-copy algorithm:', autoErr);
+      }
+    }
 
     const whereClause: any = {};
     if (userId) whereClause.userId = userId;
@@ -68,22 +77,35 @@ export async function POST(req: Request) {
     const declDate = parseDateToUtcMidday(date);
     const dateStr = date;
 
+    const globalStatus = ratesConfig.globalMealStatus || { breakfast: true, lunch: true, dinner: true };
+
     // 1. Check emergency closures
     const emSetting = await prisma.mealSetting.findFirst({
       where: { mealDate: declDate, emergencyOff: true },
     });
 
-    const newB = Boolean(breakfast);
-    const newL = Boolean(lunch);
-    const newD = Boolean(dinner);
-
-    if (emSetting && emSetting.emergencyOff) {
-      if (newB || newL || newD) {
+    if (emSetting && emSetting.emergencyOff && !isAdminOverride) {
+      if (breakfast || lunch || dinner) {
         return NextResponse.json(
-          { error: 'জরুরি মিল বন্ধ থাকার কারণে এই দিনে মিল চালু করা সম্ভব নয়।' },
+          { error: `🚨 ${dateStr} তারিখে জরুরি বন্ধ ঘোষিত রয়েছে (${emSetting.emergencyReason || 'Emergency Closure'})। জরুরি অবস্থায় মিল চালু করা সম্ভব নয়।` },
           { status: 400 }
         );
       }
+    }
+
+    let newB = Boolean(breakfast);
+    let newL = Boolean(lunch);
+    let newD = Boolean(dinner);
+
+    // Force off meals that are globally turned off by admin
+    if (globalStatus.breakfast === false) newB = false;
+    if (globalStatus.lunch === false) newL = false;
+    if (globalStatus.dinner === false) newD = false;
+
+    if (emSetting && emSetting.emergencyOff) {
+      newB = false;
+      newL = false;
+      newD = false;
     }
 
     // 2. Fetch User and Pricing via engine

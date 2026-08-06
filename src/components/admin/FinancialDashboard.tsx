@@ -1,11 +1,34 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight, Users, AlertCircle, Download, FileText, Printer, Sparkles, CheckCircle2, Wallet, HandCoins, ClipboardList, CheckCheck, XCircle } from 'lucide-react';
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  CreditCard,
+  ArrowUpRight,
+  ArrowDownRight,
+  Users,
+  Download,
+  FileText,
+  Printer,
+  Sparkles,
+  CheckCircle2,
+  HandCoins,
+  ClipboardList,
+  CheckCheck,
+  XCircle,
+  Search,
+  Filter,
+  Eye,
+  RefreshCw,
+  RotateCcw,
+} from 'lucide-react';
 import { FinancialMetrics, WalletTransaction, User } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { ApiService } from '../../services/apiService';
+import { ReceiptModal } from '../common/ReceiptModal';
 
 interface FinancialDashboardProps {
   metrics: FinancialMetrics;
@@ -13,6 +36,88 @@ interface FinancialDashboardProps {
   users?: User[];
   currentAdmin: User;
   onRefreshData?: () => void;
+}
+
+/**
+ * Unified Transaction Type Formatter Algorithm
+ * Maps internal enum keys to accurate Bangla titles, badges, and color schemes.
+ */
+export function getTxTypeInfo(type: string): {
+  label: string;
+  badgeClass: string;
+  amountPrefix: string;
+  amountClass: string;
+  isCredit: boolean;
+} {
+  switch (type) {
+    case 'RECHARGE':
+    case 'ADMIN_TOPUP':
+    case 'CREDIT':
+      return {
+        label: '➕ ওয়ালেট রিচার্জ',
+        badgeClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+        amountPrefix: '+ ৳',
+        amountClass: 'text-emerald-400',
+        isCredit: true,
+      };
+    case 'REFUND':
+      return {
+        label: '🔄 মিল বন্ধের টাকা রিফান্ড',
+        badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+        amountPrefix: '+ ৳',
+        amountClass: 'text-cyan-300',
+        isCredit: true,
+      };
+    case 'DISCOUNT':
+      return {
+        label: '🎁 ছাড় / ডিসকাউন্ট',
+        badgeClass: 'bg-teal-500/15 text-teal-300 border-teal-500/30',
+        amountPrefix: '+ ৳',
+        amountClass: 'text-teal-300',
+        isCredit: true,
+      };
+    case 'MEAL_DEDUCTION':
+    case 'DEBIT':
+      return {
+        label: '➖ মিল কর্তন',
+        badgeClass: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+        amountPrefix: '- ৳',
+        amountClass: 'text-rose-400',
+        isCredit: false,
+      };
+    case 'MONTHLY_CHARGE':
+      return {
+        label: '📋 মাসিক ফি কর্তন',
+        badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+        amountPrefix: '- ৳',
+        amountClass: 'text-amber-300',
+        isCredit: false,
+      };
+    case 'CASH_PAID':
+      return {
+        label: '🤝 হাতে ক্যাশ ফি গ্রহণ',
+        badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+        amountPrefix: '৳',
+        amountClass: 'text-purple-300',
+        isCredit: false,
+      };
+    case 'PENALTY':
+      return {
+        label: '⚠️ জরিমানা / পেনাল্টি',
+        badgeClass: 'bg-red-500/15 text-red-400 border-red-500/30',
+        amountPrefix: '- ৳',
+        amountClass: 'text-red-400',
+        isCredit: false,
+      };
+    default:
+      return {
+        label: type,
+        badgeClass: 'bg-slate-800 text-slate-300 border-slate-700',
+        amountPrefix: '৳',
+        amountClass: 'text-slate-200',
+        isCredit: false,
+      };
+  }
 }
 
 export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
@@ -23,6 +128,11 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   onRefreshData,
 }) => {
   const [filterPeriod, setFilterPeriod] = useState<'today' | 'monthly' | 'yearly'>('monthly');
+
+  // Master Ledger Filter & Voucher States
+  const [ledgerSearch, setLedgerSearch] = useState('');
+  const [ledgerTypeFilter, setLedgerTypeFilter] = useState<'ALL' | 'RECHARGE' | 'REFUND' | 'MEAL_DEDUCTION' | 'MONTHLY_CHARGE' | 'CASH_PAID'>('ALL');
+  const [selectedTxForReceipt, setSelectedTxForReceipt] = useState<WalletTransaction | null>(null);
 
   // Dynamic Month & Year Options Generation
   const monthOptions = useMemo(() => {
@@ -71,6 +181,76 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
 
   const paidCount = feeStatusReport.filter(r => r.paid).length;
   const unpaidCount = feeStatusReport.filter(r => !r.paid).length;
+
+  // Timeframe and Type Filtered Master Transactions
+  const filteredMasterTransactions = useMemo(() => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    return transactions.filter((tx) => {
+      const txDateObj = new Date(tx.date);
+      const txDateStr = txDateObj.toISOString().split('T')[0];
+
+      // 1. Timeframe Filter
+      if (filterPeriod === 'today' && txDateStr !== todayStr) {
+        return false;
+      }
+      if (filterPeriod === 'monthly' && (txDateObj.getMonth() !== currentMonth || txDateObj.getFullYear() !== currentYear)) {
+        return false;
+      }
+      if (filterPeriod === 'yearly' && txDateObj.getFullYear() !== currentYear) {
+        return false;
+      }
+
+      // 2. Type Filter
+      if (ledgerTypeFilter !== 'ALL') {
+        if (ledgerTypeFilter === 'RECHARGE' && !['RECHARGE', 'ADMIN_TOPUP', 'CREDIT'].includes(tx.type)) return false;
+        if (ledgerTypeFilter === 'REFUND' && tx.type !== 'REFUND') return false;
+        if (ledgerTypeFilter === 'MEAL_DEDUCTION' && !['MEAL_DEDUCTION', 'DEBIT'].includes(tx.type)) return false;
+        if (ledgerTypeFilter === 'MONTHLY_CHARGE' && tx.type !== 'MONTHLY_CHARGE') return false;
+        if (ledgerTypeFilter === 'CASH_PAID' && tx.type !== 'CASH_PAID') return false;
+      }
+
+      // 3. Search Term Filter
+      if (ledgerSearch.trim()) {
+        const query = ledgerSearch.toLowerCase().trim();
+        const txUser = users.find((u) => u.id === tx.userId);
+        const userName = txUser?.name.toLowerCase() || '';
+        const userPhone = txUser?.phone.toLowerCase() || '';
+        const desc = (tx.description || '').toLowerCase();
+        const id = tx.id.toLowerCase();
+        if (!userName.includes(query) && !userPhone.includes(query) && !desc.includes(query) && !id.includes(query)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [transactions, users, filterPeriod, ledgerTypeFilter, ledgerSearch]);
+
+  // Master Ledger Financial Summary Pills Calculations
+  const ledgerStats = useMemo(() => {
+    let recharges = 0;
+    let refunds = 0;
+    let mealDeductions = 0;
+    let monthlyCharges = 0;
+
+    filteredMasterTransactions.forEach((tx) => {
+      if (['RECHARGE', 'ADMIN_TOPUP', 'CREDIT'].includes(tx.type)) {
+        recharges += tx.amount;
+      } else if (tx.type === 'REFUND') {
+        refunds += tx.amount;
+      } else if (['MEAL_DEDUCTION', 'DEBIT'].includes(tx.type)) {
+        mealDeductions += tx.amount;
+      } else if (tx.type === 'MONTHLY_CHARGE') {
+        monthlyCharges += tx.amount;
+      }
+    });
+
+    return { recharges, refunds, mealDeductions, monthlyCharges };
+  }, [filteredMasterTransactions]);
 
   const handlePrintFeeReport = () => {
     const style = `
@@ -169,20 +349,9 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
       ['তারিখ ও সময়', 'মেম্বার নাম', 'ফোন নম্বর', 'লেনদেনের ধরণ', 'বিবরণ', 'পরিমাণ (৳)', 'পূর্বের ব্যালেন্স (৳)', 'পরের ব্যালেন্স (৳)'],
     ];
 
-    transactions.forEach((tx) => {
+    filteredMasterTransactions.forEach((tx) => {
       const txUser = users?.find((u) => u.id === tx.userId);
-      const typeText =
-        tx.type === 'RECHARGE'
-          ? 'ওয়ালেট রিচার্জ'
-          : tx.type === 'MEAL_DEDUCTION'
-          ? 'মিল কর্তন'
-          : tx.type === 'MONTHLY_CHARGE'
-          ? 'মাসিক ফি'
-          : tx.type === 'CASH_PAID'
-          ? 'হাতে ক্যাশ পরিশোধ'
-          : tx.type === 'REFUND'
-          ? 'রিফান্ড'
-          : tx.type;
+      const info = getTxTypeInfo(tx.type);
 
       const dateStr = new Date(tx.date).toLocaleString('bn-BD');
       const name = txUser ? txUser.name : 'অজানা মেম্বার';
@@ -193,7 +362,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
         `"${dateStr}"`,
         `"${name.replace(/"/g, '""')}"`,
         `"${phone.replace(/"/g, '""')}"`,
-        `"${typeText}"`,
+        `"${info.label}"`,
         `"${desc.replace(/"/g, '""')}"`,
         tx.amount.toString(),
         (tx.balanceBefore || 0).toString(),
@@ -231,6 +400,17 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
 
         {/* Time Filters & Export Actions */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Refresh Data Button */}
+          {onRefreshData && (
+            <button
+              onClick={onRefreshData}
+              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 hover:text-white transition"
+              title="ডেটা রিফ্রেশ করুন"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          )}
+
           {/* Timeframe Selector */}
           <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs">
             <button
@@ -328,7 +508,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
             </span>
           </div>
           <p className="text-[11px] text-amber-400/80 mt-2 flex items-center gap-1">
-            <ArrowDownRight className="w-3.5 h-3.5" /> আনুমানিক কাঁচামাল ও পরিচালন ব্যয়
+            <ArrowDownRight className="w-3.5 h-3.5" /> আজকের কাঁচামাল ও মিল ব্যয়
           </p>
         </div>
 
@@ -363,7 +543,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-white font-display">মাসিক ফি পরিশোধের তালিকা</h3>
-              <p className="text-xs text-slate-400">কোন সদস্য ফি দিয়েছেন আর কে বকেয়া আছেন তা দেখুন</p>
+              <p className="text-xs text-slate-400">কোন সদস্য ফি দিয়েছেন আর কে বকেয়া আছেন তা দেখুন</p>
             </div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -401,14 +581,14 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
             <XCircle className="w-5 h-5 text-rose-400 shrink-0" />
             <div>
               <p className="text-2xl font-extrabold text-rose-400 font-mono">{unpaidCount}</p>
-              <p className="text-[10px] text-rose-300 font-bold">ফি বকেয়া আছেন</p>
+              <p className="text-[10px] text-rose-300 font-bold">ফি বকেয়া আছেন</p>
             </div>
           </div>
           <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center gap-3 col-span-2 sm:col-span-1">
             <Users className="w-5 h-5 text-slate-400 shrink-0" />
             <div>
               <p className="text-2xl font-extrabold text-slate-300 font-mono">{feeStatusReport.length}</p>
-              <p className="text-[10px] text-slate-400 font-bold">মোট সক্রিয় সদস্য</p>
+              <p className="text-[10px] text-slate-400 font-bold">মোট সক্রিয় সদস্য</p>
             </div>
           </div>
         </div>
@@ -421,7 +601,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
                 <tr>
                   <th className="p-3.5">নাম</th>
                   <th className="p-3.5">ফোন</th>
-                  <th className="p-3.5">ওয়ালেট</th>
+                  <th className="p-3.5">ওয়ালেট</th>
                   <th className="p-3.5">ফি স্ট্যাটাস</th>
                   <th className="p-3.5">পরিমাণ</th>
                   <th className="p-3.5">পদ্ধতি</th>
@@ -443,7 +623,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 text-[10px] font-bold">
-                          <XCircle className="w-3 h-3" /> বকেয়া আছেন
+                          <XCircle className="w-3 h-3" /> বকেয়া আছেন
                         </span>
                       )}
                     </td>
@@ -468,7 +648,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
         ) : (
           <div className="py-8 text-center">
             <ClipboardList className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-500 text-sm">কোনো সক্রিয় সদস্য পাওয়া যায়নি।</p>
+            <p className="text-slate-500 text-sm">কোনো সক্রিয় সদস্য পাওয়া যায়নি।</p>
           </div>
         )}
       </div>
@@ -625,51 +805,142 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
               <Users className="w-4 h-4 text-emerald-400" />
               {BN.topSpenders}
             </h3>
-            <span className="text-xs text-slate-400">চলতি মাস</span>
+            <span className="text-xs text-slate-400 font-mono">চলতি মাস</span>
           </div>
 
           <div className="divide-y divide-slate-800/80">
-            {metrics.topSpenders.map((user, i) => (
-              <div key={i} className="py-3 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-cyan-300">
-                    {i + 1}
+            {metrics.topSpenders && metrics.topSpenders.length > 0 ? (
+              metrics.topSpenders.map((user, i) => (
+                <div key={i} className="py-3 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-cyan-300">
+                      {i + 1}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-200">{user.name}</h4>
+                      <p className="text-[11px] text-slate-400 font-mono">{user.phone}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-slate-200">{user.name}</h4>
-                    <p className="text-[11px] text-slate-400 font-mono">{user.phone}</p>
+                  <div className="text-right">
+                    <span className="font-bold text-emerald-400 font-mono text-sm">৳{user.amount}</span>
+                    <p className="text-[10px] text-slate-400">মোট খরচ</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="font-bold text-emerald-400 font-mono text-sm">৳{user.amount}</span>
-                  <p className="text-[10px] text-slate-400">মোট খরচ</p>
-                </div>
+              ))
+            ) : (
+              <div className="py-6 text-center text-slate-500 text-xs">
+                চলতি মাসে কোনো মেম্বারের খরচের ইতিহাস পাওয়া যায়নি
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
 
-      {/* All System Transactions Master Ledger Table */}
-      <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-slate-800 space-y-4 shadow-xl">
+      {/* ═══════════════════════════════════════════════════════════
+          ALL SYSTEM TRANSACTIONS MASTER LEDGER TABLE & SEARCH HUB
+          ═══════════════════════════════════════════════════════════ */}
+      <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-slate-800 space-y-5 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="text-base font-extrabold text-white font-display flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-cyan-400" />
               সকল সদস্যের সার্বিক লেনদেন রেজিস্টার (All Transactions Ledger)
             </h3>
-            <p className="text-xs text-slate-400 font-sans">সিস্টেমের সমস্ত মেম্বার রিচার্জ, মিল কর্তন এবং রিফান্ড রেকর্ড</p>
+            <p className="text-xs text-slate-400 font-sans mt-0.5">
+              সিস্টেমের সমস্ত মেম্বার রিচার্জ, মিল কর্তন, মিল বন্ধের রিফান্ড এবং মাসিক ফি রেকর্ড
+            </p>
           </div>
 
-          <button
-            onClick={() => window.print()}
-            className="px-3.5 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold flex items-center gap-1.5 transition print:hidden"
-          >
-            <Printer className="w-4 h-4" />
-            <span>প্রিন্ট মাস্টার লেনদেন লেজার</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="px-3.5 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 text-xs font-bold flex items-center gap-1.5 transition print:hidden"
+            >
+              <Printer className="w-4 h-4" />
+              <span>প্রিন্ট মাস্টার লেজার</span>
+            </button>
+          </div>
         </div>
 
+        {/* Master Ledger Filters & Search Controls */}
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
+          {/* Search Box */}
+          <div className="sm:col-span-6 relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={ledgerSearch}
+              onChange={(e) => setLedgerSearch(e.target.value)}
+              placeholder="মেম্বার নাম, ফোন অথবা বিবরণ দিয়ে খুঁজুন..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700/80 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-all"
+            />
+          </div>
+
+          {/* Transaction Type Selector Filter */}
+          <div className="sm:col-span-6 flex items-center gap-2">
+            <div className="relative w-full">
+              <Filter className="w-4 h-4 text-cyan-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <select
+                value={ledgerTypeFilter}
+                onChange={(e) => setLedgerTypeFilter(e.target.value as any)}
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700/80 text-cyan-300 font-bold text-xs focus:border-cyan-500 focus:outline-none"
+              >
+                <option value="ALL">সব ধরণের লেনদেন (All Category)</option>
+                <option value="RECHARGE">➕ ওয়ালেট রিচার্জ (Recharges)</option>
+                <option value="REFUND">🔄 মিল বন্ধের টাকা রিফান্ড (Meal Off Refunds)</option>
+                <option value="MEAL_DEDUCTION">➖ মিল কর্তন (Meal Deductions)</option>
+                <option value="MONTHLY_CHARGE">📋 মাসিক ফি কর্তন (Monthly Charges)</option>
+                <option value="CASH_PAID">🤝 হাতে ক্যাশ ফি গ্রহণ (Cash Received)</option>
+              </select>
+            </div>
+
+            {ledgerSearch || ledgerTypeFilter !== 'ALL' ? (
+              <button
+                onClick={() => {
+                  setLedgerSearch('');
+                  setLedgerTypeFilter('ALL');
+                }}
+                className="p-2.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition shrink-0"
+                title="ফিল্টার রিসেট"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Master Ledger Filtered Summary Pills */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
+          <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+            <span className="text-[10px] text-emerald-400 font-semibold block">মোট ওয়ালেট রিচার্জ</span>
+            <span className="text-lg font-bold text-emerald-300 font-mono mt-0.5 block">
+              + ৳{ledgerStats.recharges.toLocaleString()}
+            </span>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">
+            <span className="text-[10px] text-cyan-300 font-semibold block">মিল বন্ধের টাকা রিফান্ড</span>
+            <span className="text-lg font-bold text-cyan-200 font-mono mt-0.5 block">
+              + ৳{ledgerStats.refunds.toLocaleString()}
+            </span>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+            <span className="text-[10px] text-rose-400 font-semibold block">মোট মিল কর্তন</span>
+            <span className="text-lg font-bold text-rose-300 font-mono mt-0.5 block">
+              - ৳{ledgerStats.mealDeductions.toLocaleString()}
+            </span>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+            <span className="text-[10px] text-amber-400 font-semibold block">মাসিক মেস ফি</span>
+            <span className="text-lg font-bold text-amber-300 font-mono mt-0.5 block">
+              - ৳{ledgerStats.monthlyCharges.toLocaleString()}
+            </span>
+          </div>
+        </div>
+
+        {/* Master Ledger Table */}
         <div className="overflow-x-auto rounded-2xl border border-slate-800">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-900 uppercase text-[10px] text-slate-400 border-b border-slate-800 font-mono">
@@ -680,43 +951,67 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
                 <th className="p-3.5 font-bold">বিবরণ</th>
                 <th className="p-3.5 font-bold text-right">পরিমাণ (৳)</th>
                 <th className="p-3.5 font-bold text-right">নতুন ব্যালেন্স (৳)</th>
+                <th className="p-3.5 font-bold text-center">রসিদ / অ্যাকশন</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80 bg-slate-950/40">
-              {transactions && transactions.length > 0 ? (
-                transactions.map((tx) => {
+              {filteredMasterTransactions.length > 0 ? (
+                filteredMasterTransactions.map((tx) => {
                   const txUser = users?.find(u => u.id === tx.userId);
-                  const isRecharge = tx.type === 'RECHARGE';
+                  const typeInfo = getTxTypeInfo(tx.type);
+
                   return (
-                    <tr key={tx.id} className="hover:bg-slate-900/60 transition">
+                    <tr
+                      key={tx.id}
+                      onClick={() => setSelectedTxForReceipt(tx)}
+                      className="hover:bg-slate-900/80 cursor-pointer transition-colors group"
+                    >
                       <td className="p-3.5 font-mono text-slate-400">
                         {new Date(tx.date).toLocaleDateString('bn-BD', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </td>
+
                       <td className="p-3.5 font-bold text-white">
                         {txUser ? txUser.name : 'অজানা মেম্বার'}
                         <span className="block text-[10px] text-slate-400 font-mono font-normal">{txUser?.phone || tx.userId}</span>
                       </td>
+
                       <td className="p-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold font-mono ${
-                          isRecharge ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                        }`}>
-                          {isRecharge ? '➕ ওয়ালেট রিচার্জ' : '➖ মিল কর্তন'}
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold font-mono border ${typeInfo.badgeClass}`}>
+                          {typeInfo.label}
                         </span>
                       </td>
-                      <td className="p-3.5 text-slate-300">{tx.description || '-'}</td>
-                      <td className={`p-3.5 text-right font-mono font-bold ${isRecharge ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {isRecharge ? `+ ৳${tx.amount}` : `- ৳${tx.amount}`}
+
+                      <td className="p-3.5 text-slate-300 font-sans max-w-xs truncate">
+                        {tx.description || '-'}
                       </td>
+
+                      <td className={`p-3.5 text-right font-mono font-bold ${typeInfo.amountClass}`}>
+                        {typeInfo.amountPrefix}{tx.amount}
+                      </td>
+
                       <td className="p-3.5 text-right font-mono font-bold text-slate-200">
                         ৳{tx.balanceAfter}
+                      </td>
+
+                      <td className="p-3.5 text-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTxForReceipt(tx);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 border border-cyan-500/20 text-[10px] font-bold inline-flex items-center gap-1 transition"
+                        >
+                          <Eye className="w-3 h-3" />
+                          <span>রসিদ</span>
+                        </button>
                       </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-slate-500">
-                    কোনো লেনদেন রেকর্ড পাওয়া যায়নি
+                  <td colSpan={7} className="p-8 text-center text-slate-500">
+                    কোনো মিলপ্রসঙ্গ বা লেনদেন রেকর্ড পাওয়া যায়নি
                   </td>
                 </tr>
               )}
@@ -724,6 +1019,15 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Digital Receipt Modal Voucher */}
+      <ReceiptModal
+        transaction={selectedTxForReceipt}
+        user={users.find((u) => u.id === selectedTxForReceipt?.userId) || null}
+        admin={currentAdmin}
+        onClose={() => setSelectedTxForReceipt(null)}
+      />
+
     </div>
   );
 };
