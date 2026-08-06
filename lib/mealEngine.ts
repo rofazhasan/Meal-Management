@@ -91,17 +91,16 @@ export async function resolveMealPricing(
   let specD: number | null = null;
 
   try {
-    const res = await pool.query(
-      `SELECT LOWER(meal_type::text) AS "mealType", custom_rate::float AS "customRate"
-       FROM special_meals
-       WHERE meal_date = $1 AND is_active = TRUE;`,
-      [dateStr]
-    );
+    const db = tx || defaultPrisma;
+    const mealDate = parseDateToUtcMidday(dateStr);
+    const specMeals = await db.specialMeal.findMany({
+      where: { mealDate, isActive: true },
+    });
 
-    for (const row of res.rows) {
-      if (row.mealType === 'breakfast') specB = Number(row.customRate);
-      if (row.mealType === 'lunch') specL = Number(row.customRate);
-      if (row.mealType === 'dinner') specD = Number(row.customRate);
+    for (const sm of specMeals) {
+      if (sm.mealType === 'BREAKFAST') specB = Number(sm.customRate);
+      if (sm.mealType === 'LUNCH') specL = Number(sm.customRate);
+      if (sm.mealType === 'DINNER') specD = Number(sm.customRate);
     }
   } catch (err) {
     // Fall back to base rates if special_meals table is missing or errors

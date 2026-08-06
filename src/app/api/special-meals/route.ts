@@ -1,30 +1,32 @@
 import { NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+import { MealType } from '@prisma/client';
+import { parseDateToUtcMidday } from '@/lib/mealEngine';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    if (process.env.DATABASE_URL) {
-      const res = await pool.query(`
-        SELECT 
-          id, 
-          to_char(meal_date, 'YYYY-MM-DD') AS date, 
-          LOWER(meal_type::text) AS "mealType", 
-          title, 
-          custom_rate::float AS "customRate", 
-          description, 
-          is_recurring AS "isRecurring", 
-          repeat_day_of_week AS "repeatDayOfWeek", 
-          is_active AS "isActive",
-          to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt"
-        FROM special_meals
-        ORDER BY meal_date ASC;
-      `);
-      return NextResponse.json(res.rows);
-    }
-    return NextResponse.json([]);
+    const meals = await prisma.specialMeal.findMany({
+      orderBy: { mealDate: 'asc' },
+    });
+
+    const formatted = meals.map((m) => ({
+      id: m.id,
+      date: m.mealDate.toISOString().split('T')[0],
+      mealType: m.mealType.toLowerCase(),
+      title: m.title,
+      customRate: Number(m.customRate),
+      description: m.description || '',
+      isRecurring: m.isRecurring,
+      repeatDayOfWeek: m.repeatDayOfWeek,
+      isActive: m.isActive,
+      createdAt: m.createdAt.toISOString(),
+    }));
+
+    return NextResponse.json(formatted);
   } catch (error: any) {
+    console.error('Error fetching special meals:', error);
     return NextResponse.json([]);
   }
 }
@@ -33,31 +35,40 @@ export async function POST(req: Request) {
   try {
     const { date, mealType, title, customRate, description, isRecurring, repeatDayOfWeek } = await req.json();
 
-    let meal: any = {
-      id: `sm-${Date.now()}`,
-      date,
-      mealType: String(mealType).toLowerCase(),
-      title,
-      customRate: Number(customRate),
-      description,
-      isRecurring: Boolean(isRecurring),
-      repeatDayOfWeek,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    };
-
-    if (process.env.DATABASE_URL) {
-      const dbMealType = String(mealType).toUpperCase();
-      const res = await pool.query(
-        `INSERT INTO special_meals (meal_date, meal_type, title, custom_rate, description, is_recurring, repeat_day_of_week, is_active)
-         VALUES ($1, $2::meal_type, $3, $4, $5, $6, $7, TRUE)
-         RETURNING id, to_char(meal_date, 'YYYY-MM-DD') AS date, LOWER(meal_type::text) AS "mealType", title, custom_rate::float AS "customRate", description, is_recurring AS "isRecurring", repeat_day_of_week AS "repeatDayOfWeek", is_active AS "isActive", to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt";`,
-        [date, dbMealType, title, Number(customRate), description || null, Boolean(isRecurring), repeatDayOfWeek || null]
-      );
-      if (res.rows.length > 0) meal = res.rows[0];
+    if (!date || !mealType || !title || customRate === undefined) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    return NextResponse.json(meal, { status: 201 });
+    const mealDate = parseDateToUtcMidday(date);
+    const dbMealType = String(mealType).toUpperCase() as MealType;
+
+    const created = await prisma.specialMeal.create({
+      data: {
+        mealDate,
+        mealType: dbMealType,
+        title,
+        customRate: Number(customRate),
+        description: description || null,
+        isRecurring: Boolean(isRecurring),
+        repeatDayOfWeek: repeatDayOfWeek !== undefined ? Number(repeatDayOfWeek) : null,
+        isActive: true,
+      },
+    });
+
+    const formatted = {
+      id: created.id,
+      date: created.mealDate.toISOString().split('T')[0],
+      mealType: created.mealType.toLowerCase(),
+      title: created.title,
+      customRate: Number(created.customRate),
+      description: created.description || '',
+      isRecurring: created.isRecurring,
+      repeatDayOfWeek: created.repeatDayOfWeek,
+      isActive: created.isActive,
+      createdAt: created.createdAt.toISOString(),
+    };
+
+    return NextResponse.json(formatted, { status: 201 });
   } catch (error: any) {
     console.error('Error adding special meal:', error);
     return NextResponse.json({ error: error.message || 'Failed to add special meal' }, { status: 500 });
@@ -71,17 +82,27 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Special meal ID required' }, { status: 400 });
     }
 
-    if (process.env.DATABASE_URL) {
-      const res = await pool.query(
-        `UPDATE special_meals SET is_active = $1 WHERE id = $2 RETURNING id, to_char(meal_date, 'YYYY-MM-DD') AS date, LOWER(meal_type::text) AS "mealType", title, custom_rate::float AS "customRate", description, is_recurring AS "isRecurring", repeat_day_of_week AS "repeatDayOfWeek", is_active AS "isActive";`,
-        [Boolean(isActive), id]
-      );
-      if (res.rows.length > 0) {
-        return NextResponse.json(res.rows[0]);
-      }
-    }
-    return NextResponse.json({ id, isActive });
+    const updated = await prisma.specialMeal.update({
+      where: { id },
+      data: { isActive: Boolean(isActive) },
+    });
+
+    const formatted = {
+      id: updated.id,
+      date: updated.mealDate.toISOString().split('T')[0],
+      mealType: updated.mealType.toLowerCase(),
+      title: updated.title,
+      customRate: Number(updated.customRate),
+      description: updated.description || '',
+      isRecurring: updated.isRecurring,
+      repeatDayOfWeek: updated.repeatDayOfWeek,
+      isActive: updated.isActive,
+      createdAt: updated.createdAt.toISOString(),
+    };
+
+    return NextResponse.json(formatted);
   } catch (error: any) {
+    console.error('Error updating special meal:', error);
     return NextResponse.json({ error: error.message || 'Failed to update special meal' }, { status: 500 });
   }
 }
@@ -95,12 +116,13 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'Special meal ID required' }, { status: 400 });
     }
 
-    if (process.env.DATABASE_URL) {
-      await pool.query(`DELETE FROM special_meals WHERE id = $1;`, [id]);
-    }
+    await prisma.specialMeal.delete({
+      where: { id },
+    });
 
     return NextResponse.json({ success: true, id });
   } catch (error: any) {
+    console.error('Error deleting special meal:', error);
     return NextResponse.json({ error: error.message || 'Failed to delete special meal' }, { status: 500 });
   }
 }

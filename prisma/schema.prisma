@@ -261,3 +261,21 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+model SpecialMeal {
+  id              String    @id @default(uuid()) @db.Uuid
+  mealDate        DateTime  @map("meal_date") @db.Date
+  mealType        MealType  @map("meal_type")
+  title           String    @db.VarChar(200)
+  customRate      Decimal   @map("custom_rate") @db.Decimal(12, 2)
+  description     String?
+  isRecurring     Boolean   @default(false) @map("is_recurring")
+  repeatDayOfWeek Int?      @map("repeat_day_of_week") @db.SmallInt
+  isActive        Boolean   @default(true) @map("is_active")
+  createdBy       String?   @map("created_by") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("special_meals")
+}
+

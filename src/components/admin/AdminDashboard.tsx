@@ -361,6 +361,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onRefreshData();
   };
 
+  const handleRemoveEmergency = async (id: string, date: string) => {
+    if (!confirm(`আপনি কি ${date} তারিখের জরুরি বন্ধ নোটিশটি বাতিল करना চান?`)) return;
+    try {
+      await ApiService.removeEmergency(id);
+      alert(`${date} তারিখের জরুরি বন্ধ সফলভাবে বাতিল করা হয়েছে!`);
+      onRefreshData();
+    } catch (err: any) {
+      alert(err.message || 'জরুরি বন্ধ বাতিলে সমস্যা হয়েছে');
+    }
+  };
+
   const handleEmergencySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!emergencyReason.trim()) {
@@ -770,10 +781,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <p className="text-xs font-bold text-slate-400 mb-2 font-sans">সর্বশেষ জরুরি বন্ধ নোটিশসমূহ:</p>
               <div className="space-y-2">
                 {emergencies.map((em) => (
-                  <div key={em.id} className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs">
-                    <p className="font-bold text-rose-300 font-mono">
-                      {em.date} {em.endDate && em.endDate !== em.date ? `থেকে ${em.endDate}` : ''}: {em.reason}
-                    </p>
+                  <div key={em.id} className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs flex items-center justify-between gap-2">
+                    <div>
+                      <p className="font-bold text-rose-300 font-mono">
+                        {em.date} {em.endDate && em.endDate !== em.date ? `থেকে ${em.endDate}` : ''}: {em.reason}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-sans mt-0.5">ডেডলাইন সময়ের পূর্বে যেকোনো সময় বাতিল করতে পারবেন</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEmergency(em.id, em.date)}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30 font-bold text-xs whitespace-nowrap transition-colors shadow-sm cursor-pointer"
+                    >
+                      জরুরি বন্ধ বাতিল
+                    </button>
                   </div>
                 ))}
               </div>
