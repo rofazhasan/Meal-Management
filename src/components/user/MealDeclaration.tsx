@@ -285,6 +285,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
       setSuccessMsg(true);
       setTimeout(() => setSuccessMsg(false), 2500);
       onRefreshData();
+    } catch (err: any) {
+      setBalanceAlertMsg(err.message || 'মিল ডিক্লারেশন সংরক্ষণ করতে সমস্যা হয়েছে');
     } finally {
       setSaving(false);
     }
@@ -312,6 +314,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
       setSuccessMsg(true);
       setTimeout(() => setSuccessMsg(false), 2500);
       onRefreshData();
+    } catch (err: any) {
+      setBalanceAlertMsg(err.message || 'গতকালকের মিল কপি করতে সমস্যা হয়েছে');
     } finally {
       setSaving(false);
     }
@@ -381,6 +385,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
       setSuccessMsg(true);
       setTimeout(() => setSuccessMsg(false), 2500);
       onRefreshData();
+    } catch (err: any) {
+      setBalanceAlertMsg(err.message || 'সারা সপ্তাহের মিল আপডেট করতে সমস্যা হয়েছে');
     } finally {
       setSaving(false);
     }

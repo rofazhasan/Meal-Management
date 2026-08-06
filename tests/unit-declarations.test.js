@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import { getBangladeshDateStr, getBangladeshTomorrowStr, parseDateStr } from '../src/utils/dateUtils.ts';
 import { getUserMealStateForDate } from '../src/utils/mealUtils.ts';
+import { isMealDateLocked } from '../lib/mealEngine.ts';
 
 export async function runSuite() {
   let passed = 0;
@@ -73,6 +74,15 @@ export async function runSuite() {
     // Empty closedMeals array means ALL meals closed
     const stateAllClosed = getUserMealStateForDate(user, '2026-08-06', explicitDec, undefined, emergencyAllClosed);
     assert.deepStrictEqual(stateAllClosed, { breakfast: false, lunch: false, dinner: false });
+  });
+
+  test('isMealDateLocked identifies cutoff time expiry accurately', () => {
+    // Simulate time at 09:30 AM with cutoff set to 09:00 AM
+    const simNow = new Date('2026-08-06T09:30:00+06:00');
+    const lockCheck = isMealDateLocked('2026-08-06', '09:00', simNow);
+
+    assert.strictEqual(lockCheck.isLocked, true);
+    assert.strictEqual(lockCheck.reason, "Today's meal cutoff time (09:00) has passed.");
   });
 
   return { total: passed + failed, passed, failed };

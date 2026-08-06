@@ -284,18 +284,22 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
 
         <button
           onClick={async () => {
-            await ApiService.updateDeclaration(
-              user.id,
-              overrideDate,
-              {
-                breakfast: overrideB,
-                lunch: overrideL,
-                dinner: overrideD,
-              },
-              true
-            );
-            alert(`এডমিন দ্বারা ${user.name}-এর ${overrideDate} তারিখের মিল সফলভাবে অন/অফ আপডেট ও ওভাররাইড করা হয়েছে!`);
-            onRefreshData();
+            try {
+              await ApiService.updateDeclaration(
+                user.id,
+                overrideDate,
+                {
+                  breakfast: overrideB,
+                  lunch: overrideL,
+                  dinner: overrideD,
+                },
+                true
+              );
+              alert(`এডমিন দ্বারা ${user.name}-এর ${overrideDate} তারিখের মিল সফলভাবে অন/অফ আপডেট ও ওভাররাইড করা হয়েছে!`);
+              onRefreshData();
+            } catch (err: any) {
+              alert(err.message || 'ডিক্লারেশন ওভাররাইড করতে সমস্যা হয়েছে');
+            }
           }}
           className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs transition-all shadow-lg shadow-amber-500/20 active:scale-95 font-display flex items-center justify-center gap-2"
         >
