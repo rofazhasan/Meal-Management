@@ -61,7 +61,7 @@ const MainApplication: React.FC = () => {
     });
   }, []);
 
-  const { data: financialMetrics } = useQuery({
+  const { data: financialMetrics, refetch: refetchFinancialMetrics } = useQuery({
     queryKey: ['financialMetrics'],
     queryFn: () => ApiService.getFinancialMetrics(),
   });
@@ -105,6 +105,7 @@ const MainApplication: React.FC = () => {
     refetchTransactions();
     refetchEmergencies();
     refetchSpecialMeals();
+    refetchFinancialMetrics();
 
     if (currentUser) {
       ApiService.getUsers().then((usrs) => {

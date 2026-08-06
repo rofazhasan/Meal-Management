@@ -28,7 +28,6 @@ export async function POST(req: Request) {
       const createdTx = await tx.walletTransaction.create({
         data: {
           walletId: wallet.id,
-          userId,
           transactionType: numAmount >= 0 ? 'RECHARGE' : 'DEBIT',
           amount: Math.abs(numAmount),
           balanceBefore: prevBal,
@@ -42,7 +41,7 @@ export async function POST(req: Request) {
 
       return {
         id: createdTx.id,
-        userId: createdTx.userId,
+        userId,
         amount: Math.abs(numAmount),
         type: createdTx.transactionType,
         balanceBefore: prevBal,

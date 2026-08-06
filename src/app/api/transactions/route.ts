@@ -10,17 +10,18 @@ export async function GET(req: Request) {
 
     if (process.env.DATABASE_URL) {
       const whereClause: any = {};
-      if (userId) whereClause.userId = userId;
+      if (userId) whereClause.wallet = { userId };
 
       const txs = await prisma.walletTransaction.findMany({
         where: whereClause,
+        include: { wallet: true },
         orderBy: { createdAt: 'desc' },
         take: 200,
       });
 
       const formatted = txs.map((t) => ({
         id: t.id,
-        userId: t.userId,
+        userId: t.wallet.userId,
         adminId: t.createdBy || null,
         amount: Number(t.amount),
         type: (t.transactionType as string) === 'ADMIN_TOPUP' ? 'RECHARGE' : t.transactionType,

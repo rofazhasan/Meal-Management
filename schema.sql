@@ -179,8 +179,6 @@ CREATE TABLE IF NOT EXISTS meal_consumptions (
     status meal_consumption_status NOT NULL,
     charge_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00 CHECK (charge_amount >= 0),
     deducted_from_wallet BOOLEAN NOT NULL DEFAULT FALSE,
-    declaration_id UUID REFERENCES meal_declarations(id) ON DELETE SET NULL,
-    meal_setting_id UUID REFERENCES meal_settings(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_user_meal_date_type UNIQUE (user_id, meal_date, meal_type)
@@ -199,7 +197,6 @@ CREATE TABLE IF NOT EXISTS wallets (
 CREATE TABLE IF NOT EXISTS wallet_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     wallet_id UUID NOT NULL REFERENCES wallets(id) ON DELETE RESTRICT,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     transaction_type transaction_type NOT NULL,
     amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
     balance_before NUMERIC(12, 2) NOT NULL CHECK (balance_before >= 0),

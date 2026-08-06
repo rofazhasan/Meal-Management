@@ -44,7 +44,6 @@ export async function runSuite() {
     const txEntry = {
       id: 'tx-101',
       walletId: userWallet.id,
-      userId: 'u-rel-1',
       transactionType: 'MEAL_DEDUCTION',
       amount: totalCost,
       balanceBefore: balBefore,
@@ -69,7 +68,7 @@ export async function runSuite() {
     assert.strictEqual(db.wallets.get('u-rel-1').currentBalance, 850);
 
     // Verify 2: Financial Hub (Master Ledger) contains transaction
-    const ledgerTx = db.transactions.find(t => t.userId === 'u-rel-1');
+    const ledgerTx = db.transactions.find(t => t.walletId === userWallet.id);
     assert.ok(ledgerTx, 'Transaction must exist in Master Ledger');
     assert.strictEqual(ledgerTx.amount, 150);
     assert.strictEqual(ledgerTx.balanceBefore, 1000);

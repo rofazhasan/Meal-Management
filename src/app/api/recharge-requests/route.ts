@@ -153,7 +153,6 @@ export async function PATCH(req: Request) {
         const dbTx = await tx.walletTransaction.create({
           data: {
             walletId: wallet.id,
-            userId: appReq.userId,
             transactionType: 'RECHARGE',
             amount: finalAmount,
             balanceBefore: prevBal,
@@ -167,7 +166,7 @@ export async function PATCH(req: Request) {
 
         createdTxObj = {
           id: dbTx.id,
-          userId: dbTx.userId,
+          userId: appReq.userId,
           amount: Number(dbTx.amount),
           type: 'RECHARGE',
           balanceBefore: Number(dbTx.balanceBefore),

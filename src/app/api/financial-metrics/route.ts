@@ -100,7 +100,7 @@ export async function GET() {
           _sum: { amount: true },
           where: {
             transactionType: { in: ['MEAL_DEDUCTION', 'DEBIT'] },
-            user: { userType: 'PERMANENT' },
+            wallet: { user: { userType: 'PERMANENT' } },
           },
         });
 
@@ -108,7 +108,7 @@ export async function GET() {
           _sum: { amount: true },
           where: {
             transactionType: { in: ['MEAL_DEDUCTION', 'DEBIT'] },
-            user: { userType: 'GUEST' },
+            wallet: { user: { userType: 'GUEST' } },
           },
         });
 
@@ -121,7 +121,7 @@ export async function GET() {
         });
 
         const topSpendersGroup = await prisma.walletTransaction.groupBy({
-          by: ['userId'],
+          by: ['walletId'],
           _sum: { amount: true },
           where: {
             transactionType: { in: ['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE'] },
@@ -133,15 +133,15 @@ export async function GET() {
           take: 5,
         });
 
-        const topSpenderUserIds = topSpendersGroup.map((g) => g.userId);
-        const topSpenderUsers = await prisma.user.findMany({
-          where: { id: { in: topSpenderUserIds } },
-          select: { id: true, fullName: true, phoneNumber: true },
+        const topSpenderWalletIds = topSpendersGroup.map((g) => g.walletId);
+        const topSpenderWallets = await prisma.wallet.findMany({
+          where: { id: { in: topSpenderWalletIds } },
+          include: { user: { select: { id: true, fullName: true, phoneNumber: true } } },
         });
-        const userMap = new Map(topSpenderUsers.map((u) => [u.id, u]));
+        const walletMap = new Map(topSpenderWallets.map((w) => [w.id, w.user]));
 
         const topSpenders = topSpendersGroup.map((g) => {
-          const u = userMap.get(g.userId);
+          const u = walletMap.get(g.walletId);
           return {
             name: u?.fullName || 'অজানা মেম্বার',
             phone: u?.phoneNumber || 'N/A',

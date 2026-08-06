@@ -105,7 +105,6 @@ model User {
   wallet                    Wallet?
   declarations              MealDeclaration[]
   consumptions              MealConsumption[]
-  transactions              WalletTransaction[]
   notifications             Notification[]
   approvalRequests          ApprovalRequest[]
   auditLogs                 AuditLog[]
@@ -151,7 +150,6 @@ model Wallet {
 model WalletTransaction {
   id              String          @id @default(uuid()) @db.Uuid
   walletId        String          @map("wallet_id") @db.Uuid
-  userId          String          @map("user_id") @db.Uuid
   transactionType TransactionType @map("transaction_type")
   amount          Decimal         @db.Decimal(12, 2)
   balanceBefore   Decimal         @map("balance_before") @db.Decimal(12, 2)
@@ -163,9 +161,7 @@ model WalletTransaction {
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
 
   wallet          Wallet          @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, createdAt])
   @@index([walletId, createdAt])
   @@index([transactionType])
   @@map("wallet_transactions")

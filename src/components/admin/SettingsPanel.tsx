@@ -260,28 +260,34 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeal
       {/* Special Meal Entry & Recurring Management */}
       <SpecialMealScheduler specialMeals={specialMeals} onRefreshData={onRefreshData} currentUser={currentUser} />
 
-      {/* Production System Reset Danger Zone */}
-      <div className="p-6 rounded-3xl bg-rose-950/20 border border-rose-500/30 space-y-3 shadow-xl">
-        <h4 className="font-bold text-rose-300 text-sm font-display">ডেঞ্জারের জোন (সিস্টেম রিসেট)</h4>
-        <p className="text-xs text-rose-200/70">
-          প্রোডাকশনে সব টেস্ট ও ট্রানজেকশন ডাটা রিসেট করতে চাইলে নিচের বোতামটি ব্যবহার করুন।
-        </p>
-        <button
-          type="button"
-          onClick={async () => {
-            if (window.confirm('আপনি কি নিশ্চিত যে সমস্ত টেস্ট ডাটা রিসেট করে প্রোডাকশন মেস ক্লিন করতে চান?')) {
-              await ApiService.purgeSystemData(currentUser.id);
-              const updatedUser = { ...currentUser, walletBalance: 0 };
-              await ApiService.setCurrentUser(updatedUser);
-              alert('সিস্টেম সফলভাবে রিসেট করা হয়েছে!');
-              onRefreshData();
-            }
-          }}
-          className="px-4 py-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 text-xs font-bold transition-all"
-        >
-          সমস্ত ট্রানজেকশন ও মিল ডাটা রিসেট করুন
-        </button>
-      </div>
+      {/* Production System Reset Danger Zone (Restricted to SUPERADMIN only) */}
+      {currentUser.role === 'SUPERADMIN' && (
+        <div className="p-6 rounded-3xl bg-rose-950/20 border border-rose-500/30 space-y-3 shadow-xl">
+          <h4 className="font-bold text-rose-300 text-sm font-display">ডেঞ্জারের জোন (সিস্টেম রিসেট - শুধুমাত্র SUPERADMIN)</h4>
+          <p className="text-xs text-rose-200/70">
+            প্রোডাকশনে সব টেস্ট ও ট্রানজেকশন ডাটা রিসেট করতে চাইলে নিচের বোতামটি ব্যবহার করুন। এই সুবিধাটি শুধুমাত্র সুপার-এডমিনের জন্য সংরক্ষিত।
+          </p>
+          <button
+            type="button"
+            onClick={async () => {
+              if (window.confirm('আপনি কি নিশ্চিত যে সমস্ত টেস্ট ডাটা রিসেট করে প্রোডাকশন মেস ক্লিন করতে চান?')) {
+                try {
+                  await ApiService.purgeSystemData(currentUser.id);
+                  const updatedUser = { ...currentUser, walletBalance: 0 };
+                  await ApiService.setCurrentUser(updatedUser);
+                  alert('সিস্টেম সফলভাবে রিসেট করা হয়েছে! সমস্ত ট্রানজেকশন ও মিল হিস্ট্রি মুছে ফেলা হয়েছে।');
+                  onRefreshData();
+                } catch (err: any) {
+                  alert(`সিস্টেম রিসেট ব্যর্থ হয়েছে: ${err.message || 'অজানা সমস্যা'}`);
+                }
+              }
+            }}
+            className="px-4 py-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 text-xs font-bold transition-all"
+          >
+            সমস্ত ট্রানজেকশন ও মিল ডাটা রিসেট করুন
+          </button>
+        </div>
+      )}
 
     </div>
   );
