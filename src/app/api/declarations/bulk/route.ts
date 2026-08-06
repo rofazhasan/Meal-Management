@@ -105,6 +105,7 @@ export async function POST(req: Request) {
             await tx.walletTransaction.create({
               data: {
                 walletId: wallet.id,
+                userId: wallet.userId,
                 transactionType: 'MEAL_DEDUCTION',
                 amount: costDiff,
                 balanceBefore: currentBal,
@@ -126,6 +127,7 @@ export async function POST(req: Request) {
             await tx.walletTransaction.create({
               data: {
                 walletId: wallet.id,
+                userId: wallet.userId,
                 transactionType: 'REFUND',
                 amount: refundAmt,
                 balanceBefore: currentBal,

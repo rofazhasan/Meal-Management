@@ -183,6 +183,7 @@ export async function processEmergencyClosureWithRefunds(
       await db.walletTransaction.create({
         data: {
           walletId: wallet.id,
+          userId: wallet.userId,
           transactionType: 'REFUND',
           amount: costToRefund,
           balanceBefore: currentBal,

@@ -46,6 +46,7 @@ export async function POST(req: Request) {
             await tx.walletTransaction.create({
               data: {
                 walletId: wallet.id,
+                userId: wallet.userId,
                 transactionType: 'MONTHLY_CHARGE',
                 amount: numAmount,
                 balanceBefore: currentBal,
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
             await tx.walletTransaction.create({
               data: {
                 walletId: wallet.id,
+                userId: wallet.userId,
                 transactionType: 'CASH_PAID',
                 amount: numAmount,
                 balanceBefore: currentBal,
