@@ -1,0 +1,43 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cyanGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#38bdf8" />
+      <stop offset="50%" stopColor="#06b6d4" />
+      <stop offset="100%" stopColor="#0284c7" />
+    </linearGradient>
+    
+    <linearGradient id="goldGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stopColor="#fbbf24" />
+      <stop offset="100%" stopColor="#f59e0b" />
+    </linearGradient>
+  </defs>
+
+  <rect width="100" height="100" rx="20" fill="#050811"/>
+
+  <!-- Hexagon Border -->
+  <polygon
+    points="50,10 85,30 85,70 50,90 15,70 15,30"
+    stroke="url(#cyanGradient)"
+    stroke-width="5"
+    stroke-linejoin="round"
+    fill="none"
+  />
+
+  <!-- Inner Plate Rim -->
+  <circle cx="50" cy="50" r="24" stroke="url(#cyanGradient)" stroke-width="4" />
+  
+  <!-- Fork Silhouette -->
+  <path
+    d="M 42 38 V 46 C 42 49 45 52 45 54 V 66 C 45 67.5 46.5 68.5 48 68.5 C 49.5 68.5 51 67.5 51 66 V 54 C 51 52 54 49 54 46 V 38"
+    stroke="url(#goldGradient)"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Spoon Silhouette -->
+  <path
+    d="M 57 38 C 53 38 52 44 54 48 C 55.5 50.5 58 52.5 58 55 V 66 C 58 67.5 59.2 68.5 60.5 68.5 C 61.8 68.5 63 67.5 63 66 V 55 C 63 52.5 65.5 50.5 67 48 C 69 44 68 38 64 38 Z"
+    fill="url(#cyanGradient)"
+  />
+</svg>

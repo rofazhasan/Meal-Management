@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Wallet, Clock, CheckCircle2, XCircle, ArrowUpRight, ArrowDownRight, Calendar, AlertCircle, UtensilsCrossed, Sparkles, ShieldAlert, ChevronRight, UserCheck, Lock, Edit3, X } from 'lucide-react';
 import { User, MealRateConfig, MealDeclaration, WalletTransaction, EmergencyClosure, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
@@ -64,16 +64,27 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   const todayEmergency = emergencies.find(e => todayStr >= e.date && todayStr <= (e.endDate || e.date));
 
   // todayDec defaults: if emergency, all OFF; otherwise use wallet-safe defaults using correct user rates
-  const todayDec = declarations.find(d => d.date === todayStr) || {
-    id: 'temp',
-    userId: currentUser.id,
-    date: todayStr,
-    breakfast: !todayEmergency && currentUser.walletBalance >= userRates.breakfast,
-    lunch:     !todayEmergency && currentUser.walletBalance >= userRates.lunch,
-    dinner:    !todayEmergency && currentUser.walletBalance >= userRates.dinner,
-    isAutoCopied: false,
-    updatedAt: new Date().toISOString(),
-  };
+  const propTodayDec = useMemo(() => {
+    return (
+      declarations.find((d) => d.date === todayStr) || {
+        id: 'temp',
+        userId: currentUser.id,
+        date: todayStr,
+        breakfast: !todayEmergency && currentUser.walletBalance >= userRates.breakfast,
+        lunch: !todayEmergency && currentUser.walletBalance >= userRates.lunch,
+        dinner: !todayEmergency && currentUser.walletBalance >= userRates.dinner,
+        isAutoCopied: false,
+        updatedAt: new Date().toISOString(),
+      }
+    );
+  }, [declarations, todayStr, currentUser.id, currentUser.walletBalance, todayEmergency, userRates]);
+
+  const [localTodayDec, setLocalTodayDec] = useState(propTodayDec);
+  const [togglingMeal, setTogglingMeal] = useState(false);
+
+  useEffect(() => {
+    setLocalTodayDec(propTodayDec);
+  }, [propTodayDec]);
 
   // Dynamic Cutoff Deadline Calculator in Bangladesh Standard Time (UTC+6)
   useEffect(() => {
@@ -104,6 +115,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   }, [rates.cutoffTime]);
 
   const handleToggleTodayMeal = async (meal: 'breakfast' | 'lunch' | 'dinner') => {
+    if (togglingMeal) return; // Prevent rapid multi-tap race condition
+
     // Block if emergency is active for today
     if (todayEmergency) {
       alert('জরুরি নোটিশ সক্রিয়! আজকের মিল বন্ধ রাখা হয়েছে। এডমিন কর্তৃক জরুরি বন্ধ চলাকালীন মিল পরিবর্তন করা সম্ভব নয়।');
@@ -127,26 +140,53 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
       alert('আপনার মিল সুবিধা অনির্দিষ্টকালের জন্য স্থগিত। মিল প্ল্যান ট্যাবে গিয়ে চালু করুন।');
       return;
     }
+
+    const currentB = localTodayDec.breakfast;
+    const currentL = localTodayDec.lunch;
+    const currentD = localTodayDec.dinner;
+
+    const targetB = meal === 'breakfast' ? !currentB : currentB;
+    const targetL = meal === 'lunch' ? !currentL : currentL;
+    const targetD = meal === 'dinner' ? !currentD : currentD;
+
     const newMeals = {
-      breakfast: todayDec.breakfast,
-      lunch: todayDec.lunch,
-      dinner: todayDec.dinner,
-      [meal]: !todayDec[meal],
+      breakfast: targetB,
+      lunch: targetL,
+      dinner: targetD,
     };
+
+    // Special meal rate lookups for today
+    const specB = specialMeals.find((s) => s.date === todayStr && s.mealType === 'breakfast');
+    const specL = specialMeals.find((s) => s.date === todayStr && s.mealType === 'lunch');
+    const specD = specialMeals.find((s) => s.date === todayStr && s.mealType === 'dinner');
+
+    const effectiveBRate = specB ? specB.customRate : userRates.breakfast;
+    const effectiveLRate = specL ? specL.customRate : userRates.lunch;
+    const effectiveDRate = specD ? specD.customRate : userRates.dinner;
+
     // Wallet balance check: prevent turning ON if total cost exceeds balance
-    if (!todayDec[meal]) {
-      // User is trying to turn meal ON — check if affordable
-      const totalCost =
-        (newMeals.breakfast ? userRates.breakfast : 0) +
-        (newMeals.lunch ? userRates.lunch : 0) +
-        (newMeals.dinner ? userRates.dinner : 0);
-      if (totalCost > currentUser.walletBalance) {
-        alert(`আপনার ওয়ালেট ব্যালেন্স (৳${currentUser.walletBalance}) দিয়ে এই মিলটি চালু রাখা সম্ভব নয় (প্রয়োজন ৳${totalCost})। মেস এডমিন থেকে রিচার্জ করুন।`);
-        return;
-      }
+    const currentCost = (currentB ? effectiveBRate : 0) + (currentL ? effectiveLRate : 0) + (currentD ? effectiveDRate : 0);
+    const newCost = (targetB ? effectiveBRate : 0) + (targetL ? effectiveLRate : 0) + (targetD ? effectiveDRate : 0);
+    const costDiff = newCost - currentCost;
+
+    if (costDiff > 0 && costDiff > currentUser.walletBalance) {
+      alert(`আপনার ওয়ালেট ব্যালেন্স (৳${currentUser.walletBalance}) দিয়ে এই মিলটি চালু রাখা সম্ভব নয় (প্রয়োজন ৳${costDiff})। মেস এডমিন থেকে রিচার্জ করুন।`);
+      return;
     }
-    await ApiService.updateDeclaration(currentUser.id, todayStr, newMeals);
-    onRefreshData();
+
+    // Optimistically update local UI immediately
+    setLocalTodayDec((prev: any) => ({ ...prev, ...newMeals }));
+    setTogglingMeal(true);
+
+    try {
+      await ApiService.updateDeclaration(currentUser.id, todayStr, newMeals);
+      onRefreshData();
+    } catch (err: any) {
+      setLocalTodayDec(propTodayDec);
+      alert(err.message || 'মিল আপডেট করতে সমস্যা হয়েছে');
+    } finally {
+      setTogglingMeal(false);
+    }
   };
 
 
@@ -362,7 +402,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               <p className="text-xs text-slate-400 font-mono">{todayStr}</p>
             </div>
           </div>
-          {todayDec.isAutoCopied && (
+          {localTodayDec.isAutoCopied && (
             <span className="text-xs px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
               {BN.autoCopied}
             </span>
@@ -407,54 +447,54 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             return (
               <>
                 {/* Breakfast */}
-                <div onClick={() => handleToggleTodayMeal('breakfast')} className={cardClass('breakfast', todayDec.breakfast, !!specB)}>
+                <div onClick={() => handleToggleTodayMeal('breakfast')} className={cardClass('breakfast', localTodayDec.breakfast, !!specB)}>
                   <div>
                     <p className="text-xs font-semibold text-slate-400 flex items-center gap-1">
                       {specB ? `✨ ${specB.title}` : BN.breakfast}
                       {specB && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">স্পেশাল</span>}
                     </p>
-                    <p className={`text-xl font-bold mt-1 font-display ${specB && todayDec.breakfast && !isLocked('breakfast') ? 'text-amber-400' : ''}`}>
-                      {todayEmergency ? '🚨 জরুরি বন্ধ' : isLocked('breakfast') ? 'বন্ধ (লক)' : todayDec.breakfast ? BN.mealOn : BN.mealOff}
+                    <p className={`text-xl font-bold mt-1 font-display ${specB && localTodayDec.breakfast && !isLocked('breakfast') ? 'text-amber-400' : ''}`}>
+                      {todayEmergency ? '🚨 জরুরি বন্ধ' : isLocked('breakfast') ? 'বন্ধ (লক)' : localTodayDec.breakfast ? BN.mealOn : BN.mealOff}
                     </p>
                     <p className="text-xs font-mono opacity-80 mt-1">
                       {isLocked('breakfast') ? '৳0 (এডমিন বন্ধ)' : specB ? `৳${specB.customRate} (স্পেশাল)` : `৳${userRates.breakfast}`}
                     </p>
                   </div>
-                  <IconFor meal="breakfast" isOn={todayDec.breakfast} isSpec={!!specB} />
+                  <IconFor meal="breakfast" isOn={localTodayDec.breakfast} isSpec={!!specB} />
                 </div>
 
                 {/* Lunch */}
-                <div onClick={() => handleToggleTodayMeal('lunch')} className={cardClass('lunch', todayDec.lunch, !!specL)}>
+                <div onClick={() => handleToggleTodayMeal('lunch')} className={cardClass('lunch', localTodayDec.lunch, !!specL)}>
                   <div>
                     <p className="text-xs font-semibold text-slate-400 flex items-center gap-1">
                       {specL ? `✨ ${specL.title}` : BN.lunch}
                       {specL && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">স্পেশাল</span>}
                     </p>
-                    <p className={`text-xl font-bold mt-1 font-display ${specL && todayDec.lunch && !isLocked('lunch') ? 'text-amber-400' : ''}`}>
-                      {todayEmergency ? '🚨 জরুরি বন্ধ' : isLocked('lunch') ? 'বন্ধ (লক)' : todayDec.lunch ? BN.mealOn : BN.mealOff}
+                    <p className={`text-xl font-bold mt-1 font-display ${specL && localTodayDec.lunch && !isLocked('lunch') ? 'text-amber-400' : ''}`}>
+                      {todayEmergency ? '🚨 জরুরি বন্ধ' : isLocked('lunch') ? 'বন্ধ (লক)' : localTodayDec.lunch ? BN.mealOn : BN.mealOff}
                     </p>
                     <p className="text-xs font-mono opacity-80 mt-1">
                       {isLocked('lunch') ? '৳0 (এডমিন বন্ধ)' : specL ? `৳${specL.customRate} (স্পেশাল)` : `৳${userRates.lunch}`}
                     </p>
                   </div>
-                  <IconFor meal="lunch" isOn={todayDec.lunch} isSpec={!!specL} />
+                  <IconFor meal="lunch" isOn={localTodayDec.lunch} isSpec={!!specL} />
                 </div>
 
                 {/* Dinner */}
-                <div onClick={() => handleToggleTodayMeal('dinner')} className={cardClass('dinner', todayDec.dinner, !!specD)}>
+                <div onClick={() => handleToggleTodayMeal('dinner')} className={cardClass('dinner', localTodayDec.dinner, !!specD)}>
                   <div>
                     <p className="text-xs font-semibold text-slate-400 flex items-center gap-1">
                       {specD ? `✨ ${specD.title}` : BN.dinner}
                       {specD && <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">স্পেশাল</span>}
                     </p>
-                    <p className={`text-xl font-bold mt-1 font-display ${specD && todayDec.dinner && !isLocked('dinner') ? 'text-amber-400' : ''}`}>
-                      {todayEmergency ? '🚨 জরুরি বন্ধ' : isLocked('dinner') ? 'বন্ধ (লক)' : todayDec.dinner ? BN.mealOn : BN.mealOff}
+                    <p className={`text-xl font-bold mt-1 font-display ${specD && localTodayDec.dinner && !isLocked('dinner') ? 'text-amber-400' : ''}`}>
+                      {todayEmergency ? '🚨 জরুরি বন্ধ' : isLocked('dinner') ? 'বন্ধ (লক)' : localTodayDec.dinner ? BN.mealOn : BN.mealOff}
                     </p>
                     <p className="text-xs font-mono opacity-80 mt-1">
                       {isLocked('dinner') ? '৳0 (এডমিন বন্ধ)' : specD ? `৳${specD.customRate} (স্পেশাল)` : `৳${userRates.dinner}`}
                     </p>
                   </div>
-                  <IconFor meal="dinner" isOn={todayDec.dinner} isSpec={!!specD} />
+                  <IconFor meal="dinner" isOn={localTodayDec.dinner} isSpec={!!specD} />
                 </div>
               </>
             );

@@ -276,31 +276,28 @@ export async function POST(req: Request) {
             },
           });
         }
-        // If turning OFF a meal (costDiff < 0):
-        // Only REFUND if done by ADMIN in override section; if done by USER, no refund (policy)
+        // If turning OFF a meal (costDiff < 0): Refund money to wallet immediately
         else if (costDiff < 0) {
-          if (isAdminOverride) {
-            const refundAmt = Math.abs(costDiff);
-            newBal = currentBal + refundAmt;
-            await tx.wallet.update({
-              where: { id: wallet.id },
-              data: { currentBalance: newBal },
-            });
+          const refundAmt = Math.abs(costDiff);
+          newBal = currentBal + refundAmt;
+          await tx.wallet.update({
+            where: { id: wallet.id },
+            data: { currentBalance: newBal },
+          });
 
-            await tx.walletTransaction.create({
-              data: {
-                walletId: wallet.id,
-                userId,
-                transactionType: 'REFUND',
-                amount: refundAmt,
-                balanceBefore: currentBal,
-                balanceAfter: newBal,
-                referenceType: 'ADMIN_OVERRIDE_REFUND',
-                referenceId: wallet.id,
-                note: `এডমিন ওভাররাইড রিফান্ড (${dateStr})`,
-              },
-            });
-          }
+          await tx.walletTransaction.create({
+            data: {
+              walletId: wallet.id,
+              userId,
+              transactionType: 'REFUND',
+              amount: refundAmt,
+              balanceBefore: currentBal,
+              balanceAfter: newBal,
+              referenceType: isAdminOverride ? 'ADMIN_OVERRIDE_REFUND' : 'MEAL_DECLARATION_REFUND',
+              referenceId: wallet.id,
+              note: isAdminOverride ? `এডমিন ওভাররাইড রিফান্ড (${dateStr})` : `মিল বন্ধের টাকা রিফান্ড (${dateStr})`,
+            },
+          });
         }
 
         const sourceType = isAutoCopied ? 'COPIED' : (isAdminOverride ? 'ADMIN_OVERRIDE' : 'MANUAL');
