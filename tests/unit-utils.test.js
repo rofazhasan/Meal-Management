@@ -60,7 +60,8 @@ export async function runSuite() {
     assert.strictEqual(filled[0].date, '2026-08-01');
     assert.strictEqual(filled[0].lunch, false);
     assert.strictEqual(filled[1].date, '2026-08-02');
-    assert.strictEqual(filled[1].isAutoCopied, true);
+    assert.strictEqual(filled[1].isAutoCopied, false);
+    assert.strictEqual(filled[1].breakfast, false);
     assert.strictEqual(filled[2].date, '2026-08-03');
   });
 

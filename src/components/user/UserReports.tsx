@@ -52,6 +52,8 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
 
   // Filter declarations based on active range (daily / weekly / monthly / all) with continuous date filling
   const rangeFilteredDecs = useMemo(() => {
+    if (rawUserDecs.length === 0) return [];
+
     const todayStr = getBangladeshDateStr();
 
     let startDateStr = todayStr;

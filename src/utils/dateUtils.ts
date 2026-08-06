@@ -56,13 +56,13 @@ export function fillMissingDeclarationsForDateRange<T extends { date: string; us
       result.push(decMap.get(dateStr)!);
     } else {
       result.push({
-        id: `auto-${dateStr}`,
+        id: `no-decl-${dateStr}`,
         userId,
         date: dateStr,
-        breakfast: true,
-        lunch: true,
-        dinner: true,
-        isAutoCopied: true,
+        breakfast: false,
+        lunch: false,
+        dinner: false,
+        isAutoCopied: false,
         updatedAt: new Date().toISOString(),
       } as unknown as T);
     }

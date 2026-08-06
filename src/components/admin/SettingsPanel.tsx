@@ -271,6 +271,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeal
           onClick={async () => {
             if (window.confirm('আপনি কি নিশ্চিত যে সমস্ত টেস্ট ডাটা রিসেট করে প্রোডাকশন মেস ক্লিন করতে চান?')) {
               await ApiService.purgeSystemData(currentUser.id);
+              const updatedUser = { ...currentUser, walletBalance: 0 };
+              await ApiService.setCurrentUser(updatedUser);
               alert('সিস্টেম সফলভাবে রিসেট করা হয়েছে!');
               onRefreshData();
             }

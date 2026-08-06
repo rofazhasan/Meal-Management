@@ -19,6 +19,20 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
+    // Self-Healing DB Integrity: Ensure every user has a linked Profile and Wallet in PostgreSQL
+    for (const u of usersData) {
+      if (!u.profile) {
+        u.profile = await prisma.profile.create({
+          data: { userId: u.id, hostelName: 'Main Hostel' }
+        }).catch(() => null);
+      }
+      if (!u.wallet) {
+        u.wallet = await prisma.wallet.create({
+          data: { userId: u.id, currentBalance: 0 }
+        }).catch(() => null);
+      }
+    }
+
     const users = usersData.map((u) => {
       const isAdminRole = ADMIN_ROLES.has(u.role);
       return {

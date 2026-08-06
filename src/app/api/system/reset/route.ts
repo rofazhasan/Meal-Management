@@ -19,6 +19,7 @@ export async function POST(req: Request) {
         prisma.approvalRequest.deleteMany(),
         prisma.notification.deleteMany(),
         prisma.auditLog.deleteMany(),
+        prisma.specialMeal.deleteMany(),
         prisma.wallet.updateMany({ data: { currentBalance: 0 } }),
       ]);
     }

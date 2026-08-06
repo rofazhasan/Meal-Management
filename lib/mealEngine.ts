@@ -468,15 +468,25 @@ export async function autoCopyPreviousDayDeclarations(
       },
     });
 
-    if (!prevDecl) {
-      // Find latest prior declaration
-      prevDecl = await db.mealDeclaration.findFirst({
+    if (!prevDecl || (prevDecl.sourceType === 'COPIED' && !prevDecl.breakfastSelected && !prevDecl.lunchSelected && !prevDecl.dinnerSelected)) {
+      // Find latest prior declaration with active choices or manual selection
+      const priorActive = await db.mealDeclaration.findFirst({
         where: {
           userId: user.id,
           declarationDate: { lt: declDate },
+          OR: [
+            { breakfastSelected: true },
+            { lunchSelected: true },
+            { dinnerSelected: true },
+            { sourceType: 'MANUAL' },
+            { sourceType: 'ADMIN_OVERRIDE' },
+          ],
         },
         orderBy: { declarationDate: 'desc' },
       });
+      if (priorActive) {
+        prevDecl = priorActive;
+      }
     }
 
     let targetB = prevDecl ? prevDecl.breakfastSelected : true;
@@ -503,7 +513,7 @@ export async function autoCopyPreviousDayDeclarations(
 
     const currentBal = Number(wallet.currentBalance);
 
-    // Wallet balance guard: adjust choices if wallet balance is lower than total desired cost
+    // Wallet balance guard: if money is running out (currentBal < total mealCost), auto turn OFF all meals today
     let finalB = targetB;
     let finalL = targetL;
     let finalD = targetD;
@@ -513,21 +523,7 @@ export async function autoCopyPreviousDayDeclarations(
       finalB = false;
       finalL = false;
       finalD = false;
-      let remBal = currentBal;
-
-      if (targetB && bCost <= remBal) {
-        finalB = true;
-        remBal -= bCost;
-      }
-      if (targetL && lCost <= remBal) {
-        finalL = true;
-        remBal -= lCost;
-      }
-      if (targetD && dCost <= remBal) {
-        finalD = true;
-        remBal -= dCost;
-      }
-      mealCost = (finalB ? bCost : 0) + (finalL ? lCost : 0) + (finalD ? dCost : 0);
+      mealCost = 0;
     }
 
     let newBal = currentBal;
