@@ -6,7 +6,7 @@ import { User, MealDeclaration, MealRateConfig, SpecialMeal, EmergencyClosure } 
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
-import { getDayOfWeekFromDateStr, getBangladeshDateStr, getBangladeshNow } from '../../utils/dateUtils';
+import { getDayOfWeekFromDateStr, getBangladeshDateStr, getBangladeshNow, fillMissingDeclarationsForDateRange } from '../../utils/dateUtils';
 
 interface UserReportsProps {
   currentUser: User;
@@ -50,32 +50,31 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
     });
   };
 
-  // Filter declarations based on active range (daily / weekly / monthly / all)
+  // Filter declarations based on active range (daily / weekly / monthly / all) with continuous date filling
   const rangeFilteredDecs = useMemo(() => {
     const todayStr = getBangladeshDateStr();
 
+    let startDateStr = todayStr;
     if (activeRange === 'daily') {
-      return rawUserDecs.filter(d => d.date === todayStr);
-    }
-
-    if (activeRange === 'weekly') {
+      startDateStr = todayStr;
+    } else if (activeRange === 'weekly') {
       const now = getBangladeshNow();
       const past7 = new Date(now);
       past7.setDate(past7.getDate() - 7);
-      const past7Str = getBangladeshDateStr(past7);
-      return rawUserDecs.filter(d => d.date >= past7Str && d.date <= todayStr);
+      startDateStr = getBangladeshDateStr(past7);
+    } else if (activeRange === 'monthly') {
+      const currentMonthStr = todayStr.substring(0, 7);
+      startDateStr = `${currentMonthStr}-01`;
+    } else {
+      const earliestRaw = rawUserDecs.length > 0
+        ? rawUserDecs.reduce((min, d) => (d.date < min ? d.date : min), todayStr)
+        : `${todayStr.substring(0, 7)}-01`;
+      startDateStr = earliestRaw < `${todayStr.substring(0, 7)}-01` ? earliestRaw : `${todayStr.substring(0, 7)}-01`;
     }
 
-    if (activeRange === 'monthly') {
-      const now = getBangladeshNow();
-      const past30 = new Date(now);
-      past30.setDate(past30.getDate() - 30);
-      const past30Str = getBangladeshDateStr(past30);
-      return rawUserDecs.filter(d => d.date >= past30Str && d.date <= todayStr);
-    }
+    return fillMissingDeclarationsForDateRange(rawUserDecs, startDateStr, todayStr, currentUser.id);
+  }, [rawUserDecs, activeRange, currentUser.id]);
 
-    return rawUserDecs;
-  }, [rawUserDecs, activeRange]);
 
   // Enrich each declaration with accurate global/emergency status and effective pricing
   const processedDecs = useMemo(() => {
@@ -124,12 +123,16 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
     });
   }, [rangeFilteredDecs, emergencies, isBGlobalOff, isLGlobalOff, isDGlobalOff, userRates]);
 
-  // Final table list after user search/date filter
+  // Final table list after user search/date filter sorted in descending date order (latest date top)
   const displayedDecs = useMemo(() => {
-    if (!searchDate.trim()) return processedDecs;
-    const term = searchDate.trim();
-    return processedDecs.filter(d => d.date.includes(term));
+    let list = processedDecs;
+    if (searchDate.trim()) {
+      const term = searchDate.trim();
+      list = list.filter(d => d.date.includes(term));
+    }
+    return [...list].sort((a, b) => b.date.localeCompare(a.date));
   }, [processedDecs, searchDate]);
+
 
   // Metrics computed STRICTLY using processed effective meal states
   const totalBreakfasts = processedDecs.filter(d => d.isBOn).length;
@@ -399,15 +402,21 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
 
                       {/* Entry Type Column */}
                       <td className="p-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold ${
-                          dec.dayEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
-                          (dec.isBGlobalOff || dec.isLGlobalOff || dec.isDGlobalOff) ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
-                          dec.isAutoCopied ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                          'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
-                        }`}>
-                          {dec.dayEm ? '🚨 জরুরি নোটিশ' : (dec.isBGlobalOff || dec.isLGlobalOff || dec.isDGlobalOff) ? '🚫 গ্লোবাল বন্ধ' : dec.isAutoCopied ? BN.autoCopied : BN.userDeclared}
-                        </span>
+                        {(() => {
+                          const isAllGlobalOff = dec.isBGlobalOff && dec.isLGlobalOff && dec.isDGlobalOff;
+                          return (
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold ${
+                              dec.dayEm ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
+                              isAllGlobalOff ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+                              dec.isAutoCopied ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                              'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                            }`}>
+                              {dec.dayEm ? '🚨 জরুরি নোটিশ' : isAllGlobalOff ? '🚫 গ্লোবাল বন্ধ' : dec.isAutoCopied ? BN.autoCopied : BN.userDeclared}
+                            </span>
+                          );
+                        })()}
                       </td>
+
                     </tr>
                   );
                 })}

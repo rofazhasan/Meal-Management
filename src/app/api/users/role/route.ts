@@ -12,12 +12,16 @@ async function handleRoleUpdate(req: Request) {
       return NextResponse.json({ error: 'userId and role are required' }, { status: 400 });
     }
 
-    const targetRole = role === 'ADMIN' ? 'SUPERADMIN' : (role in UserRole ? role : 'USER');
+    let targetRole: UserRole = UserRole.USER;
+    if (role === 'SUPERADMIN') targetRole = UserRole.SUPERADMIN;
+    else if (role === 'ADMIN') targetRole = UserRole.ADMIN;
+    else if (role in UserRole) targetRole = role as UserRole;
 
     const updated = await prisma.user.update({
       where: { id: userId },
       data: {
-        role: targetRole as UserRole,
+        role: targetRole,
+        isDualMode: targetRole === 'ADMIN' || targetRole === 'SUPERADMIN',
       },
     });
 

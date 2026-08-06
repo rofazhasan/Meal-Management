@@ -218,9 +218,21 @@ export class ApiService {
     return newUser;
   }
 
-  /** No-ops kept for API surface compatibility — not used in production. */
-  static async seed300TestUsers(): Promise<number> { return 0; }
-  static async deleteAllTestUsersExceptAdmin(): Promise<number> { return 0; }
+  static async seed300TestUsers(requesterRole: string = 'SUPERADMIN'): Promise<number> {
+    const result = await apiFetch<{ success: boolean; count: number }>(`${API_BASE}/users/seed`, {
+      method: 'POST',
+      body: JSON.stringify({ count: 300, requesterRole }),
+    });
+    return result.count || 0;
+  }
+
+  static async deleteAllTestUsersExceptAdmin(requesterRole: string = 'ADMIN'): Promise<number> {
+    const result = await apiFetch<{ success: boolean; count: number }>(`${API_BASE}/users/purge`, {
+      method: 'POST',
+      body: JSON.stringify({ requesterRole }),
+    });
+    return result.count || 0;
+  }
 
   static async updateUserProfile(userId: string, profile: Record<string, unknown>): Promise<User> {
     const result = await apiFetch<{ id: string; profile: Record<string, unknown> }>(

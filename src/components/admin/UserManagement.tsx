@@ -10,7 +10,7 @@ import {
   flexRender,
   createColumnHelper,
 } from '@tanstack/react-table';
-import { Search, UserCheck, Eye, PlusCircle, Printer, FileText, X, CheckCircle, Shield, UserPlus, FileSpreadsheet, Trash2, FolderArchive, Download, KeyRound } from 'lucide-react';
+import { Search, UserCheck, Eye, PlusCircle, Printer, FileText, X, CheckCircle, Shield, UserPlus, FileSpreadsheet, Trash2, FolderArchive, Download, KeyRound, Crown, Users, Filter, CheckSquare, Square, RefreshCw, Sparkles, ShieldAlert, Wallet } from 'lucide-react';
 import { User, UserType, ArchivedUserReplica } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
@@ -34,7 +34,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   onRefreshData,
 }) => {
   const [globalFilter, setGlobalFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'ADMIN' | 'USER'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'RESET_REQUESTED'>('ALL');
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [bulkActioning, setBulkActioning] = useState(false);
   
+  // Permission checks
+  const isSuperAdmin = currentAdmin?.role === 'SUPERADMIN';
+  const isAdminOrAbove = isSuperAdmin || currentAdmin?.role === 'ADMIN' || currentAdmin?.role === 'OWNER';
+
   // Modal States
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showMasterReportModal, setShowMasterReportModal] = useState(false);
@@ -45,12 +53,40 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const [archives, setArchives] = useState<ArchivedUserReplica[]>([]);
   const [selectedArchiveForPrint, setSelectedArchiveForPrint] = useState<ArchivedUserReplica | null>(null);
 
+  // Filtered list based on role & status filters
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      if (roleFilter === 'ADMIN' && !(u.role === 'ADMIN' || u.role === 'SUPERADMIN')) return false;
+      if (roleFilter === 'USER' && (u.role === 'ADMIN' || u.role === 'SUPERADMIN')) return false;
+      if (statusFilter === 'RESET_REQUESTED' && !u.isPasswordResetRequested) return false;
+      return true;
+    });
+  }, [users, roleFilter, statusFilter]);
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedUserIds(filteredUsers.map((u) => u.id));
+    } else {
+      setSelectedUserIds([]);
+    }
+  };
+
+  const handleSelectUserRow = (id: string) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
   const fetchArchives = async () => {
     const list = await ApiService.getArchivedReplicas();
     setArchives(list);
   };
 
   const handleDeleteUser = async (user: User) => {
+    if (!isAdminOrAbove) {
+      alert('অ্যাক্সেস নম্বর সমস্যা: ইউজার মোছার ক্ষমতা শুধুমাত্র এডমিনের রয়েছে।');
+      return;
+    }
     if (confirm(`আপনি কি নিশ্চিত যে ${user.name} (${user.phone}) কে মেসে আর না থাকায় ডিলিট করতে চান?\n\nডিলিটের পূর্বে সম্পূর্ণ মাসের মিল ও লেনদেনের বিস্তারিত একটি ফাইল ব্যাকআপ ফাইল আর্কাইভ তৈরি করা হবে, যা পরে যেকোনো সময় প্রিন্ট বা ডাউনলোড করা যাবে।`)) {
       try {
         await ApiService.deleteUserWithArchive(currentAdmin?.id || 'admin', user.id);
@@ -74,6 +110,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
 
   const handleToggleRole = async (targetUser: User, newRole: 'USER' | 'ADMIN') => {
+    if (!isAdminOrAbove) {
+      alert('অ্যাক্সেস নম্বর সমস্যা: রোল পরিবর্তনের অনুমতি শুধুমাত্র অ্যাডমিনদের রয়েছে।');
+      return;
+    }
     const roleText = newRole === 'ADMIN' ? 'এডমিন' : 'সাধারণ ইউজার';
     if (confirm(`আপনি কি নিশ্চিত যে ${targetUser.name} কে ${roleText} রোলে পরিবর্তন করতে চান?`)) {
       try {
@@ -87,6 +127,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const handleResetPassword = async (targetUser: User) => {
+    if (!isAdminOrAbove) {
+      alert('অ্যাক্সেস নম্বর সমস্যা: পাসওয়ার্ড রিসেট করার ক্ষমতা শুধুমাত্র অ্যাডমিনের রয়েছে।');
+      return;
+    }
     if (confirm(`আপনি কি নিশ্চিত যে ${targetUser.name} (${targetUser.phone}) এর পাসওয়ার্ড রিসেট করে '123' সেট করতে চান?`)) {
       try {
         await ApiService.approvePasswordReset(currentAdmin?.id || 'admin', targetUser.id, '123');
@@ -94,6 +138,68 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         onRefreshData();
       } catch (err: any) {
         alert(err.message || 'পাসওয়ার্ড রিসেট করতে সমস্যা হয়েছে');
+      }
+    }
+  };
+
+  const handleBulkResetPassword = async () => {
+    if (selectedUserIds.length === 0) return;
+    if (confirm(`আপনি কি নিশ্চিত যে সিলেক্ট করা ${selectedUserIds.length} জন ইউজারের পাসওয়ার্ড রিসেট করে '123' সেট করতে চান?`)) {
+      setBulkActioning(true);
+      try {
+        const adminId = currentAdmin?.id || 'admin';
+        for (const userId of selectedUserIds) {
+          await ApiService.approvePasswordReset(adminId, userId, '123');
+        }
+        alert(`সফলভাবে ${selectedUserIds.length} জন মেম্বারের পাসওয়ার্ড রিসেট করে '123' করা হয়েছে!`);
+        setSelectedUserIds([]);
+        onRefreshData();
+      } catch (err: any) {
+        alert(err.message || 'বাল্ক পাসওয়ার্ড রিসেট করতে সমস্যা হয়েছে');
+      } finally {
+        setBulkActioning(false);
+      }
+    }
+  };
+
+  const handleBulkToggleRole = async (targetRole: 'ADMIN' | 'USER') => {
+    if (selectedUserIds.length === 0) return;
+    const roleText = targetRole === 'ADMIN' ? 'এডমিন' : 'সাধারণ ইউজার';
+    if (confirm(`আপনি কি নিশ্চিত যে সিলেক্ট করা ${selectedUserIds.length} জন ইউজারকে ${roleText} রোলে রূপান্তর করতে চান?`)) {
+      setBulkActioning(true);
+      try {
+        const adminId = currentAdmin?.id || 'admin';
+        for (const userId of selectedUserIds) {
+          await ApiService.updateUserRole(adminId, userId, targetRole);
+        }
+        alert(`সফলভাবে ${selectedUserIds.length} জন ইউজারকে ${roleText} রোলে রূপান্তর করা হয়েছে!`);
+        setSelectedUserIds([]);
+        onRefreshData();
+      } catch (err: any) {
+        alert(err.message || 'বাল্ক রোল পরিবর্তন করতে সমস্যা হয়েছে');
+      } finally {
+        setBulkActioning(false);
+      }
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedUserIds.length === 0) return;
+    if (confirm(`⚠️ সাবধান! আপনি কি নিশ্চিত যে সিলেক্ট করা ${selectedUserIds.length} জন সদস্য মুছে ফেলতে চান?`)) {
+      setBulkActioning(true);
+      try {
+        const adminId = currentAdmin?.id || 'admin';
+        for (const userId of selectedUserIds) {
+          await ApiService.deleteUserWithArchive(adminId, userId);
+        }
+        alert(`সফলভাবে ${selectedUserIds.length} জন সদস্য ডিলিট করা হয়েছে!`);
+        setSelectedUserIds([]);
+        onRefreshData();
+        fetchArchives();
+      } catch (err: any) {
+        alert(err.message || 'বাল্ক ইউজার ডিলিট করতে সমস্যা হয়েছে');
+      } finally {
+        setBulkActioning(false);
       }
     }
   };
@@ -135,11 +241,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const [purging, setPurging] = useState(false);
 
   const handleSeed300Users = async () => {
-    if (confirm('আপনি কি টেস্ট করার জন্য সিস্টেমে ৩০০ জন টেস্ট মেম্বার এক সাথে তৈরি করতে চান?')) {
+    if (!isSuperAdmin) {
+      alert('অ্যাক্সেস নম্বর সমস্যা: শুধুমাত্র সুপারঅ্যাডমিন সিস্টেমে ৩০০ জন টেস্ট ইউজার একসাথে তৈরি করতে পারবেন।');
+      return;
+    }
+    if (confirm('👑 [সুপারএডমিন স্পেশাল সেটিং]\n\nআপনি কি টেস্ট করার জন্য সিস্টেমে ৩০০ জন টেস্ট মেম্বার ডাটাবেজে এক সাথে তৈরি করতে চান?')) {
       setSeeding(true);
       try {
-        const count = await ApiService.seed300TestUsers();
-        alert(`সফলভাবে ${count} জন টেস্ট ইউজার তৈরি হয়েছে!`);
+        const count = await ApiService.seed300TestUsers('SUPERADMIN');
+        alert(`সফলভাবে ${count} জন টেস্ট ইউজার ডাটাবেজে সেটিং করা হয়েছে!`);
         onRefreshData();
       } catch (err: any) {
         alert(err.message || 'টেস্ট ইউজার তৈরি করতে সমস্যা হয়েছে');
@@ -150,10 +260,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const handleDelete300Users = async () => {
+    if (!isAdminOrAbove) {
+      alert('অ্যাক্সেস নম্বর সমস্যা: টেস্ট ইউজার মুছে ফেলার ক্ষমতা শুধুমাত্র এডমিনদের রয়েছে।');
+      return;
+    }
     if (confirm('⚠️ সাবধান! আপনি কি নিশ্চিত যে অ্যাডমিন একাউন্ট ছাড়া বাকি সকল (৩০০ জন) টেস্ট ইউজার মুছে ফেলতে চান?\n\nমেসের শুধুমাত্র মেস অ্যাডমিন একাউন্টই অবশিষ্ট থাকবে।')) {
       setPurging(true);
       try {
-        const count = await ApiService.deleteAllTestUsersExceptAdmin();
+        const count = await ApiService.deleteAllTestUsersExceptAdmin(currentAdmin?.role || 'ADMIN');
         alert(`সফলভাবে ${count} জন টেস্ট ইউজার মুছে ফেলা হয়েছে! এখন শুধু অ্যাডমিন একাউন্ট রয়েছে।`);
         onRefreshData();
       } catch (err: any) {
@@ -164,17 +278,46 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     }
   };
 
+  const adminCount = useMemo(() => users.filter((u) => u.role === 'ADMIN' || u.role === 'SUPERADMIN').length, [users]);
+  const resetCount = useMemo(() => users.filter((u) => u.isPasswordResetRequested).length, [users]);
+
   const columns = useMemo(
     () => [
+      columnHelper.display({
+        id: 'select',
+        header: () => (
+          <input
+            type="checkbox"
+            checked={filteredUsers.length > 0 && selectedUserIds.length === filteredUsers.length}
+            onChange={(e) => handleSelectAll(e.target.checked)}
+            className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500 cursor-pointer"
+          />
+        ),
+        cell: (info) => (
+          <input
+            type="checkbox"
+            checked={selectedUserIds.includes(info.row.original.id)}
+            onChange={() => handleSelectUserRow(info.row.original.id)}
+            className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500 cursor-pointer"
+          />
+        ),
+      }),
       columnHelper.accessor('name', {
         header: 'নাম ও ফোন',
         cell: (info) => (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-sky-400 text-slate-950 font-bold text-xs flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-sky-400 text-slate-950 font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
               {info.getValue().charAt(0)}
             </div>
             <div>
-              <p className="font-bold text-slate-100 font-sans">{info.getValue()}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="font-bold text-slate-100 font-sans">{info.getValue()}</p>
+                {(info.row.original.role === 'SUPERADMIN' || info.row.original.role === 'ADMIN') && (
+                  <span className="px-1.5 py-0.2 text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-full font-mono">
+                    👑 ADMIN
+                  </span>
+                )}
+              </div>
               <p className="text-[11px] text-slate-400 font-mono">{info.row.original.phone}</p>
             </div>
           </div>
@@ -232,7 +375,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             {info.row.original.role === 'ADMIN' || info.row.original.role === 'SUPERADMIN' ? (
               <button
                 onClick={() => handleToggleRole(info.row.original, 'USER')}
-                className="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap"
+                disabled={!isAdminOrAbove}
+                className="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap disabled:opacity-40"
                 title="ইউজার রোলে পরিবর্তন করুন"
               >
                 <Shield className="w-3.5 h-3.5" />
@@ -241,7 +385,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             ) : (
               <button
                 onClick={() => handleToggleRole(info.row.original, 'ADMIN')}
-                className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap"
+                disabled={!isAdminOrAbove}
+                className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap disabled:opacity-40"
                 title="এডমিনে রূপান্তর করুন"
               >
                 <Shield className="w-3.5 h-3.5" />
@@ -252,7 +397,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             {/* Reset Password Action */}
             <button
               onClick={() => handleResetPassword(info.row.original)}
-              className={`px-2.5 py-1 rounded-xl border text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap ${
+              disabled={!isAdminOrAbove}
+              className={`px-2.5 py-1 rounded-xl border text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap disabled:opacity-40 ${
                 info.row.original.isPasswordResetRequested
                   ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30 animate-pulse'
                   : 'bg-slate-900/80 text-slate-300 border-slate-700 hover:bg-slate-800'
@@ -265,7 +411,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
             <button
               onClick={() => handleDeleteUser(info.row.original)}
-              className="px-2.5 py-1 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap"
+              disabled={!isAdminOrAbove}
+              className="px-2.5 py-1 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 text-[11px] font-bold transition-all inline-flex items-center gap-1 active:scale-95 shadow-sm whitespace-nowrap disabled:opacity-40"
               title="মেম্বার ডিলিট করুন এবং ফাইল ব্যাকআপ সেভ করুন"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -275,11 +422,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         ),
       }),
     ],
-    [onSelectUser, currentAdmin]
+    [filteredUsers, selectedUserIds, onSelectUser, currentAdmin, isAdminOrAbove]
   );
 
   const table = useReactTable({
-    data: users,
+    data: filteredUsers,
     columns,
     state: {
       globalFilter,
@@ -301,6 +448,49 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   return (
     <div className="space-y-6 pb-24 max-w-7xl mx-auto animate-scale-in">
       
+      {/* Top Stat Overview Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="glass-panel p-4 sm:p-5 rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-950/20 to-slate-900/60 shadow-xl flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-cyan-400/90 font-mono uppercase tracking-wider">মোট মেম্বার</p>
+            <h3 className="text-2xl font-black text-white font-mono mt-1">{users.length} <span className="text-xs text-slate-400 font-sans font-normal">জন</span></h3>
+          </div>
+          <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+            <Users className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="glass-panel p-4 sm:p-5 rounded-3xl border border-amber-500/20 bg-gradient-to-br from-amber-950/20 to-slate-900/60 shadow-xl flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-amber-400/90 font-mono uppercase tracking-wider">মেস এডমিন</p>
+            <h3 className="text-2xl font-black text-amber-300 font-mono mt-1">{adminCount} <span className="text-xs text-slate-400 font-sans font-normal">জন</span></h3>
+          </div>
+          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+            <Crown className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="glass-panel p-4 sm:p-5 rounded-3xl border border-purple-500/20 bg-gradient-to-br from-purple-950/20 to-slate-900/60 shadow-xl flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-purple-400/90 font-mono uppercase tracking-wider">পাসওয়ার্ড রিসেট</p>
+            <h3 className="text-2xl font-black text-purple-300 font-mono mt-1">{resetCount} <span className="text-xs text-slate-400 font-sans font-normal">অনুরোধ</span></h3>
+          </div>
+          <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+            <KeyRound className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="glass-panel p-4 sm:p-5 rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-950/20 to-slate-900/60 shadow-xl flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-emerald-400/90 font-mono uppercase tracking-wider">মোট ফান্ড</p>
+            <h3 className="text-2xl font-black text-emerald-400 font-mono mt-1">৳{totalWalletSum}</h3>
+          </div>
+          <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <Wallet className="w-5 h-5" />
+          </div>
+        </div>
+      </div>
+
       {/* Header & Controls Bar */}
       <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-slate-800/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-2xl">
         <div>
@@ -311,33 +501,37 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             {BN.users} ও মেম্বার একাউন্ট হাব
           </h2>
           <p className="text-xs text-slate-400 mt-1 font-sans">
-            মোট রেজিস্টার্ড সদস্য: <span className="font-mono font-bold text-cyan-300">{users.length}</span> জন | মোট ফান্ড: <span className="font-mono font-bold text-emerald-400">৳{totalWalletSum}</span>
+            প্রিমিয়াম অ্যাডমিন কন্ট্রোল সিস্টেম | আপনার লগইন রোল: <span className="font-mono font-bold text-amber-300">{currentAdmin?.role || 'USER'}</span>
           </p>
         </div>
 
         {/* Action Buttons & Search */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Seed 300 Test Users */}
-          <button
-            onClick={handleSeed300Users}
-            disabled={seeding}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-indigo-600/80 hover:bg-indigo-500 text-white font-bold text-xs transition-all shadow-md active:scale-95 font-display border border-indigo-400/40 disabled:opacity-50"
-            title="ইনস্পেকশনের জন্য ৩০০ জন টেস্ট ইউজার তৈরি করুন"
-          >
-            <PlusCircle className="w-4 h-4 text-indigo-300" />
-            <span>{seeding ? 'তৈরি হচ্ছে...' : '৩০০ টেস্ট ইউজার সেটিং'}</span>
-          </button>
+          {/* Seed 300 Test Users - RESTRICTED TO SUPERADMIN ONLY */}
+          {isSuperAdmin && (
+            <button
+              onClick={handleSeed300Users}
+              disabled={seeding}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs transition-all shadow-md active:scale-95 font-display border border-indigo-400/40 disabled:opacity-50"
+              title="ইনস্পেকশনের জন্য ৩০০ জন টেস্ট ইউজার তৈরি করুন (শুধুমাত্র সুপারএডমিন)"
+            >
+              <Crown className="w-4 h-4 text-amber-300" />
+              <span>{seeding ? 'তৈরি হচ্ছে...' : '৩০০ টেস্ট ইউজার সেটিং'}</span>
+            </button>
+          )}
 
-          {/* Delete 300 Test Users */}
-          <button
-            onClick={handleDelete300Users}
-            disabled={purging}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-rose-600/80 hover:bg-rose-500 text-white font-bold text-xs transition-all shadow-md active:scale-95 font-display border border-rose-400/40 disabled:opacity-50"
-            title="শুধু অ্যাডমিন রেখে বাকি ৩০০ ইউজার মুছে ফেলুন"
-          >
-            <Trash2 className="w-4 h-4 text-rose-200" />
-            <span>{purging ? 'ডিলিট হচ্ছে...' : '৩০০ ইউজার ডিলিট (শুধু অ্যাডমিন)'}</span>
-          </button>
+          {/* Delete 300 Test Users - RESTRICTED TO ADMIN / SUPERADMIN */}
+          {isAdminOrAbove && (
+            <button
+              onClick={handleDelete300Users}
+              disabled={purging}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-rose-600/80 hover:bg-rose-500 text-white font-bold text-xs transition-all shadow-md active:scale-95 font-display border border-rose-400/40 disabled:opacity-50"
+              title="শুধু অ্যাডমিন রেখে বাকি ৩০০ ইউজার মুছে ফেলুন"
+            >
+              <Trash2 className="w-4 h-4 text-rose-200" />
+              <span>{purging ? 'ডিলিট হচ্ছে...' : '৩০০ ইউজার ডিলিট (শুধু অ্যাডমিন)'}</span>
+            </button>
+          )}
 
           {/* Create User Button */}
           <button
@@ -369,19 +563,91 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             <span>আর্কাইভ ফাইল মেমো</span>
           </button>
 
-          {/* Search Input */}
-          <div className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={globalFilter ?? ''}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              placeholder={BN.searchUser}
-              className="w-full bg-slate-900/80 border border-slate-700/80 rounded-2xl py-2.5 pl-10 pr-4 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-            />
+          {/* Filters & Search */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Role Filter */}
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as any)}
+              className="bg-slate-900 border border-slate-700 text-xs rounded-2xl px-3 py-2.5 text-slate-200 focus:outline-none font-mono"
+            >
+              <option value="ALL">সকল রোল</option>
+              <option value="ADMIN">শুধুমাত্র এডমিন</option>
+              <option value="USER">শুধুমাত্র মেম্বার</option>
+            </select>
+
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="bg-slate-900 border border-slate-700 text-xs rounded-2xl px-3 py-2.5 text-slate-200 focus:outline-none font-mono"
+            >
+              <option value="ALL">সকল স্ট্যাটাস</option>
+              <option value="RESET_REQUESTED">পাসওয়ার্ড রিসেট অনুরোধ</option>
+            </select>
+
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-56">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={globalFilter ?? ''}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                placeholder={BN.searchUser}
+                className="w-full bg-slate-900/80 border border-slate-700/80 rounded-2xl py-2.5 pl-10 pr-4 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+              />
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Bulk Action Floating Bar */}
+      {selectedUserIds.length > 0 && (
+        <div className="glass-panel p-4 rounded-2xl border border-cyan-500/40 bg-slate-900/90 flex flex-wrap items-center justify-between gap-3 shadow-2xl animate-fade-in">
+          <div className="flex items-center gap-2 text-xs text-cyan-300 font-mono font-bold">
+            <CheckSquare className="w-4 h-4 text-cyan-400" />
+            <span>{selectedUserIds.length} জন ইউজার সিলেক্ট করা হয়েছে</span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleBulkResetPassword}
+              disabled={bulkActioning || !isAdminOrAbove}
+              className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 text-xs font-bold transition-all flex items-center gap-1.5"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+              <span>বাল্ক রিসেট (123)</span>
+            </button>
+
+            <button
+              onClick={() => handleBulkToggleRole('ADMIN')}
+              disabled={bulkActioning || !isAdminOrAbove}
+              className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 text-xs font-bold transition-all flex items-center gap-1.5"
+            >
+              <Crown className="w-3.5 h-3.5 text-emerald-400" />
+              <span>বাল্ক এডমিন করুন</span>
+            </button>
+
+            <button
+              onClick={() => handleBulkToggleRole('USER')}
+              disabled={bulkActioning || !isAdminOrAbove}
+              className="px-3 py-1.5 rounded-xl bg-sky-500/20 text-sky-300 border border-sky-500/40 hover:bg-sky-500/30 text-xs font-bold transition-all flex items-center gap-1.5"
+            >
+              <Shield className="w-3.5 h-3.5 text-sky-400" />
+              <span>বাল্ক ইউজার করুন</span>
+            </button>
+
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkActioning || !isAdminOrAbove}
+              className="px-3 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 text-xs font-bold transition-all flex items-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+              <span>বাল্ক ডিলিট</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Data Table Container */}
       <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-slate-800/80 overflow-hidden shadow-xl">
@@ -433,7 +699,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                     onChange={(e) => table.setPageSize(Number(e.target.value))}
                     className="bg-slate-900 border border-slate-700 text-xs rounded-xl px-2.5 py-1.5 text-slate-200 focus:outline-none font-mono"
                   >
-                    {[10, 25, 50, 100].map((pageSize) => (
+                    {[10, 25, 50, 100, 300].map((pageSize) => (
                       <option key={pageSize} value={pageSize}>
                         প্রতি পেজে {pageSize} জন
                       </option>

@@ -8,7 +8,7 @@ import { StatusBadge } from '../common/StatusBadge';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
 import { ApiService } from '../../services/apiService';
-import { getBangladeshDateStr, getBangladeshNow } from '../../utils/dateUtils';
+import { getBangladeshDateStr, getBangladeshNow, getDayOfWeekFromDateStr, fillMissingDeclarationsForDateRange } from '../../utils/dateUtils';
 
 interface UserDashboardProps {
   currentUser: User;
@@ -81,13 +81,48 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
   const monthlyStats = useMemo(() => {
     const currentMonthStr = todayStr.substring(0, 7);
-    const userDecls = declarations.filter((d) => d.userId === currentUser.id && d.date.startsWith(currentMonthStr));
+    const firstDayOfMonthStr = `${currentMonthStr}-01`;
+
+    const monthDecs = fillMissingDeclarationsForDateRange(
+      declarations,
+      firstDayOfMonthStr,
+      todayStr,
+      currentUser.id
+    );
+
+    const isBGlobalOff = rates?.globalMealStatus?.breakfast === false;
+    const isLGlobalOff = rates?.globalMealStatus?.lunch === false;
+    const isDGlobalOff = rates?.globalMealStatus?.dinner === false;
 
     let bCount = 0, lCount = 0, dCount = 0;
-    userDecls.forEach((d) => {
-      if (d.breakfast) bCount++;
-      if (d.lunch) lCount++;
-      if (d.dinner) dCount++;
+    let totalMealSpent = 0;
+
+    monthDecs.forEach((d) => {
+      const dayEm = emergencies.find(e => d.date >= e.date && d.date <= (e.endDate || e.date));
+
+      const isBEm = !!dayEm && (!dayEm.closedMeals || dayEm.closedMeals.length === 0 || dayEm.closedMeals.includes('breakfast'));
+      const isLEm = !!dayEm && (!dayEm.closedMeals || dayEm.closedMeals.length === 0 || dayEm.closedMeals.includes('lunch'));
+      const isDEm = !!dayEm && (!dayEm.closedMeals || dayEm.closedMeals.length === 0 || dayEm.closedMeals.includes('dinner'));
+
+      const isBOn = !isBGlobalOff && !isBEm && d.breakfast;
+      const isLOn = !isLGlobalOff && !isLEm && d.lunch;
+      const isDOn = !isDGlobalOff && !isDEm && d.dinner;
+
+      if (isBOn) bCount++;
+      if (isLOn) lCount++;
+      if (isDOn) dCount++;
+
+      const dayOfWeek = getDayOfWeekFromDateStr(d.date);
+      const specB = specialMeals.find((sm) => sm.isActive !== false && sm.mealType === 'breakfast' && (sm.date === d.date || (sm.isRecurring && sm.repeatDayOfWeek === dayOfWeek)));
+      const specL = specialMeals.find((sm) => sm.isActive !== false && sm.mealType === 'lunch' && (sm.date === d.date || (sm.isRecurring && sm.repeatDayOfWeek === dayOfWeek)));
+      const specD = specialMeals.find((sm) => sm.isActive !== false && sm.mealType === 'dinner' && (sm.date === d.date || (sm.isRecurring && sm.repeatDayOfWeek === dayOfWeek)));
+
+      const bPrice = isBGlobalOff || isBEm ? 0 : (specB ? specB.customRate : userRates.breakfast);
+      const lPrice = isLGlobalOff || isLEm ? 0 : (specL ? specL.customRate : userRates.lunch);
+      const dPrice = isDGlobalOff || isDEm ? 0 : (specD ? specD.customRate : userRates.dinner);
+
+      const dailyCost = (isBOn ? bPrice : 0) + (isLOn ? lPrice : 0) + (isDOn ? dPrice : 0);
+      totalMealSpent += dailyCost;
     });
 
     const totalMeals = bCount + lCount + dCount;
@@ -95,10 +130,6 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
     const userTrxs = transactions.filter((t) => (t.userId === currentUser.id || !t.userId) && t.date.startsWith(currentMonthStr));
     const totalRecharged = userTrxs
       .filter((t) => ['RECHARGE', 'CREDIT', 'ADMIN_TOPUP'].includes(t.type))
-      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
-    const totalMealSpent = userTrxs
-      .filter((t) => t.type === 'MEAL_DEDUCTION')
       .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
     return {
@@ -109,7 +140,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
       totalRecharged,
       totalMealSpent,
     };
-  }, [declarations, transactions, currentUser.id, todayStr]);
+  }, [declarations, transactions, currentUser.id, todayStr, rates, emergencies, specialMeals, userRates]);
+
 
   const [localTodayDec, setLocalTodayDec] = useState(propTodayDec);
   const [togglingMeal, setTogglingMeal] = useState(false);

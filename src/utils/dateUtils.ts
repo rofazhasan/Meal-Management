@@ -31,3 +31,44 @@ export function parseDateStr(dateStr: string): Date {
 export function getDayOfWeekFromDateStr(dateStr: string): number {
   return parseDateStr(dateStr).getDay();
 }
+
+export function fillMissingDeclarationsForDateRange<T extends { date: string; userId: string }>(
+  existingDecs: T[],
+  startDateStr: string,
+  endDateStr: string,
+  userId: string
+): T[] {
+  const decMap = new Map<string, T>();
+  existingDecs.forEach((d) => {
+    if (d.userId === userId) {
+      decMap.set(d.date, d);
+    }
+  });
+
+  const result: T[] = [];
+  const start = parseDateStr(startDateStr);
+  const end = parseDateStr(endDateStr);
+
+  const cur = new Date(start);
+  while (cur <= end) {
+    const dateStr = getBangladeshDateStr(cur);
+    if (decMap.has(dateStr)) {
+      result.push(decMap.get(dateStr)!);
+    } else {
+      result.push({
+        id: `auto-${dateStr}`,
+        userId,
+        date: dateStr,
+        breakfast: true,
+        lunch: true,
+        dinner: true,
+        isAutoCopied: true,
+        updatedAt: new Date().toISOString(),
+      } as unknown as T);
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  return result;
+}
+
