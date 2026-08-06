@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { MealType } from '@prisma/client';
-import { parseDateToUtcMidday } from '@/lib/mealEngine';
+import { parseDateToUtcMidday, processSpecialMealCreationWithRefunds } from '@/lib/mealEngine';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,32 +51,39 @@ export async function POST(req: Request) {
 
     const mealDate = parseDateToUtcMidday(date);
     const dbMealType = upperMealType as MealType;
+    const dateStr = date;
 
-    const created = await prisma.specialMeal.create({
-      data: {
-        mealDate,
-        mealType: dbMealType,
-        title,
-        customRate: numRate,
-        description: description || null,
-        isRecurring: Boolean(isRecurring),
-        repeatDayOfWeek: repeatDayOfWeek !== undefined ? Number(repeatDayOfWeek) : null,
-        isActive: true,
-      },
+    const formatted = await prisma.$transaction(async (tx) => {
+      // 1. Reset user declarations for the targeted meal slot on dateStr & refund previously deducted fees
+      await processSpecialMealCreationWithRefunds(dateStr, dbMealType as 'BREAKFAST' | 'LUNCH' | 'DINNER', tx);
+
+      // 2. Create the SpecialMeal record
+      const created = await tx.specialMeal.create({
+        data: {
+          mealDate,
+          mealType: dbMealType,
+          title,
+          customRate: numRate,
+          description: description || null,
+          isRecurring: Boolean(isRecurring),
+          repeatDayOfWeek: repeatDayOfWeek !== undefined ? Number(repeatDayOfWeek) : null,
+          isActive: true,
+        },
+      });
+
+      return {
+        id: created.id,
+        date: created.mealDate.toISOString().split('T')[0],
+        mealType: created.mealType.toLowerCase(),
+        title: created.title,
+        customRate: Number(created.customRate),
+        description: created.description || '',
+        isRecurring: created.isRecurring,
+        repeatDayOfWeek: created.repeatDayOfWeek,
+        isActive: created.isActive,
+        createdAt: created.createdAt.toISOString(),
+      };
     });
-
-    const formatted = {
-      id: created.id,
-      date: created.mealDate.toISOString().split('T')[0],
-      mealType: created.mealType.toLowerCase(),
-      title: created.title,
-      customRate: Number(created.customRate),
-      description: created.description || '',
-      isRecurring: created.isRecurring,
-      repeatDayOfWeek: created.repeatDayOfWeek,
-      isActive: created.isActive,
-      createdAt: created.createdAt.toISOString(),
-    };
 
     return NextResponse.json(formatted, { status: 201 });
   } catch (error: any) {
@@ -92,23 +99,32 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Special meal ID required' }, { status: 400 });
     }
 
-    const updated = await prisma.specialMeal.update({
-      where: { id },
-      data: { isActive: Boolean(isActive) },
-    });
+    const formatted = await prisma.$transaction(async (tx) => {
+      const existing = await tx.specialMeal.findUnique({ where: { id } });
+      if (existing) {
+        const dateStr = existing.mealDate.toISOString().split('T')[0];
+        const slotType = existing.mealType as 'BREAKFAST' | 'LUNCH' | 'DINNER';
+        await processSpecialMealCreationWithRefunds(dateStr, slotType, tx);
+      }
 
-    const formatted = {
-      id: updated.id,
-      date: updated.mealDate.toISOString().split('T')[0],
-      mealType: updated.mealType.toLowerCase(),
-      title: updated.title,
-      customRate: Number(updated.customRate),
-      description: updated.description || '',
-      isRecurring: updated.isRecurring,
-      repeatDayOfWeek: updated.repeatDayOfWeek,
-      isActive: updated.isActive,
-      createdAt: updated.createdAt.toISOString(),
-    };
+      const updated = await tx.specialMeal.update({
+        where: { id },
+        data: { isActive: Boolean(isActive) },
+      });
+
+      return {
+        id: updated.id,
+        date: updated.mealDate.toISOString().split('T')[0],
+        mealType: updated.mealType.toLowerCase(),
+        title: updated.title,
+        customRate: Number(updated.customRate),
+        description: updated.description || '',
+        isRecurring: updated.isRecurring,
+        repeatDayOfWeek: updated.repeatDayOfWeek,
+        isActive: updated.isActive,
+        createdAt: updated.createdAt.toISOString(),
+      };
+    });
 
     return NextResponse.json(formatted);
   } catch (error: any) {
@@ -126,8 +142,17 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'Special meal ID required' }, { status: 400 });
     }
 
-    await prisma.specialMeal.delete({
-      where: { id },
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.specialMeal.findUnique({ where: { id } });
+      if (existing) {
+        const dateStr = existing.mealDate.toISOString().split('T')[0];
+        const slotType = existing.mealType as 'BREAKFAST' | 'LUNCH' | 'DINNER';
+        await processSpecialMealCreationWithRefunds(dateStr, slotType, tx);
+      }
+
+      await tx.specialMeal.delete({
+        where: { id },
+      });
     });
 
     return NextResponse.json({ success: true, id });
@@ -136,3 +161,4 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: error.message || 'Failed to delete special meal' }, { status: 500 });
   }
 }
+

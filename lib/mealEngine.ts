@@ -217,6 +217,123 @@ export async function processEmergencyClosureWithRefunds(
 }
 
 /**
+ * Special Meal Creation Batch Refund & Reset Algorithm:
+ * When a special meal is added, updated, or deleted by admin for a target date:
+ * 1. Finds all existing meal declarations for that date with active meals in the target slot(s).
+ * 2. Calculates exact deducted cost for each user for the target slot(s) before applying special meal change.
+ * 3. Turns off only the target meal slot declaration(s) for that date.
+ * 4. Refunds users' wallets atomically with structured REFUND transactions.
+ * 5. Syncs central DB MealConsumption status for target slot(s) to OFF.
+ */
+export async function processSpecialMealCreationWithRefunds(
+  dateStr: string,
+  targetMealType: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'ALL' = 'ALL',
+  txPrisma?: any
+): Promise<{ refundedUsersCount: number; totalRefundedAmount: number }> {
+  const db = txPrisma || defaultPrisma;
+  const declDate = parseDateToUtcMidday(dateStr);
+
+  const declarations = await db.mealDeclaration.findMany({
+    where: { declarationDate: declDate },
+    include: { user: { include: { wallet: true } } },
+  });
+
+  let refundedUsersCount = 0;
+  let totalRefundedAmount = 0;
+
+  const upperType = targetMealType.toUpperCase();
+
+  for (const decl of declarations) {
+    const checkB = (upperType === 'BREAKFAST' || upperType === 'ALL') && decl.breakfastSelected;
+    const checkL = (upperType === 'LUNCH' || upperType === 'ALL') && decl.lunchSelected;
+    const checkD = (upperType === 'DINNER' || upperType === 'ALL') && decl.dinnerSelected;
+
+    if (!checkB && !checkL && !checkD) continue;
+
+    const userType = decl.user.userType;
+    const rates = await resolveMealPricing(dateStr, userType, db, true);
+
+    const costToRefund =
+      (checkB ? rates.breakfast : 0) +
+      (checkL ? rates.lunch : 0) +
+      (checkD ? rates.dinner : 0);
+
+    if (costToRefund > 0 && decl.user.wallet) {
+      const wallet = decl.user.wallet;
+      const currentBal = Number(wallet.currentBalance);
+      const newBal = currentBal + costToRefund;
+
+      await db.wallet.update({
+        where: { id: wallet.id },
+        data: { currentBalance: newBal },
+      });
+
+      await db.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          userId: wallet.userId,
+          transactionType: 'REFUND',
+          amount: costToRefund,
+          balanceBefore: currentBal,
+          balanceAfter: newBal,
+          referenceType: 'SPECIAL_MEAL_RESET_REFUND',
+          referenceId: wallet.id,
+          note: `বিশেষ মিল ঘোষণার পূর্বে মিল রিফান্ড (${dateStr})`,
+        },
+      });
+
+      totalRefundedAmount += costToRefund;
+      refundedUsersCount++;
+    }
+
+    const updateData: any = {
+      sourceType: 'ADMIN_OVERRIDE',
+    };
+    if (checkB) updateData.breakfastSelected = false;
+    if (checkL) updateData.lunchSelected = false;
+    if (checkD) updateData.dinnerSelected = false;
+
+    await db.mealDeclaration.update({
+      where: { id: decl.id },
+      data: updateData,
+    });
+
+    const slotsToUpdate: ('BREAKFAST' | 'LUNCH' | 'DINNER')[] = [];
+    if (checkB) slotsToUpdate.push('BREAKFAST');
+    if (checkL) slotsToUpdate.push('LUNCH');
+    if (checkD) slotsToUpdate.push('DINNER');
+
+    for (const slot of slotsToUpdate) {
+      await db.mealConsumption.upsert({
+        where: {
+          uq_user_meal_date_type: {
+            userId: decl.userId,
+            mealDate: declDate,
+            mealType: slot,
+          },
+        },
+        update: {
+          status: 'OFF',
+          chargeAmount: 0,
+          deductedFromWallet: false,
+        },
+        create: {
+          userId: decl.userId,
+          mealDate: declDate,
+          mealType: slot,
+          status: 'OFF',
+          chargeAmount: 0,
+          deductedFromWallet: false,
+        },
+      });
+    }
+  }
+
+  return { refundedUsersCount, totalRefundedAmount };
+}
+
+
+/**
  * Role-Based Access Control (RBAC) Matrix Algorithm:
  * Evaluates whether a given UserRole has permission to execute a target administrative action.
  */
