@@ -51,8 +51,9 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { userId, amount = 500, paymentMethod = 'BKASH', trxId = '', note = '' } = body;
 
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    const numAmount = Number(amount);
+    if (!userId || isNaN(numAmount) || numAmount <= 0) {
+      return NextResponse.json({ error: 'Valid userId and positive amount are required' }, { status: 400 });
     }
 
     const remarkJson = JSON.stringify({
@@ -176,6 +177,17 @@ export async function PATCH(req: Request) {
           adminId: dbTx.createdBy || adminId || null,
         };
       }
+
+      // Create notification record in central DB
+      await tx.notification.create({
+        data: {
+          userId: appReq.userId,
+          title: status === 'APPROVED' ? 'রিচার্জ রিকোয়েস্ট অনুমোদিত' : 'রিচার্জ রিকোয়েস্ট প্রত্যাখ্যাত',
+          message: status === 'APPROVED'
+            ? `আপনার ৳${finalAmount} রিচার্জের আবেদন অনুমোদিত হয়েছে।`
+            : `আপনার ৳${finalAmount} রিচার্জের আবেদন প্রত্যাখ্যাত হয়েছে।`,
+        },
+      });
 
       const formattedReq = {
         id: updatedReq.id,

@@ -108,42 +108,39 @@ export async function POST(req: Request) {
       newD = false;
     }
 
-    // 2. Fetch User and Pricing via engine
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { wallet: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'ব্যবহারকারী পাওয়া যায়নি' }, { status: 404 });
-    }
-
-    const effectiveRates = await resolveMealPricing(dateStr, user.userType);
-
-    const effectiveBRate = effectiveRates.breakfast;
-    const effectiveLRate = effectiveRates.lunch;
-    const effectiveDRate = effectiveRates.dinner;
-
-    // 3. Find previous declaration for this date
-    const prevDecl = await prisma.mealDeclaration.findUnique({
-      where: {
-        uq_user_declaration_date: {
-          userId,
-          declarationDate: declDate,
-        },
-      },
-    });
-
-    const oldB = prevDecl ? prevDecl.breakfastSelected : false;
-    const oldL = prevDecl ? prevDecl.lunchSelected : false;
-    const oldD = prevDecl ? prevDecl.dinnerSelected : false;
-
-    const oldCost = (oldB ? effectiveBRate : 0) + (oldL ? effectiveLRate : 0) + (oldD ? effectiveDRate : 0);
-    const newCost = (newB ? effectiveBRate : 0) + (newL ? effectiveLRate : 0) + (newD ? effectiveDRate : 0);
-    const costDiff = newCost - oldCost;
-
-    // 4. Wallet handling inside transaction
+    // 2. Execute entire state read + wallet update + upsert inside a single atomic transaction
     const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        include: { wallet: true },
+      });
+
+      if (!user) {
+        throw new Error('ব্যবহারকারী পাওয়া যায়নি');
+      }
+
+      const effectiveRates = await resolveMealPricing(dateStr, user.userType, tx);
+      const effectiveBRate = effectiveRates.breakfast;
+      const effectiveLRate = effectiveRates.lunch;
+      const effectiveDRate = effectiveRates.dinner;
+
+      const prevDecl = await tx.mealDeclaration.findUnique({
+        where: {
+          uq_user_declaration_date: {
+            userId,
+            declarationDate: declDate,
+          },
+        },
+      });
+
+      const oldB = prevDecl ? prevDecl.breakfastSelected : false;
+      const oldL = prevDecl ? prevDecl.lunchSelected : false;
+      const oldD = prevDecl ? prevDecl.dinnerSelected : false;
+
+      const oldCost = (oldB ? effectiveBRate : 0) + (oldL ? effectiveLRate : 0) + (oldD ? effectiveDRate : 0);
+      const newCost = (newB ? effectiveBRate : 0) + (newL ? effectiveLRate : 0) + (newD ? effectiveDRate : 0);
+      const costDiff = newCost - oldCost;
+
       let wallet = user.wallet;
       if (!wallet) {
         wallet = await tx.wallet.create({
@@ -227,6 +224,38 @@ export async function POST(req: Request) {
           sourceType,
         },
       });
+
+      // Sync granular MealConsumption central database tracking
+      const mealTypes = [
+        { type: 'BREAKFAST' as const, selected: newB, rate: effectiveBRate },
+        { type: 'LUNCH' as const, selected: newL, rate: effectiveLRate },
+        { type: 'DINNER' as const, selected: newD, rate: effectiveDRate },
+      ];
+
+      for (const m of mealTypes) {
+        await tx.mealConsumption.upsert({
+          where: {
+            uq_user_meal_date_type: {
+              userId,
+              mealDate: declDate,
+              mealType: m.type,
+            },
+          },
+          update: {
+            status: m.selected ? 'ON' : 'OFF',
+            chargeAmount: m.selected ? m.rate : 0,
+            deductedFromWallet: m.selected,
+          },
+          create: {
+            userId,
+            mealDate: declDate,
+            mealType: m.type,
+            status: m.selected ? 'ON' : 'OFF',
+            chargeAmount: m.selected ? m.rate : 0,
+            deductedFromWallet: m.selected,
+          },
+        });
+      }
 
       return {
         id: upserted.id,

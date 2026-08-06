@@ -110,6 +110,8 @@ model User {
   approvalRequests          ApprovalRequest[]
   auditLogs                 AuditLog[]
 
+  @@index([approvalStatus, deletedAt])
+  @@index([role])
   @@map("users")
 }
 
@@ -163,6 +165,9 @@ model WalletTransaction {
   wallet          Wallet          @relation(fields: [walletId], references: [id], onDelete: Cascade)
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, createdAt])
+  @@index([walletId, createdAt])
+  @@index([transactionType])
   @@map("wallet_transactions")
 }
 
@@ -203,6 +208,7 @@ model MealDeclaration {
   user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, declarationDate], name: "uq_user_declaration_date")
+  @@index([declarationDate])
   @@map("meal_declarations")
 }
 
@@ -220,6 +226,7 @@ model MealConsumption {
   user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, mealDate, mealType], name: "uq_user_meal_date_type")
+  @@index([mealDate, mealType])
   @@map("meal_consumptions")
 }
 
@@ -233,6 +240,8 @@ model ApprovalRequest {
 
   user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([status, createdAt])
+  @@index([userId])
   @@map("approval_requests")
 }
 
@@ -246,6 +255,7 @@ model Notification {
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, isRead])
   @@map("notifications")
 }
 
@@ -259,6 +269,8 @@ model AuditLog {
 
   actor       User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
+  @@index([createdAt])
+  @@index([actorUserId])
   @@map("audit_logs")
 }
 
@@ -276,6 +288,6 @@ model SpecialMeal {
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
+  @@index([mealDate, isActive])
   @@map("special_meals")
 }
-
