@@ -48,13 +48,14 @@ export function isMealDateLocked(
   cutoffTimeStr: string = '10:00',
   nowBgd: Date = getBgdNow()
 ): { isLocked: boolean; reason?: string } {
+  const cleanDateStr = getBgdDateStr(dateStr);
   const todayStr = getBgdDateStr(nowBgd);
 
-  if (dateStr < todayStr) {
+  if (cleanDateStr < todayStr) {
     return { isLocked: true, reason: 'Past dates cannot be modified.' };
   }
 
-  if (dateStr === todayStr) {
+  if (cleanDateStr === todayStr) {
     const [cutoffHour, cutoffMinute] = cutoffTimeStr.split(':').map(Number);
     const currentHour = nowBgd.getHours();
     const currentMinute = nowBgd.getMinutes();

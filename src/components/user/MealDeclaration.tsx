@@ -249,14 +249,21 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
     const nextL = type === 'lunch' ? !lunch : lunch;
     const nextD = type === 'dinner' ? !dinner : dinner;
 
-    const reqBalance =
+    const currentCost =
+      (breakfast ? effectiveBRate : 0) +
+      (lunch ? effectiveLRate : 0) +
+      (dinner ? effectiveDRate : 0);
+
+    const nextCost =
       (nextB ? effectiveBRate : 0) +
       (nextL ? effectiveLRate : 0) +
       (nextD ? effectiveDRate : 0);
 
-    if (reqBalance > currentUser.walletBalance) {
+    const costDiff = nextCost - currentCost;
+
+    if (costDiff > 0 && costDiff > currentUser.walletBalance) {
       setBalanceAlertMsg(
-        `আপনার ওয়ালেট ব্যালেন্স (৳${currentUser.walletBalance}) দিয়ে ২ বা ৩টি মিল এক সাথে অন রাখা সম্ভব নয় (মোট প্রয়োজন ৳${reqBalance})। ওয়ালেট ব্যালেন্স বাড়াতে মেস এডমিন থেকে রিচার্জ করুন।`
+        `আপনার ওয়ালেট ব্যালেন্স (৳${currentUser.walletBalance}) দিয়ে এই মিলটি চালু রাখা সম্ভব নয় (অতিরিক্ত প্রয়োজন ৳${costDiff})। ওয়ালেট ব্যালেন্স বাড়াতে মেস এডমিন থেকে রিচার্জ করুন।`
       );
       return;
     }
@@ -560,12 +567,18 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
         </div>
       </div>
 
-      {/* Balance Warning Notification */}
+      {/* Balance / Cutoff Warning Notification */}
       {balanceAlertMsg && (
         <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-200 flex items-center gap-3 shadow-lg animate-pulse">
           <ShieldAlert className="w-6 h-6 text-rose-400 shrink-0" />
           <div>
-            <h4 className="font-bold text-sm font-display text-rose-300">ওয়ালেট অ্যালার্ট!</h4>
+            <h4 className="font-bold text-sm font-display text-rose-300">
+              {balanceAlertMsg.includes('ব্যালেন্স') || balanceAlertMsg.includes('ওয়ালেট') || balanceAlertMsg.includes('wallet')
+                ? 'ওয়ালেট অ্যালার্ট!'
+                : balanceAlertMsg.includes('সময়') || balanceAlertMsg.includes('সময়') || balanceAlertMsg.includes('cutoff') || balanceAlertMsg.includes('passed')
+                ? 'সময় পার হয়ে গেছে!'
+                : 'সতর্কতা!'}
+            </h4>
             <p className="text-xs text-rose-200/90 mt-0.5">{balanceAlertMsg}</p>
           </div>
         </div>
