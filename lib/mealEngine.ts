@@ -1,6 +1,7 @@
 import { prisma as defaultPrisma } from './prisma';
 import { pool } from './db';
 import { getSystemRatesFromDb, SystemRates } from './rates';
+import { UserRole } from '@prisma/client';
 
 /**
  * Returns current Bangladesh Standard Time (BST, UTC+6) Date object.
@@ -129,7 +130,6 @@ export async function processEmergencyClosureWithRefunds(
   const db = txPrisma || defaultPrisma;
   const declDate = parseDateToUtcMidday(dateStr);
 
-  // Fetch all declarations for this date
   const declarations = await db.mealDeclaration.findMany({
     where: { declarationDate: declDate },
     include: { user: { include: { wallet: true } } },
@@ -155,13 +155,11 @@ export async function processEmergencyClosureWithRefunds(
       const currentBal = Number(wallet.currentBalance);
       const newBal = currentBal + costToRefund;
 
-      // Refund wallet
       await db.wallet.update({
         where: { id: wallet.id },
         data: { currentBalance: newBal },
       });
 
-      // Record refund transaction
       await db.walletTransaction.create({
         data: {
           walletId: wallet.id,
@@ -180,7 +178,6 @@ export async function processEmergencyClosureWithRefunds(
       refundedUsersCount++;
     }
 
-    // Reset declaration to off
     await db.mealDeclaration.update({
       where: { id: decl.id },
       data: {
@@ -193,4 +190,178 @@ export async function processEmergencyClosureWithRefunds(
   }
 
   return { refundedUsersCount, totalRefundedAmount };
+}
+
+/**
+ * Role-Based Access Control (RBAC) Matrix Algorithm:
+ * Evaluates whether a given UserRole has permission to execute a target administrative action.
+ */
+export type AdminAction =
+  | 'SYSTEM_SETTINGS_WRITE'
+  | 'EMERGENCY_TOGGLE'
+  | 'RECHARGE_APPROVE'
+  | 'RATES_UPDATE'
+  | 'MEAL_ADMIN_OVERRIDE'
+  | 'AUDIT_LOG_VIEW'
+  | 'USER_ROLE_MODIFY';
+
+export function checkUserPermission(role: UserRole | string, action: AdminAction): boolean {
+  const superRoles = ['SUPERADMIN', 'ADMIN', 'OWNER'];
+  if (superRoles.includes(role)) return true;
+
+  if (role === 'READONLY_ADMIN') {
+    return action === 'AUDIT_LOG_VIEW';
+  }
+
+  switch (action) {
+    case 'RECHARGE_APPROVE':
+      return ['FINANCE_ADMIN', 'SUPPORT_ADMIN'].includes(role);
+    case 'EMERGENCY_TOGGLE':
+      return ['MEAL_MANAGER', 'HOSTEL_MANAGER'].includes(role);
+    case 'RATES_UPDATE':
+      return ['FINANCE_ADMIN', 'MEAL_MANAGER'].includes(role);
+    case 'MEAL_ADMIN_OVERRIDE':
+      return ['MEAL_MANAGER', 'HOSTEL_MANAGER'].includes(role);
+    case 'AUDIT_LOG_VIEW':
+      return ['AUDITOR', 'FINANCE_ADMIN'].includes(role);
+    case 'USER_ROLE_MODIFY':
+      return false; // Only SUPERADMIN/ADMIN/OWNER
+    default:
+      return false;
+  }
+}
+
+/**
+ * Kitchen Demand Forecasting Algorithm:
+ * Aggregates exact meal count requirements for a date and computes food prep quantities with buffer.
+ */
+export async function forecastKitchenDemand(
+  dateStr: string,
+  safetyBufferPercent: number = 5,
+  txPrisma?: any
+) {
+  const db = txPrisma || defaultPrisma;
+  const declDate = parseDateToUtcMidday(dateStr);
+
+  const declarations = await db.mealDeclaration.findMany({
+    where: { declarationDate: declDate },
+    include: { user: true },
+  });
+
+  let permanentB = 0, permanentL = 0, permanentD = 0;
+  let guestB = 0, guestL = 0, guestD = 0;
+
+  for (const d of declarations) {
+    const isGuest = d.user.userType === 'GUEST';
+    if (d.breakfastSelected) isGuest ? guestB++ : permanentB++;
+    if (d.lunchSelected) isGuest ? guestL++ : permanentL++;
+    if (d.dinnerSelected) isGuest ? guestD++ : permanentD++;
+  }
+
+  const totalB = permanentB + guestB;
+  const totalL = permanentL + guestL;
+  const totalD = permanentD + guestD;
+
+  const multiplier = 1 + safetyBufferPercent / 100;
+  const bufferedB = Math.ceil(totalB * multiplier);
+  const bufferedL = Math.ceil(totalL * multiplier);
+  const bufferedD = Math.ceil(totalD * multiplier);
+
+  return {
+    date: dateStr,
+    safetyBufferPercent,
+    actualDemand: {
+      breakfast: totalB,
+      lunch: totalL,
+      dinner: totalD,
+      breakdown: {
+        permanent: { breakfast: permanentB, lunch: permanentL, dinner: permanentD },
+        guest: { breakfast: guestB, lunch: guestL, dinner: guestD },
+      },
+    },
+    recommendedKitchenPrep: {
+      breakfast: bufferedB,
+      lunch: bufferedL,
+      dinner: bufferedD,
+    },
+  };
+}
+
+/**
+ * Wallet Anti-Fraud Audit & Reconciliation Algorithm:
+ * Audits every active user wallet against ledger history.
+ * Detects negative balance anomalies, transaction mismatches, and tampered records.
+ */
+export async function reconcileUserWalletsAndDetectAnomalies(txPrisma?: any) {
+  const db = txPrisma || defaultPrisma;
+
+  const usersWithWallets = await db.user.findMany({
+    where: { deletedAt: null },
+    include: {
+      wallet: {
+        include: {
+          transactions: true,
+        },
+      },
+    },
+  });
+
+  const anomalies: Array<{
+    userId: string;
+    userName: string;
+    phone: string;
+    storedBalance: number;
+    reconstructedBalance: number;
+    discrepancy: number;
+    isNegative: boolean;
+    issueType: 'DISCREPANCY' | 'NEGATIVE_BALANCE' | 'BOTH';
+  }> = [];
+
+  let totalAudited = 0;
+
+  for (const u of usersWithWallets) {
+    if (!u.wallet) continue;
+    totalAudited++;
+
+    const storedBal = Number(u.wallet.currentBalance);
+    let reconstructedBal = 0;
+
+    for (const trx of u.wallet.transactions) {
+      const amt = Number(trx.amount);
+      if (['ADMIN_TOPUP', 'RECHARGE', 'CREDIT', 'REFUND'].includes(trx.transactionType)) {
+        reconstructedBal += amt;
+      } else if (['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE', 'PENALTY'].includes(trx.transactionType)) {
+        reconstructedBal -= amt;
+      }
+    }
+
+    const discrepancy = Math.abs(storedBal - reconstructedBal);
+    const isNegative = storedBal < 0;
+    const isDiscrepant = discrepancy >= 0.01;
+
+    if (isNegative || isDiscrepant) {
+      let issueType: 'DISCREPANCY' | 'NEGATIVE_BALANCE' | 'BOTH' = 'DISCREPANCY';
+      if (isNegative && isDiscrepant) issueType = 'BOTH';
+      else if (isNegative) issueType = 'NEGATIVE_BALANCE';
+
+      anomalies.push({
+        userId: u.id,
+        userName: u.fullName,
+        phone: u.phoneNumber,
+        storedBalance: storedBal,
+        reconstructedBalance: reconstructedBal,
+        discrepancy: Math.round(discrepancy * 100) / 100,
+        isNegative,
+        issueType,
+      });
+    }
+  }
+
+  return {
+    timestamp: new Date().toISOString(),
+    totalAuditedWallets: totalAudited,
+    anomaliesCount: anomalies.length,
+    isSystemClean: anomalies.length === 0,
+    anomalies,
+  };
 }
