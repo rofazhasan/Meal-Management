@@ -539,16 +539,17 @@ export class ApiService {
     type: 'breakfast' | 'lunch' | 'dinner',
   ): Promise<SpecialMeal | null> {
     const meals = await this.getSpecialMeals();
-    return (
-      meals.find(
-        (item) =>
-          item.isActive !== false &&
-          item.mealType === type &&
-          (item.date === date ||
-            (item.isRecurring &&
-              item.repeatDayOfWeek === new Date(`${date}T12:00:00`).getDay())),
-      ) ?? null
+    const activeMeals = meals.filter(
+      (item) => item.isActive !== false && String(item.mealType).toLowerCase() === type
     );
+    // 1. Check for specific date match first
+    const dateSpecific = activeMeals.find((item) => item.date === date);
+    if (dateSpecific) return dateSpecific;
+
+    // 2. Check for recurring day of week match second
+    const dayOfWeek = new Date(`${date}T12:00:00`).getDay();
+    const recurring = activeMeals.find((item) => item.isRecurring && item.repeatDayOfWeek === dayOfWeek);
+    return recurring ?? null;
   }
 
   static async addSpecialMeal(data: {

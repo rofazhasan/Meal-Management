@@ -39,15 +39,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const numRate = Number(customRate);
+    if (isNaN(numRate) || numRate < 0) {
+      return NextResponse.json({ error: 'Invalid custom rate amount. Must be a non-negative number.' }, { status: 400 });
+    }
+
+    const upperMealType = String(mealType).toUpperCase();
+    if (!['BREAKFAST', 'LUNCH', 'DINNER'].includes(upperMealType)) {
+      return NextResponse.json({ error: 'Invalid meal type. Must be BREAKFAST, LUNCH, or DINNER.' }, { status: 400 });
+    }
+
     const mealDate = parseDateToUtcMidday(date);
-    const dbMealType = String(mealType).toUpperCase() as MealType;
+    const dbMealType = upperMealType as MealType;
 
     const created = await prisma.specialMeal.create({
       data: {
         mealDate,
         mealType: dbMealType,
         title,
-        customRate: Number(customRate),
+        customRate: numRate,
         description: description || null,
         isRecurring: Boolean(isRecurring),
         repeatDayOfWeek: repeatDayOfWeek !== undefined ? Number(repeatDayOfWeek) : null,

@@ -106,7 +106,11 @@ export async function resolveMealPricing(
       },
     });
 
+    // Sort so recurring special meals are evaluated first, allowing date-specific special meals to overwrite them
+    specMeals.sort((a: any, b: any) => (a.isRecurring ? 0 : 1) - (b.isRecurring ? 0 : 1));
+
     for (const sm of specMeals) {
+      if (sm.isActive === false) continue;
       if (sm.mealType === 'BREAKFAST') specB = Number(sm.customRate);
       if (sm.mealType === 'LUNCH') specL = Number(sm.customRate);
       if (sm.mealType === 'DINNER') specD = Number(sm.customRate);

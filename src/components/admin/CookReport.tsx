@@ -57,13 +57,12 @@ export const CookReport: React.FC<CookReportProps> = ({
   // Special meal helper with robust case-insensitive and recurring check
   const getSpecialMealForType = (type: 'breakfast' | 'lunch' | 'dinner') => {
     const dayOfWeek = getDayOfWeekFromDateStr(selectedDate);
-    return specialMeals.find((sm) => {
-      if (sm.isActive === false) return false;
-      if (String(sm.mealType).toLowerCase() !== type) return false;
-      if (sm.date === selectedDate) return true;
-      if (sm.isRecurring && sm.repeatDayOfWeek === dayOfWeek) return true;
-      return false;
-    });
+    const active = specialMeals.filter(
+      (sm) => sm.isActive !== false && String(sm.mealType).toLowerCase() === type
+    );
+    const dateSpecific = active.find((sm) => sm.date === selectedDate);
+    if (dateSpecific) return dateSpecific;
+    return active.find((sm) => sm.isRecurring && sm.repeatDayOfWeek === dayOfWeek);
   };
 
   const specB = getSpecialMealForType('breakfast');
