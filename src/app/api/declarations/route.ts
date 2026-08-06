@@ -2,14 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { pool } from '@/lib/db';
 import { getSystemRatesFromDb } from '@/lib/rates';
+import { isMealDateLocked, resolveMealPricing, parseDateToUtcMidday, getBgdDateStr } from '@/lib/mealEngine';
 
 export const dynamic = 'force-dynamic';
-
-function getBgdDateStr(d = new Date()) {
-  const utc = d.getTime() + d.getTimezoneOffset() * 60000;
-  const bgdDate = new Date(utc + 3600000 * 6);
-  return bgdDate.toISOString().split('T')[0];
-}
 
 export async function GET(req: Request) {
   try {
@@ -161,9 +156,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'userId and date are required' }, { status: 400 });
     }
 
-    // Standardize date to YYYY-MM-DD at 12:00 UTC to prevent timezone shifts
-    const [year, month, day] = date.split('-').map(Number);
-    const declDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    const ratesConfig = await getSystemRatesFromDb();
+    const cutoffTime = ratesConfig.cutoffTime || '10:00';
+
+    // 0. Enforce Cutoff Lock Algorithm for non-admin requests
+    if (!isAdminOverride) {
+      const lockCheck = isMealDateLocked(date, cutoffTime);
+      if (lockCheck.isLocked) {
+        return NextResponse.json(
+          { error: lockCheck.reason || 'এই তারিখের মিল পরিবর্তন বন্ধ হয়ে গেছে।' },
+          { status: 400 }
+        );
+      }
+    }
+
+    const declDate = parseDateToUtcMidday(date);
     const dateStr = date;
 
     if (process.env.DATABASE_URL) {

@@ -107,6 +107,10 @@ export async function PATCH(req: Request) {
         throw new Error('Recharge request not found');
       }
 
+      if (appReq.status !== 'PENDING') {
+        throw new Error(`এই রিকোয়েস্টটি ইতোমধ্যে '${appReq.status}' অবস্থায় রয়েছে।`);
+      }
+
       let reqAmount = 500;
       try {
         if (appReq.remark && appReq.remark.startsWith('{')) {

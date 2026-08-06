@@ -35,9 +35,9 @@ export async function POST(req: Request) {
             where: { mealDate: declDate, emergencyOff: true },
           });
 
-          let newB = Boolean(breakfast);
-          let newL = Boolean(lunch);
-          let newD = Boolean(dinner);
+          let newB = item.meals ? Boolean(item.meals.breakfast) : Boolean(item.breakfast);
+          let newL = item.meals ? Boolean(item.meals.lunch) : Boolean(item.lunch);
+          let newD = item.meals ? Boolean(item.meals.dinner) : Boolean(item.dinner);
 
           // Force off if emergency
           if (emSetting && emSetting.emergencyOff) {

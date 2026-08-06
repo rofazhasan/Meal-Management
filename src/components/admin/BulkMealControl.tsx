@@ -263,13 +263,20 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
         const minMealCost = Math.min(userRates.breakfast, userRates.lunch, userRates.dinner);
         const defaultActive = !u.isIndefinitelyPaused && u.walletBalance >= minMealCost;
         const meals = mealMap[u.id] || { breakfast: defaultActive, lunch: defaultActive, dinner: defaultActive };
+        const b = isBEmergencyOff || isBGlobalOff ? false : meals.breakfast;
+        const l = isLEmergencyOff || isLGlobalOff ? false : meals.lunch;
+        const d = isDEmergencyOff || isDGlobalOff ? false : meals.dinner;
+
         return {
           userId: u.id,
           date: selectedDate,
+          breakfast: b,
+          lunch: l,
+          dinner: d,
           meals: {
-            breakfast: isBEmergencyOff || isBGlobalOff ? false : meals.breakfast,
-            lunch: isLEmergencyOff || isLGlobalOff ? false : meals.lunch,
-            dinner: isDEmergencyOff || isDGlobalOff ? false : meals.dinner,
+            breakfast: b,
+            lunch: l,
+            dinner: d,
           },
         };
       });
