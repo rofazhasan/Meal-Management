@@ -110,13 +110,23 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
     return true;
   });
 
+  const RECHARGE_TYPES = ['RECHARGE', 'CREDIT', 'ADMIN_TOPUP', 'CASH_PAID'];
+  const GROSS_DEDUCTION_TYPES = ['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE', 'PENALTY'];
+
   const totalRecharge = userTxs
-    .filter(t => CREDIT_TYPES.includes(t.type))
+    .filter(t => RECHARGE_TYPES.includes(t.type))
     .reduce((acc, t) => acc + t.amount, 0);
 
-  const totalDeduction = userTxs
-    .filter(t => DEBIT_TYPES.includes(t.type))
+  const grossDeduction = userTxs
+    .filter(t => GROSS_DEDUCTION_TYPES.includes(t.type))
     .reduce((acc, t) => acc + t.amount, 0);
+
+  const totalRefunds = userTxs
+    .filter(t => t.type === 'REFUND')
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  // Net Deductions = Gross Charges - Total Refunds
+  const totalDeduction = Math.max(0, grossDeduction - totalRefunds);
 
   // Financial ratio progress metrics
   const totalFlow = totalRecharge || 1;
@@ -187,6 +197,11 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
               <p className="text-lg sm:text-xl font-extrabold text-rose-300 font-mono mt-0.5">
                 <AnimatedNumber value={totalDeduction} prefix="- ৳" decimals={0} />
               </p>
+              {totalRefunds > 0 && (
+                <p className="text-[10px] text-cyan-300/80 font-mono mt-0.5">
+                  *(৳{totalRefunds} রিফান্ড কর্তন সমন্বিত)
+                </p>
+              )}
             </div>
           </div>
 
