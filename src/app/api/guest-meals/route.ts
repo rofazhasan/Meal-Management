@@ -17,8 +17,8 @@ export async function GET(req: Request) {
     if (userId) whereClause.userId = userId;
     if (startDate || endDate) {
       whereClause.mealDate = {};
-      if (startDate) whereClause.mealDate.gte = parseDateToUtcMidday(startDate);
-      if (endDate) whereClause.mealDate.lte = parseDateToUtcMidday(endDate);
+      if (startDate) whereClause.mealDate.gte = new Date(`${startDate}T00:00:00.000Z`);
+      if (endDate) whereClause.mealDate.lte = new Date(`${endDate}T23:59:59.999Z`);
     }
 
     const records = await prisma.guestMeal.findMany({
@@ -140,11 +140,16 @@ export async function POST(req: Request) {
         });
       }
 
-      const existing = await tx.guestMeal.findUnique({
+      // Find existing guest meal for this user on target date (00:00:00 to 23:59:59)
+      const dStart = new Date(`${date}T00:00:00.000Z`);
+      const dEnd = new Date(`${date}T23:59:59.999Z`);
+
+      const existing = await tx.guestMeal.findFirst({
         where: {
-          uq_user_guest_meal_date: {
-            userId,
-            mealDate,
+          userId,
+          mealDate: {
+            gte: dStart,
+            lte: dEnd,
           },
         },
       });
@@ -251,48 +256,82 @@ export async function POST(req: Request) {
         }
       }
 
-      const upserted = await tx.guestMeal.upsert({
-        where: {
-          uq_user_guest_meal_date: {
-            userId,
-            mealDate,
-          },
-        },
-        update: {
-          breakfastCount: finalB,
-          lunchCount: finalL,
-          dinnerCount: finalD,
-          rateTier: validRateTier,
-          paymentMethod: validPayMethod,
-          chargedAmount: totalCost,
-          createdBy: createdBy || null,
-        },
-        create: {
+      let recordResult: any = null;
+
+      if (finalB === 0 && finalL === 0 && finalD === 0) {
+        if (existing) {
+          await tx.guestMeal.delete({
+            where: { id: existing.id },
+          });
+        }
+        recordResult = {
+          id: existing ? existing.id : 'deleted',
           userId,
-          mealDate,
-          breakfastCount: finalB,
-          lunchCount: finalL,
-          dinnerCount: finalD,
+          userName: user.fullName,
+          date,
+          breakfastCount: 0,
+          lunchCount: 0,
+          dinnerCount: 0,
           rateTier: validRateTier,
           paymentMethod: validPayMethod,
-          chargedAmount: totalCost,
-          createdBy: createdBy || null,
-        },
-      });
+          chargedAmount: 0,
+        };
+      } else if (existing) {
+        const updated = await tx.guestMeal.update({
+          where: { id: existing.id },
+          data: {
+            breakfastCount: finalB,
+            lunchCount: finalL,
+            dinnerCount: finalD,
+            rateTier: validRateTier,
+            paymentMethod: validPayMethod,
+            chargedAmount: totalCost,
+            createdBy: createdBy || null,
+          },
+        });
+        recordResult = {
+          id: updated.id,
+          userId: updated.userId,
+          userName: user.fullName,
+          date,
+          breakfastCount: updated.breakfastCount,
+          lunchCount: updated.lunchCount,
+          dinnerCount: updated.dinnerCount,
+          rateTier: updated.rateTier,
+          paymentMethod: updated.paymentMethod,
+          chargedAmount: Number(updated.chargedAmount),
+        };
+      } else {
+        const created = await tx.guestMeal.create({
+          data: {
+            userId,
+            mealDate: parseDateToUtcMidday(date),
+            breakfastCount: finalB,
+            lunchCount: finalL,
+            dinnerCount: finalD,
+            rateTier: validRateTier,
+            paymentMethod: validPayMethod,
+            chargedAmount: totalCost,
+            createdBy: createdBy || null,
+          },
+        });
+        recordResult = {
+          id: created.id,
+          userId: created.userId,
+          userName: user.fullName,
+          date,
+          breakfastCount: created.breakfastCount,
+          lunchCount: created.lunchCount,
+          dinnerCount: created.dinnerCount,
+          rateTier: created.rateTier,
+          paymentMethod: created.paymentMethod,
+          chargedAmount: Number(created.chargedAmount),
+        };
+      }
 
       return {
-        id: upserted.id,
-        userId: upserted.userId,
-        userName: user.fullName,
-        date,
-        breakfastCount: upserted.breakfastCount,
-        lunchCount: upserted.lunchCount,
-        dinnerCount: upserted.dinnerCount,
-        rateTier: upserted.rateTier,
-        paymentMethod: upserted.paymentMethod,
-        chargedAmount: Number(upserted.chargedAmount),
+        ...recordResult,
         walletBalance: newBal,
-        updatedAt: upserted.updatedAt.toISOString(),
       };
     });
 
