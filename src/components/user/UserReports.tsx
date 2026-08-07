@@ -163,10 +163,10 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
   }, [processedDecs, searchDate]);
 
 
-  // Metrics computed STRICTLY using processed effective meal states
-  const totalBreakfasts = processedDecs.filter(d => d.isBOn).length;
-  const totalLunches = processedDecs.filter(d => d.isLOn).length;
-  const totalDinners = processedDecs.filter(d => d.isDOn).length;
+  // Metrics computed STRICTLY using processed effective meal states (including guest meals)
+  const totalBreakfasts = processedDecs.reduce((sum, d) => sum + (d.isBOn ? 1 : 0) + (d.guestB || 0), 0);
+  const totalLunches = processedDecs.reduce((sum, d) => sum + (d.isLOn ? 1 : 0) + (d.guestL || 0), 0);
+  const totalDinners = processedDecs.reduce((sum, d) => sum + (d.isDOn ? 1 : 0) + (d.guestD || 0), 0);
   const autoCopiedCount = processedDecs.filter(d => d.isAutoCopied).length;
   const totalMealsCount = totalBreakfasts + totalLunches + totalDinners;
   const totalMoneySpent = processedDecs.reduce((sum, d) => sum + d.dailyCost, 0);

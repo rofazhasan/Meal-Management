@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ShieldAlert, UserCheck, Utensils, Wallet, AlertOctagon, Check, X, PlusCircle, Sparkles, ChevronRight, Printer, TriangleAlert, UserX, SlidersHorizontal, KeyRound, Send, CheckCircle2, XCircle } from 'lucide-react';
 import { User, MealRateConfig, EmergencyClosure, WalletTransaction, MealDeclaration, RechargeRequest, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
@@ -140,6 +141,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return todayStr >= start && todayStr <= end;
   });
 
+  const { data: todayGuestMeals = [] } = useQuery({
+    queryKey: ['admin_dashboard_today_guest_meals', todayStr],
+    queryFn: () => ApiService.getGuestMeals({ date: todayStr }),
+    staleTime: 0,
+  });
+
   let todayBreakfasts = 0;
   let todayLunches = 0;
   let todayDinners = 0;
@@ -176,6 +183,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       todayDinners++;
       todayDinnerMoney += dRate;
     }
+  });
+
+  // Aggregate extra guest meals into today's overview counters & financial totals
+  todayGuestMeals.forEach((gm: any) => {
+    const numB = gm.breakfastCount || 0;
+    const numL = gm.lunchCount || 0;
+    const numD = gm.dinnerCount || 0;
+
+    todayBreakfasts += numB;
+    todayLunches += numL;
+    todayDinners += numD;
+
+    const rateObj = gm.rateTier === 'PERMANENT' ? permRates : guestRates;
+    todayBreakfastMoney += numB * (specB ? specB.customRate : rateObj.breakfast);
+    todayLunchMoney += numL * (specL ? specL.customRate : rateObj.lunch);
+    todayDinnerMoney += numD * (specD ? specD.customRate : rateObj.dinner);
   });
 
   const todayGrandTotalMoney = todayBreakfastMoney + todayLunchMoney + todayDinnerMoney;
@@ -362,6 +385,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [guestSaving, setGuestSaving] = useState<boolean>(false);
   const [guestStatusMsg, setGuestStatusMsg] = useState<string | null>(null);
 
+  // Prefill existing guest meal record when user or date changes
+  useEffect(() => {
+    if (guestUser && guestMealDate) {
+      ApiService.getGuestMeals({ userId: guestUser.id, date: guestMealDate })
+        .then((records) => {
+          const existing = records[0];
+          if (existing) {
+            setGuestB(existing.breakfastCount || 0);
+            setGuestL(existing.lunchCount || 0);
+            setGuestD(existing.dinnerCount || 0);
+            setGuestRateTier(existing.rateTier || 'GUEST');
+            setGuestPaymentMethod(existing.paymentMethod || 'WALLET');
+          } else {
+            setGuestB(0);
+            setGuestL(0);
+            setGuestD(0);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [guestUser?.id, guestMealDate]);
+
   const handleGuestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!guestUser) {
@@ -381,11 +426,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         paymentMethod: guestPaymentMethod,
         createdBy: currentAdmin.name,
       });
-      setGuestStatusMsg('✅ গেস্ট মিল সফলভাবে এন্ট্রি/আপডেট করা হয়েছে!');
+      setGuestStatusMsg(
+        guestB === 0 && guestL === 0 && guestD === 0
+          ? '✅ গেস্ট মিল বন্ধ ও ওয়ালেট রিফান্ড সম্পন্ন হয়েছে!'
+          : '✅ গেস্ট মিল সফলভাবে এন্ট্রি/আপডেট করা হয়েছে!'
+      );
       onRefreshData();
       setTimeout(() => setGuestStatusMsg(null), 3000);
     } catch (err: any) {
       alert(`গেস্ট মিল এন্ট্রিতে সমস্যা: ${err.message}`);
+    } finally {
+      setGuestSaving(false);
+    }
+  };
+
+  const handleTurnOffGuestMeal = async () => {
+    if (!guestUser) return;
+    setGuestB(0);
+    setGuestL(0);
+    setGuestD(0);
+    setGuestSaving(true);
+    try {
+      await ApiService.saveGuestMeal({
+        userId: guestUser.id,
+        date: guestMealDate,
+        breakfastCount: 0,
+        lunchCount: 0,
+        dinnerCount: 0,
+        rateTier: guestRateTier,
+        paymentMethod: guestPaymentMethod,
+        createdBy: currentAdmin.name,
+      });
+      setGuestStatusMsg('✅ গেস্ট মিল বাতিল/বন্ধ এবং ওয়ালেট রিফান্ড সম্পন্ন হয়েছে!');
+      onRefreshData();
+      setTimeout(() => setGuestStatusMsg(null), 3000);
+    } catch (err: any) {
+      alert(`গেস্ট মিল বাতিল করতে সমস্যা: ${err.message}`);
     } finally {
       setGuestSaving(false);
     }
@@ -1036,13 +1112,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={guestSaving}
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-extrabold text-sm transition-all shadow-lg shadow-amber-500/25 active:scale-95 font-display"
-                >
-                  {guestSaving ? 'সংরক্ষণ হচ্ছে...' : 'গেস্ট মিল সেভ করুন'}
-                </button>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="submit"
+                    disabled={guestSaving}
+                    className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-extrabold text-xs sm:text-sm transition-all shadow-lg shadow-amber-500/25 active:scale-95 font-display"
+                  >
+                    {guestSaving ? 'সংরক্ষণ হচ্ছে...' : 'গেস্ট মিল সেভ করুন'}
+                  </button>
+
+                  {(guestB > 0 || guestL > 0 || guestD > 0) && (
+                    <button
+                      type="button"
+                      onClick={handleTurnOffGuestMeal}
+                      disabled={guestSaving}
+                      className="py-3.5 px-3 rounded-2xl bg-rose-600/90 hover:bg-rose-500 text-white font-extrabold text-xs transition-all shadow-lg shadow-rose-600/20 active:scale-95 whitespace-nowrap font-display"
+                    >
+                      ❌ সম্পূর্ণ অফ/বাতিল করুন
+                    </button>
+                  )}
+                </div>
               </form>
             )}
           </div>

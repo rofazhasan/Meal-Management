@@ -644,7 +644,7 @@ export const CookReport: React.FC<CookReportProps> = ({
                 <td className="border border-black p-1.5 text-center font-mono">{bBreakdown.perm} জন</td>
                 <td className="border border-black p-1.5 text-center font-mono">{bBreakdown.guest} জন</td>
                 <td className="border border-black p-1.5 text-center font-mono font-bold">
-                  {isBEmergencyOff ? 'জরুরি বন্ধ (০)' : `${breakfastMembers.length} টি`}
+                  {isBEmergencyOff ? 'জরুরি বন্ধ (০)' : `${breakfastMembers.length + extraGuestStats.b} টি`}
                 </td>
                 <td className="border border-black p-1.5 text-right font-mono font-bold">৳{breakfastCost}</td>
               </tr>
@@ -655,7 +655,7 @@ export const CookReport: React.FC<CookReportProps> = ({
                 <td className="border border-black p-1.5 text-center font-mono">{lBreakdown.perm} জন</td>
                 <td className="border border-black p-1.5 text-center font-mono">{lBreakdown.guest} জন</td>
                 <td className="border border-black p-1.5 text-center font-mono font-bold">
-                  {isLEmergencyOff ? 'জরুরি বন্ধ (০)' : `${lunchMembers.length} টি`}
+                  {isLEmergencyOff ? 'জরুরি বন্ধ (০)' : `${lunchMembers.length + extraGuestStats.l} টি`}
                 </td>
                 <td className="border border-black p-1.5 text-right font-mono font-bold">৳{lunchCost}</td>
               </tr>
@@ -666,7 +666,7 @@ export const CookReport: React.FC<CookReportProps> = ({
                 <td className="border border-black p-1.5 text-center font-mono">{dBreakdown.perm} জন</td>
                 <td className="border border-black p-1.5 text-center font-mono">{dBreakdown.guest} জন</td>
                 <td className="border border-black p-1.5 text-center font-mono font-bold">
-                  {isDEmergencyOff ? 'জরুরি বন্ধ (০)' : `${dinnerMembers.length} টি`}
+                  {isDEmergencyOff ? 'জরুরি বন্ধ (০)' : `${dinnerMembers.length + extraGuestStats.d} টি`}
                 </td>
                 <td className="border border-black p-1.5 text-right font-mono font-bold">৳{dinnerCost}</td>
               </tr>

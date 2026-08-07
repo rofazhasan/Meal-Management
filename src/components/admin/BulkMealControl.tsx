@@ -187,10 +187,17 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
     return filteredUsers;
   };
 
-  // Calculate counters
-  const totalB = Object.values(mealMap).filter((m) => m.breakfast).length;
-  const totalL = Object.values(mealMap).filter((m) => m.lunch).length;
-  const totalD = Object.values(mealMap).filter((m) => m.dinner).length;
+  // Calculate counters incorporating both regular member declarations and guest meal counts
+  let extraGuestB = 0, extraGuestL = 0, extraGuestD = 0;
+  Object.values(guestMealsMap).forEach((gm) => {
+    extraGuestB += gm.breakfastCount || 0;
+    extraGuestL += gm.lunchCount || 0;
+    extraGuestD += gm.dinnerCount || 0;
+  });
+
+  const totalB = Object.values(mealMap).filter((m) => m.breakfast).length + extraGuestB;
+  const totalL = Object.values(mealMap).filter((m) => m.lunch).length + extraGuestL;
+  const totalD = Object.values(mealMap).filter((m) => m.dinner).length + extraGuestD;
 
   // Calculate live financial impact preview between stored declarations and modified mealMap
   const calcFinancialImpact = () => {
@@ -1195,13 +1202,25 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center gap-3 pt-3 border-t border-slate-800">
+            <div className="flex items-center gap-2 pt-3 border-t border-slate-800">
               <button
                 onClick={() => setGuestModalUser(null)}
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700"
+                className="py-2.5 px-3 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700"
               >
                 বাতিল
               </button>
+              {(guestBCount > 0 || guestLCount > 0 || guestDCount > 0) && (
+                <button
+                  onClick={() => {
+                    setGuestBCount(0);
+                    setGuestLCount(0);
+                    setGuestDCount(0);
+                  }}
+                  className="py-2.5 px-3 rounded-xl text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30"
+                >
+                  ❌ জিরো (0) করুন
+                </button>
+              )}
               <button
                 onClick={handleSaveGuestMeal}
                 disabled={savingGuest}
