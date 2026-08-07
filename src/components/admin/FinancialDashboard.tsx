@@ -23,6 +23,7 @@ import {
   Eye,
   RefreshCw,
   RotateCcw,
+  X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { FinancialMetrics, WalletTransaction, User } from '../../types';
@@ -158,6 +159,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [ledgerTypeFilter, setLedgerTypeFilter] = useState<'ALL' | 'RECHARGE' | 'REFUND' | 'MEAL_DEDUCTION' | 'MONTHLY_CHARGE' | 'CASH_PAID'>('ALL');
   const [selectedTxForReceipt, setSelectedTxForReceipt] = useState<WalletTransaction | null>(null);
+  const [showMonthlyAuditModal, setShowMonthlyAuditModal] = useState(false);
 
   // Dynamic Month & Year Options Generation
   const monthOptions = useMemo(() => {
@@ -497,6 +499,13 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
           </div>
 
           {/* Export Buttons */}
+          <button
+            onClick={() => setShowMonthlyAuditModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-xs text-purple-300 font-bold transition shadow-sm active:scale-95"
+          >
+            <Printer className="w-3.5 h-3.5 text-purple-400" />
+            <span>মাসিক অডিট মেমো</span>
+          </button>
           <button
             onClick={handleExportPDF}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-cyan-300 font-semibold transition"
@@ -1124,6 +1133,144 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
         admin={currentAdmin}
         onClose={() => setSelectedTxForReceipt(null)}
       />
+
+      {/* MODAL: Monthly Financial Settlement & Audit Statement */}
+      {showMonthlyAuditModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-purple-500/40 max-w-4xl w-full shadow-2xl space-y-6 animate-scale-in my-8 print:border-none print:shadow-none print:bg-white print:text-black">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4 print:border-black">
+              <div>
+                <h3 className="text-xl font-extrabold text-white font-display print:text-black flex items-center gap-2">
+                  📋 মেস ডাইনিং — মাসিক ফাইনান্সিয়াল অডিট ও ক্লোজিং সেটেলমেন্ট মেমো
+                </h3>
+                <p className="text-xs text-slate-400 print:text-gray-600 mt-0.5">
+                  মেসের আয়-ব্যয়, ওয়ালেট জমা, সদস্য অডিট ও সমাপনী ক্লোজিং হিসেব
+                </p>
+              </div>
+              <div className="flex items-center gap-2 print:hidden">
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/30 text-xs font-bold transition"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>প্রিন্ট অডিট মেমো</span>
+                </button>
+                <button onClick={() => setShowMonthlyAuditModal(false)} className="p-1.5 rounded-xl bg-slate-900 text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Audit Summary Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 print:border-black print:bg-gray-100">
+                <span className="text-slate-400 print:text-black block font-bold">মোট মেস ফান্ড ব্যালেন্স</span>
+                <span className="text-lg font-extrabold text-cyan-400 print:text-black font-mono">৳{(metrics.totalWalletBalance || 0).toLocaleString()}</span>
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 print:border-black print:bg-gray-100">
+                <span className="text-slate-400 print:text-black block font-bold">মোট জমা কালেকশন</span>
+                <span className="text-lg font-extrabold text-emerald-400 print:text-black font-mono">৳{(metrics.monthlyCollection || 0).toLocaleString()}</span>
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 print:border-black print:bg-gray-100">
+                <span className="text-slate-400 print:text-black block font-bold">মোট মিল খাবার খরচ</span>
+                <span className="text-lg font-extrabold text-rose-400 print:text-black font-mono">৳{ledgerStats.mealDeductions.toLocaleString()}</span>
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 print:border-black print:bg-gray-100">
+                <span className="text-slate-400 print:text-black block font-bold">মোট মেস ফি কালেকশন</span>
+                <span className="text-lg font-extrabold text-amber-400 print:text-black font-mono">৳{ledgerStats.monthlyCharges.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Printable Audit Notice Banner */}
+            <div className="hidden print:block p-3 border-2 border-black bg-gray-100 text-black text-xs font-bold font-sans">
+              অডিট সারসংক্ষেপ: উক্ত অডিট রিপোর্টটি মেস কমিটি কর্তৃক প্রস্তাবিত এবং নিবন্ধিত সকল মেম্বারদের ওয়ালেট লেনদেন যাচাই সাপেক্ষে চুরান্ত করা হয়েছে।
+            </div>
+
+            {/* All Members Audit Table */}
+            <div className="overflow-x-auto rounded-2xl border border-slate-800 print:border-black">
+              <table className="w-full text-left text-xs border border-black border-collapse">
+                <thead className="bg-slate-900/90 text-slate-300 uppercase text-[10px] font-mono border-b border-slate-800 print:bg-gray-100 print:text-black print:border-black">
+                  <tr>
+                    <th className="p-3 font-bold border border-black">ক্রঃ</th>
+                    <th className="p-3 font-bold border border-black">মেম্বারের নাম ও ফোন</th>
+                    <th className="p-3 font-bold border border-black">রুম ও সিট</th>
+                    <th className="p-3 font-bold border border-black">ধরণ</th>
+                    <th className="p-3 font-bold text-right border border-black">সমাপনী ব্যালেন্স</th>
+                    <th className="p-3 font-bold text-center border border-black">অডিট স্ট্যাটাস</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800 print:divide-gray-300">
+                  {users.map((u, index) => (
+                    <tr key={u.id} className="hover:bg-slate-900/50 print:hover:bg-transparent">
+                      <td className="p-3 font-mono text-slate-400 print:text-black border border-black">{index + 1}</td>
+                      <td className="p-3 font-bold text-white print:text-black border border-black">
+                        {u.name}
+                        <span className="block text-[10px] text-slate-400 print:text-black font-normal font-mono">{u.phone}</span>
+                      </td>
+                      <td className="p-3 text-slate-300 print:text-black font-mono border border-black font-bold">
+                        {u.profile?.roomNumber ? `রুম ${u.profile.roomNumber}` : 'N/A'} {u.profile?.seatNumber ? `(${u.profile.seatNumber})` : ''}
+                      </td>
+                      <td className="p-3 text-slate-300 print:text-black border border-black">
+                        {u.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'}
+                      </td>
+                      <td className={`p-3 text-right font-mono font-bold border border-black ${u.walletBalance < 0 ? 'text-rose-400 print:text-black' : 'text-emerald-400 print:text-black'}`}>
+                        ৳{u.walletBalance}
+                      </td>
+                      <td className="p-3 text-center border border-black">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border print:bg-white print:text-black print:border-black ${
+                          u.walletBalance < 0
+                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                            : u.walletBalance < 100
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                            : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        }`}>
+                          {u.walletBalance < 0 ? '🚨 নেগেটিভ' : u.walletBalance < 100 ? '⚠️ লো ব্যালেন্স' : '✅ সঠিক'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* 4-Column Audit Signature Section */}
+            <div className="hidden print:block pt-10 mt-6 print-avoid-break border-t border-black">
+              <div className="grid grid-cols-4 gap-4 text-center text-xs">
+                <div>
+                  <div className="border-t border-black pt-1 font-bold text-black text-[9pt]">
+                    অডিট সদস্য ১
+                  </div>
+                  <p className="text-[8pt] text-gray-700 mt-0.5">স্বাক্ষর: ....................</p>
+                </div>
+                <div>
+                  <div className="border-t border-black pt-1 font-bold text-black text-[9pt]">
+                    অডিট সদস্য ২
+                  </div>
+                  <p className="text-[8pt] text-gray-700 mt-0.5">স্বাক্ষর: ....................</p>
+                </div>
+                <div>
+                  <div className="border-t border-black pt-1 font-bold text-black text-[9pt]">
+                    ক্যাশিয়ার / ট্র্যাজারার
+                  </div>
+                  <p className="text-[8pt] text-gray-700 mt-0.5">স্বাক্ষর: ....................</p>
+                </div>
+                <div>
+                  <div className="border-t border-black pt-1 font-bold text-black text-[9pt]">
+                    মেস সভাপতি / এডমিন
+                  </div>
+                  <p className="text-[8pt] text-gray-700 mt-0.5">স্বাক্ষর: ....................</p>
+                </div>
+              </div>
+
+              <div className="mt-6 text-center text-[8pt] text-gray-600 border-t border-gray-300 pt-2 font-mono">
+                মেস ডাইনিং ম্যানেজমেন্ট সফটওয়্যার — মাসিক অডিট ও ফাইনান্সিয়াল ক্লোজিং রিপোর্ট | জেনারেশন সময়: {new Date().toLocaleString('bn-BD')}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -46,6 +46,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   // Modal States
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showMasterReportModal, setShowMasterReportModal] = useState(false);
+  const [showDuesReportModal, setShowDuesReportModal] = useState(false);
   const [selectedReportUser, setSelectedReportUser] = useState<User | null>(null);
   
   // Archive Modal States
@@ -551,6 +552,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             <span>মেসের মাস্টার রিপোর্ট</span>
           </button>
 
+          {/* Member Dues & Low Balance Report Button */}
+          <button
+            onClick={() => setShowDuesReportModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-rose-500/30 text-rose-300 font-bold text-xs transition-all shadow-md active:scale-95 font-display"
+          >
+            <ShieldAlert className="w-4 h-4 text-rose-400" />
+            <span>বকেয়া ও লো-ব্যালেন্স রিপোর্ট</span>
+          </button>
+
           {/* Archived Members Button */}
           <button
             onClick={() => {
@@ -953,6 +963,149 @@ export const UserManagement: React.FC<UserManagementProps> = ({
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* 2.5. MODAL: Dues & Low Balance Member Audit Report */}
+      {showDuesReportModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-rose-500/40 max-w-4xl w-full shadow-2xl space-y-6 animate-scale-in my-8 print:border-none print:shadow-none print:bg-white print:text-black">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4 print:border-black">
+              <div>
+                <h3 className="text-xl font-extrabold text-white font-display print:text-black flex items-center gap-2">
+                  🚨 মেসের বকেয়া ও লো-ব্যালেন্স মেম্বারদের ফাইনান্সিয়াল মেমো
+                </h3>
+                <p className="text-xs text-slate-400 print:text-gray-600 mt-0.5">
+                  যে সকল সদস্যের ওয়ালেট ব্যালেন্স ৳১০০ এর নিচে অথবা নেগেটিভ রয়েছে তাদের তালিকা
+                </p>
+              </div>
+              <div className="flex items-center gap-2 print:hidden">
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 text-xs font-bold transition"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>প্রিন্ট মেমো</span>
+                </button>
+                <button onClick={() => setShowDuesReportModal(false)} className="p-1.5 rounded-xl bg-slate-900 text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {(() => {
+              const duesList = users.filter((u) => u.walletBalance < 100);
+              const negativeCount = duesList.filter((u) => u.walletBalance < 0).length;
+              const totalNegativeSum = duesList.filter((u) => u.walletBalance < 0).reduce((sum, u) => sum + Math.abs(u.walletBalance), 0);
+
+              return (
+                <>
+                  {/* Dues KPI Summary Strip */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div className="p-3 rounded-2xl bg-rose-950/40 border border-rose-500/30 print:border-black print:bg-gray-100">
+                      <span className="text-rose-300 print:text-black block font-bold">বকেয়া/লো-ব্যালেন্স মেম্বার</span>
+                      <span className="text-lg font-extrabold text-rose-400 print:text-black font-mono">{duesList.length} জন</span>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-rose-950/40 border border-rose-500/30 print:border-black print:bg-gray-100">
+                      <span className="text-rose-300 print:text-black block font-bold">নেগেটিভ ব্যালেন্স মেম্বার</span>
+                      <span className="text-lg font-extrabold text-rose-400 print:text-black font-mono">{negativeCount} জন</span>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-amber-950/40 border border-amber-500/30 print:border-black print:bg-gray-100">
+                      <span className="text-amber-300 print:text-black block font-bold">মোট নেগেটিভ বকেয়া (৳)</span>
+                      <span className="text-lg font-extrabold text-amber-400 print:text-black font-mono">৳{totalNegativeSum}</span>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 print:border-black print:bg-gray-100">
+                      <span className="text-slate-400 print:text-black block font-bold">রিপোর্ট সময়কাল</span>
+                      <span className="text-xs font-bold text-cyan-400 print:text-black font-mono mt-1 block">
+                        {new Date().toLocaleDateString('bn-BD')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Printable Dues Warning Banner */}
+                  <div className="hidden print:block p-3 border-2 border-black bg-gray-100 text-black text-xs font-bold font-sans">
+                    📢 মেস ক্যাশিয়ার ও ম্যানেজার নোটিশ: নিম্নোক্ত মেম্বারদের ওয়ালেট ব্যালেন্স দ্রুত পজিটিভ করার জন্য মেস রুলস অনুযায়ী তাগাদা প্রদান করা হচ্ছে।
+                  </div>
+
+                  {/* Dues Member Table */}
+                  <div className="overflow-x-auto rounded-2xl border border-slate-800 print:border-black">
+                    <table className="w-full text-left text-xs border border-black border-collapse">
+                      <thead className="bg-slate-900/90 text-slate-300 uppercase text-[10px] font-mono border-b border-slate-800 print:bg-gray-100 print:text-black print:border-black">
+                        <tr>
+                          <th className="p-3 font-bold border border-black">ক্রঃ</th>
+                          <th className="p-3 font-bold border border-black">মেম্বারের নাম ও ফোন</th>
+                          <th className="p-3 font-bold border border-black">রুম ও সিট</th>
+                          <th className="p-3 font-bold border border-black">ধরণ</th>
+                          <th className="p-3 font-bold text-right border border-black">বর্তমান ব্যালেন্স</th>
+                          <th className="p-3 font-bold text-center border border-black">বকেয়া স্ট্যাটাস</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800 print:divide-gray-300">
+                        {duesList.length > 0 ? (
+                          duesList.map((u, index) => (
+                            <tr key={u.id} className="hover:bg-slate-900/50 print:hover:bg-transparent">
+                              <td className="p-3 font-mono text-slate-400 print:text-black border border-black">{index + 1}</td>
+                              <td className="p-3 font-bold text-white print:text-black border border-black">
+                                {u.name}
+                                <span className="block text-[10px] text-slate-400 print:text-black font-normal font-mono">{u.phone}</span>
+                              </td>
+                              <td className="p-3 text-slate-300 print:text-black font-mono border border-black font-bold">
+                                {u.profile?.roomNumber ? `রুম ${u.profile.roomNumber}` : 'N/A'} {u.profile?.seatNumber ? `(${u.profile.seatNumber})` : ''}
+                              </td>
+                              <td className="p-3 text-slate-300 print:text-black border border-black">
+                                {u.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'}
+                              </td>
+                              <td className={`p-3 text-right font-mono font-bold border border-black ${u.walletBalance < 0 ? 'text-rose-400 print:text-black' : 'text-amber-400 print:text-black'}`}>
+                                ৳{u.walletBalance}
+                              </td>
+                              <td className="p-3 text-center border border-black">
+                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border print:bg-white print:text-black print:border-black ${
+                                  u.walletBalance < 0
+                                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                                    : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                }`}>
+                                  {u.walletBalance < 0 ? '🚨 নেগেটিভ ব্যালেন্স' : '⚠️ লো ব্যালেন্স (<৳১০০)'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="p-6 text-center text-slate-500 print:text-black italic">
+                              কোনো মেম্বারের বকেয়া বা লো-ব্যালেন্স নেই! সকল মেম্বারের ওয়ালেট ব্যালেন্স নিরাপদ পর্যায়ে রয়েছে।
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Printable Formal Signatures */}
+                  <div className="hidden print:block pt-10 mt-6 print-avoid-break border-t border-black">
+                    <div className="grid grid-cols-2 gap-8 text-center text-xs">
+                      <div>
+                        <div className="border-t border-black pt-1 font-bold text-black w-48 mx-auto">
+                          মেস ক্যাশিয়ার / অডিটর
+                        </div>
+                        <p className="text-[8pt] text-gray-700 mt-0.5">স্বাক্ষর: ................................................</p>
+                      </div>
+                      <div>
+                        <div className="border-t border-black pt-1 font-bold text-black w-48 mx-auto">
+                          মেস সভাপতি / এডমিন
+                        </div>
+                        <p className="text-[8pt] text-gray-700 mt-0.5">স্বাক্ষর: ................................................</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 text-center text-[8pt] text-gray-600 border-t border-gray-300 pt-2 font-mono">
+                      মেস ম্যানেজমেন্ট সিস্টেম — বকেয়া ও লো-ব্যালেন্স মেম্বার অডিট মেমো | জেনারেশন সময়: {new Date().toLocaleString('bn-BD')}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

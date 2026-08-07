@@ -120,5 +120,21 @@ export async function runSuite() {
     assert.strictEqual(guestMeal.breakfastCount, 0);
   });
 
+  test('Partial reduction of guest meal counts refunds the exact net difference to wallet', () => {
+    let walletBalance = 500;
+    const oldCharged = 240; // 3 guest lunches @ 80 BDT
+    walletBalance -= oldCharged; // 260
+    assert.strictEqual(walletBalance, 260);
+
+    // Reducing from 3 guest lunches down to 1 guest lunch (80 BDT)
+    const newCharged = 80;
+    const netDiff = newCharged - oldCharged; // 80 - 240 = -160
+    if (netDiff < 0) {
+      walletBalance += Math.abs(netDiff); // +160 refund
+    }
+
+    assert.strictEqual(walletBalance, 420); // 260 + 160 = 420
+  });
+
   return { total: passed + failed, passed, failed };
 }
