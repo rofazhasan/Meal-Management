@@ -451,32 +451,35 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
 
               {/* Amount Input & Preset Chips */}
               <div>
-                <label className="block text-slate-300 font-bold mb-1.5">টাকার পরিমাণ (৳)</label>
+                <label className="block text-slate-300 font-bold mb-1.5 font-sans">
+                  টাকার পরিমাণ (৳) — যেকোনো পরিমাণের জন্য নিচে লিখুন
+                </label>
                 <input
                   type="number"
                   required
-                  min={50}
-                  step={50}
-                  value={reqAmount}
+                  min={1}
+                  step="any"
+                  value={reqAmount || ''}
                   onChange={(e) => setReqAmount(Number(e.target.value))}
-                  placeholder="যেমন: 500"
-                  className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 font-mono text-sm focus:outline-none focus:border-emerald-500/60 transition-all mb-2"
+                  placeholder="যেকোনো পরিমাণ টাইপ করুন (যেমন: ৫০, ১২০, ৩৫০, ১০০০...)"
+                  className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-700/80 text-emerald-400 font-mono text-base font-extrabold focus:outline-none focus:border-emerald-500 transition-all mb-2"
                 />
                 
-                {/* Preset Chips */}
-                <div className="flex items-center gap-2">
-                  {[200, 500, 1000, 2000].map((amt) => (
+                {/* Preset Helper Chips */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] text-slate-400 font-bold font-sans">দ্রুত বাছাই:</span>
+                  {[50, 100, 200, 500, 1000, 2000].map((amt) => (
                     <button
                       type="button"
                       key={amt}
                       onClick={() => setReqAmount(amt)}
-                      className={`px-3 py-1 rounded-xl text-[11px] font-mono font-bold border transition-all ${
+                      className={`px-2.5 py-1 rounded-xl text-[11px] font-mono font-bold border transition-all ${
                         reqAmount === amt
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-sm'
+                          : 'bg-slate-900/80 text-slate-400 border-slate-800 hover:text-slate-200'
                       }`}
                     >
-                      +৳{amt}
+                      ৳{amt}
                     </button>
                   ))}
                 </div>
