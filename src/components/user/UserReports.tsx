@@ -227,12 +227,18 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
         </div>
 
         {/* Print Summary Metrics Bar */}
-        <div className="mt-4 border border-black p-2.5 bg-gray-100 flex justify-between text-xs font-mono font-bold text-black">
-          <span>মোট মিল: {totalMealsCount} টি</span>
-          <span>নাস্তা: {totalBreakfasts}</span>
-          <span>দুপুর: {totalLunches}</span>
-          <span>রাত: {totalDinners}</span>
-          <span>মোট মিল খরচ: ৳{totalMoneySpent}</span>
+        <div className="mt-4 border border-black p-2.5 bg-gray-100 space-y-1 text-xs font-mono font-bold text-black">
+          <div className="flex justify-between">
+            <span>মোট মিল: {totalMealsCount} টি</span>
+            <span>নাস্তা: {totalBreakfasts}</span>
+            <span>দুপুর: {totalLunches}</span>
+            <span>রাত: {totalDinners}</span>
+            <span>মোট মিল খরচ: ৳{totalMoneySpent}</span>
+          </div>
+          <div className="border-t border-black/40 pt-1 text-[10px] flex justify-between text-gray-800">
+            <span>নির্ধারিত মিল রেট ({currentUser.userType === 'PERMANENT' ? 'স্থায়ী মেম্বার' : 'গেস্ট মেম্বার'}):</span>
+            <span>নাস্তা: ৳{userRates.breakfast} | দুপুর: ৳{userRates.lunch} | রাত: ৳{userRates.dinner}</span>
+          </div>
         </div>
       </div>
 

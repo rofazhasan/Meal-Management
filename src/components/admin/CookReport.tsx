@@ -630,6 +630,7 @@ export const CookReport: React.FC<CookReportProps> = ({
             <thead>
               <tr className="bg-gray-100 border-b border-black">
                 <th className="border border-black p-1.5 text-left font-bold">মিল সেশন</th>
+                <th className="border border-black p-1.5 text-center font-bold">নির্ধারিত মিল রেট (৳)</th>
                 <th className="border border-black p-1.5 text-center font-bold">স্থায়ী মেম্বার</th>
                 <th className="border border-black p-1.5 text-center font-bold">অতিথি মেম্বার</th>
                 <th className="border border-black p-1.5 text-center font-bold">মোট মিল</th>
@@ -640,6 +641,9 @@ export const CookReport: React.FC<CookReportProps> = ({
               <tr>
                 <td className="border border-black p-1.5 font-bold">
                   সকালের নাস্তা {specB ? `(✨${specB.title})` : ''}
+                </td>
+                <td className="border border-black p-1.5 text-center font-mono font-bold">
+                  {specB ? `৳${specB.customRate} (স্পেশাল)` : `৳${rates.permanent.breakfast} (স্থায়ী) / ৳${rates.guest.breakfast} (অতিথি)`}
                 </td>
                 <td className="border border-black p-1.5 text-center font-mono">{bBreakdown.perm} জন</td>
                 <td className="border border-black p-1.5 text-center font-mono">{bBreakdown.guest} জন</td>
@@ -652,6 +656,9 @@ export const CookReport: React.FC<CookReportProps> = ({
                 <td className="border border-black p-1.5 font-bold">
                   দুপুরের খাবার {specL ? `(✨${specL.title})` : ''}
                 </td>
+                <td className="border border-black p-1.5 text-center font-mono font-bold">
+                  {specL ? `৳${specL.customRate} (স্পেশাল)` : `৳${rates.permanent.lunch} (স্থায়ী) / ৳${rates.guest.lunch} (অতিথি)`}
+                </td>
                 <td className="border border-black p-1.5 text-center font-mono">{lBreakdown.perm} জন</td>
                 <td className="border border-black p-1.5 text-center font-mono">{lBreakdown.guest} জন</td>
                 <td className="border border-black p-1.5 text-center font-mono font-bold">
@@ -663,6 +670,9 @@ export const CookReport: React.FC<CookReportProps> = ({
                 <td className="border border-black p-1.5 font-bold">
                   রাতের খাবার {specD ? `(✨${specD.title})` : ''}
                 </td>
+                <td className="border border-black p-1.5 text-center font-mono font-bold">
+                  {specD ? `৳${specD.customRate} (স্পেশাল)` : `৳${rates.permanent.dinner} (স্থায়ী) / ৳${rates.guest.dinner} (অতিথি)`}
+                </td>
                 <td className="border border-black p-1.5 text-center font-mono">{dBreakdown.perm} জন</td>
                 <td className="border border-black p-1.5 text-center font-mono">{dBreakdown.guest} জন</td>
                 <td className="border border-black p-1.5 text-center font-mono font-bold">
@@ -671,7 +681,7 @@ export const CookReport: React.FC<CookReportProps> = ({
                 <td className="border border-black p-1.5 text-right font-mono font-bold">৳{dinnerCost}</td>
               </tr>
               <tr className="bg-gray-100 font-bold">
-                <td className="border border-black p-1.5 text-left font-bold" colSpan={3}>
+                <td className="border border-black p-1.5 text-left font-bold" colSpan={4}>
                   সর্বমোট সমষ্টি (Total Summary)
                 </td>
                 <td className="border border-black p-1.5 text-center font-mono text-sm font-black">
@@ -698,7 +708,7 @@ export const CookReport: React.FC<CookReportProps> = ({
               <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-black print:pb-1.5 print:mb-2">
                 <h3 className="font-bold text-emerald-400 text-sm font-display flex items-center gap-2 print:text-black print:text-xs">
                   <Utensils className="w-4 h-4 print:hidden" />
-                  {specB ? `✨ ${specB.title}` : 'সকালের নাস্তা'} ({breakfastMembers.length} জন)
+                  {specB ? `✨ ${specB.title} (৳${specB.customRate})` : `সকালের নাস্তা (৳${rates.permanent.breakfast})`} ({breakfastMembers.length} জন)
                 </h3>
                 <span className="text-xs font-mono font-bold text-slate-300 print:text-black">৳{breakfastCost}</span>
               </div>
@@ -722,7 +732,7 @@ export const CookReport: React.FC<CookReportProps> = ({
                         )}
                       </span>
                       <span className="font-mono text-emerald-300 font-bold bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40 print:bg-white print:text-black print:border-black text-[11px] print:text-[9pt]">
-                        {m.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'}
+                        {m.userType === 'PERMANENT' ? `স্থায়ী (৳${rates.permanent.breakfast})` : `অতিথি (৳${rates.guest.breakfast})`}
                       </span>
                     </li>
                   ))}
@@ -750,10 +760,10 @@ export const CookReport: React.FC<CookReportProps> = ({
                   <Utensils className="w-4 h-4 print:hidden" />
                   {specL ? (
                     <span className="text-amber-300 font-extrabold flex items-center gap-1 print:text-black">
-                      ✨ স্পেশাল মিল ({specL.title}) ({lunchMembers.length} জন)
+                      ✨ স্পেশাল মিল ({specL.title} - ৳{specL.customRate}) ({lunchMembers.length} জন)
                     </span>
                   ) : (
-                    `দুপুরের খাবার (${lunchMembers.length} জন)`
+                    `দুপুরের খাবার (৳${rates.permanent.lunch}) (${lunchMembers.length} জন)`
                   )}
                 </h3>
                 <span className="text-xs font-mono font-bold text-slate-300 print:text-black">৳{lunchCost}</span>
@@ -778,7 +788,7 @@ export const CookReport: React.FC<CookReportProps> = ({
                         )}
                       </span>
                       <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-white print:text-black print:border-black text-[11px] print:text-[9pt]">
-                        {m.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'}
+                        {m.userType === 'PERMANENT' ? `স্থায়ী (৳${specL ? specL.customRate : rates.permanent.lunch})` : `অতিথি (৳${specL ? specL.customRate : rates.guest.lunch})`}
                       </span>
                     </li>
                   ))}
@@ -798,7 +808,7 @@ export const CookReport: React.FC<CookReportProps> = ({
               <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-black print:pb-1.5 print:mb-2">
                 <h3 className="font-bold text-indigo-400 text-sm font-display flex items-center gap-2 print:text-black print:text-xs">
                   <Utensils className="w-4 h-4 print:hidden" />
-                  {specD ? `✨ ${specD.title}` : 'রাতের খাবার'} ({dinnerMembers.length} জন)
+                  {specD ? `✨ ${specD.title} (৳${specD.customRate})` : `রাতের খাবার (৳${rates.permanent.dinner})`} ({dinnerMembers.length} জন)
                 </h3>
                 <span className="text-xs font-mono font-bold text-slate-300 print:text-black">৳{dinnerCost}</span>
               </div>
@@ -822,7 +832,7 @@ export const CookReport: React.FC<CookReportProps> = ({
                         )}
                       </span>
                       <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-white print:text-black print:border-black text-[11px] print:text-[9pt]">
-                        {m.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'}
+                        {m.userType === 'PERMANENT' ? `স্থায়ী (৳${specD ? specD.customRate : rates.permanent.dinner})` : `অতিথি (৳${specD ? specD.customRate : rates.guest.dinner})`}
                       </span>
                     </li>
                   ))}
@@ -837,30 +847,10 @@ export const CookReport: React.FC<CookReportProps> = ({
           </div>
         </div>
 
-        {/* Formal Signature Section (Visible ONLY on print) */}
-        <div className="hidden print:block pt-12 mt-8 print-avoid-break border-t border-black">
-          <div className="grid grid-cols-2 gap-8 text-center text-xs">
-            <div>
-              <div className="border-t border-black pt-1 font-bold text-black w-48 mx-auto">
-                বাবুর্চির স্বাক্ষর (Cook Signature)
-              </div>
-              <p className="text-[9pt] text-gray-700 mt-0.5">নাম: ................................................</p>
-              <p className="text-[9pt] text-gray-700">তারিখ: {selectedDate}</p>
-            </div>
-            <div>
-              <div className="border-t border-black pt-1 font-bold text-black w-48 mx-auto">
-                ডাইনিং ম্যানেজার স্বাক্ষর (Manager)
-              </div>
-              <p className="text-[9pt] text-gray-700 mt-0.5">নাম: ................................................</p>
-              <p className="text-[9pt] text-gray-700">তারিখ: {selectedDate}</p>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center text-[8pt] text-gray-600 border-t border-gray-300 pt-2 font-mono">
-            মেস ম্যানেজমেন্ট সফটওয়্যার থেকে স্বয়ংক্রিয়ভাবে জেনারেটেড | প্রিন্ট সমাাপ্তি সময়: {new Date().toLocaleString('bn-BD')}
-          </div>
+        {/* Clean Footer Timestamp Note (No Signature Needed for Cook Memo) */}
+        <div className="hidden print:block text-center text-[8pt] text-black border-t border-black pt-2 font-mono mt-6">
+          মেস ডাইনিং ম্যানেজমেন্ট সিস্টেম | বাবুর্চির দৈনিক বাজার ও রান্নার নির্দেশিকা মেমো | প্রিন্ট সময়: {new Date().toLocaleString('bn-BD')}
         </div>
-
       </div>
     </div>
   );
