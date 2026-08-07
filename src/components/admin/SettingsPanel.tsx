@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Settings, Save, CheckCircle2, DollarSign, ToggleLeft, ToggleRight, Clock, Sparkles } from 'lucide-react';
+import { Settings, Save, CheckCircle2, DollarSign, ToggleLeft, ToggleRight, Clock, Sparkles, FileSpreadsheet, Download, Database, AlertTriangle, Trash2, Calendar } from 'lucide-react';
 import { MealRateConfig, SpecialMeal, User } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { ApiService } from '../../services/apiService';
 import { getBangladeshDateStr, getDayOfWeekFromDateStr } from '../../utils/dateUtils';
+import { downloadArchiveExcel } from '../../utils/excelExport';
 
 interface SettingsPanelProps {
   rates: MealRateConfig;
@@ -259,6 +260,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ rates, specialMeal
 
       {/* Special Meal Entry & Recurring Management */}
       <SpecialMealScheduler specialMeals={specialMeals} onRefreshData={onRefreshData} currentUser={currentUser} />
+
+      {/* Monthly & Custom Date Range Data Archival Section */}
+      <MonthlyArchivePanel currentUser={currentUser} onRefreshData={onRefreshData} />
 
       {/* Production System Reset Danger Zone (Restricted to SUPERADMIN only) */}
       {currentUser.role === 'SUPERADMIN' && (
@@ -522,3 +526,292 @@ const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshDa
     </div>
   );
 };
+
+
+const MonthlyArchivePanel: React.FC<{ currentUser: User; onRefreshData: () => void }> = ({ currentUser, onRefreshData }) => {
+  const [periodMode, setPeriodMode] = useState<'MONTH' | 'CUSTOM'>('MONTH');
+  
+  // Default to previous month
+  const today = new Date();
+  const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const defaultMonthStr = prevMonthDate.toISOString().slice(0, 7);
+
+  const [month, setMonth] = useState(defaultMonthStr);
+  const [startDate, setStartDate] = useState(() => `${defaultMonthStr}-01`);
+  const [endDate, setEndDate] = useState(() => {
+    const lastDay = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth() + 1, 0);
+    return lastDay.toISOString().split('T')[0];
+  });
+
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<{ periodLabel: string; counts: any } | null>(null);
+  const [archiving, setArchiving] = useState(false);
+  const [archiveSuccessMsg, setArchiveSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmInputText, setConfirmInputText] = useState('');
+
+  const handlePreview = async () => {
+    setLoadingPreview(true);
+    setErrorMsg(null);
+    try {
+      const res = await ApiService.previewArchive(
+        periodMode === 'MONTH'
+          ? { month }
+          : { startDate, endDate }
+      );
+      setPreviewData(res);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'প্রিভিউ ফেচ করা সম্ভব হয়নি');
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleExecuteArchive = async () => {
+    if (confirmInputText.trim().toUpperCase() !== 'ARCHIVE') {
+      alert('নিশ্চিত করতে "ARCHIVE" টাইপ করুন');
+      return;
+    }
+    setShowConfirmModal(false);
+    setArchiving(true);
+    setErrorMsg(null);
+
+    try {
+      const res = await ApiService.executeArchive({
+        adminId: currentUser.id,
+        ...(periodMode === 'MONTH' ? { month } : { startDate, endDate }),
+      });
+
+      // Automatically trigger browser Excel download
+      if (res.payload) {
+        downloadArchiveExcel(res.payload);
+      }
+
+      setArchiveSuccessMsg(
+        `সফলভাবে (${res.periodLabel}) সময়কালের ডাটা এক্সেলে এক্সপোর্ট ও ডাউনলোড করা হয়েছে এবং ক্লাউড থেকে ডাটা সংকুচিত/আর্কাইভ করা হয়েছে!`
+      );
+      setPreviewData(null);
+      onRefreshData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'ডাটা আর্কাইভ ব্যর্থ হয়েছে');
+    } finally {
+      setArchiving(false);
+      setConfirmInputText('');
+    }
+  };
+
+  return (
+    <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-cyan-500/30 space-y-5 shadow-xl animate-scale-in">
+      
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-2xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400">
+            <FileSpreadsheet className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="font-extrabold text-white text-lg font-display">
+              📦 মান্থলি / কাস্টম ডেট রেঞ্জ আর্কাইভ ও ক্লাউড ব্যাকআপ
+            </h3>
+            <p className="text-xs text-slate-400 font-sans">
+              নির্দিষ্ট মাস/সময়কালের মিল ও লেনদেনের ডাটা এক্সেলে ব্যাকআপ নিয়ে ক্লাউড খালি করুন (ইউজার ব্যালেন্স অক্ষত থাকবে)
+            </p>
+          </div>
+        </div>
+
+        {/* Mode Selector */}
+        <div className="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800">
+          <button
+            type="button"
+            onClick={() => { setPeriodMode('MONTH'); setPreviewData(null); }}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+              periodMode === 'MONTH' ? 'bg-cyan-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            📅 একক মাস (Month)
+          </button>
+          <button
+            type="button"
+            onClick={() => { setPeriodMode('CUSTOM'); setPreviewData(null); }}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+              periodMode === 'CUSTOM' ? 'bg-cyan-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            📆 কাস্টম তারিখ রেঞ্জ
+          </button>
+        </div>
+      </div>
+
+      {/* Safety Highlight Notice */}
+      <div className="p-4 rounded-2xl bg-slate-900/90 border border-cyan-500/30 space-y-2 text-xs">
+        <div className="flex items-center gap-2 text-cyan-300 font-bold font-display">
+          <Database className="w-4 h-4 text-cyan-400" />
+          <span>ডাটা আর্কাইভ ও সেফটি রুলস (Data Safety Policy):</span>
+        </div>
+        <ul className="list-disc list-inside space-y-1 text-slate-300 font-sans leading-relaxed">
+          <li>
+            <strong className="text-emerald-400">অক্ষত ডাটা (Cloud Database):</strong> সকল সদস্য অ্যাকাউন্ট (Users), প্রোফাইল তথ্য এবং <strong className="text-emerald-300">বর্তমান ওয়ালেট ব্যালেন্স (Wallet Balance)</strong> ক্লাউডে হুবহু সংরক্ষিত থাকবে।
+          </li>
+          <li>
+            <strong className="text-amber-400">এক্সপোর্ট ও ক্লিনআপ:</strong> নির্ধারিত সময়কালের সমস্ত ডিক্লেয়ারেশন, কনসাম্পশন, গেস্ট মিল ও লেনদেন বিস্তারিত ৮টি আলাদা শীট সমৃদ্ধ <strong className="text-amber-300">Excel (.xlsx)</strong> ফাইলে ইনস্ট্যান্ট ডাউনলোড হবে এবং তারপর ক্লাউড ডাটাবেজ থেকে মুছে দেওয়া হবে।
+          </li>
+        </ul>
+      </div>
+
+      {archiveSuccessMsg && (
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+          <span>{archiveSuccessMsg}</span>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {/* Inputs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+        {periodMode === 'MONTH' ? (
+          <div>
+            <label className="block text-slate-300 font-semibold mb-1 font-mono">আর্কাইভের জন্য মাস বেছে নিন</label>
+            <input
+              type="month"
+              value={month}
+              onChange={(e) => { setMonth(e.target.value); setPreviewData(null); }}
+              className="w-full bg-slate-900/90 border border-slate-700 rounded-xl p-3 text-cyan-300 font-mono font-bold"
+            />
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1 font-mono">শুরুর তারিখ (Start Date)</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => { setStartDate(e.target.value); setPreviewData(null); }}
+                className="w-full bg-slate-900/90 border border-slate-700 rounded-xl p-3 text-cyan-300 font-mono font-bold"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1 font-mono">শেষ তারিখ (End Date)</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => { setEndDate(e.target.value); setPreviewData(null); }}
+                className="w-full bg-slate-900/90 border border-slate-700 rounded-xl p-3 text-cyan-300 font-mono font-bold"
+              />
+            </div>
+          </>
+        )}
+
+        <div className="flex items-end">
+          <button
+            type="button"
+            onClick={handlePreview}
+            disabled={loadingPreview}
+            className="w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-extrabold text-xs transition border border-slate-700 active:scale-95 flex items-center justify-center gap-2 font-display"
+          >
+            {loadingPreview ? 'হিসাব করা হচ্ছে...' : '🔍 রিমুভযোগ্য রেকর্ড প্রিভিউ দেখুন'}
+          </button>
+        </div>
+      </div>
+
+      {/* Preview Card */}
+      {previewData && (
+        <div className="p-5 rounded-2xl bg-slate-900/90 border border-cyan-500/40 space-y-4 animate-scale-in">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <span className="font-bold text-white text-sm font-display">
+              📊 প্রিভিউ সারসংক্ষেপ ({previewData.periodLabel})
+            </span>
+            <span className="px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 font-mono text-[11px] font-bold border border-cyan-500/30">
+              মোট রেকর্ড: {previewData.counts.totalOperationalRecords} টি
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+              <span className="text-slate-400 block text-[11px]">মিলের ডিক্লেয়ারেশন</span>
+              <span className="text-base font-bold font-mono text-cyan-300">{previewData.counts.declarationsCount}</span>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+              <span className="text-slate-400 block text-[11px]">মিলের কনসাম্পশন</span>
+              <span className="text-base font-bold font-mono text-emerald-300">{previewData.counts.consumptionsCount}</span>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+              <span className="text-slate-400 block text-[11px]">গেস্ট মিল এন্ট্রি</span>
+              <span className="text-base font-bold font-mono text-amber-300">{previewData.counts.guestMealsCount}</span>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+              <span className="text-slate-400 block text-[11px]">ওয়ালেট লেনদেন হিস্ট্রি</span>
+              <span className="text-base font-bold font-mono text-purple-300">{previewData.counts.transactionsCount}</span>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => { setConfirmInputText(''); setShowConfirmModal(true); }}
+              disabled={archiving}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-extrabold text-sm transition shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center justify-center gap-2 font-display"
+            >
+              <Download className="w-5 h-5" />
+              <span>এক্সেলে ডাউনলোড করুন এবং ক্লাউড ডাটা আর্কাইভ করুন</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-rose-500/40 max-w-md w-full space-y-4 shadow-2xl animate-scale-in">
+            <div className="flex items-center gap-3 text-rose-400 font-bold text-base font-display">
+              <AlertTriangle className="w-6 h-6" />
+              <span>আর্কাইভ চূড়ান্তকরণ নিশ্চিত করুন</span>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+              আপনি কি নিশ্চিত যে <strong className="text-cyan-300 font-mono">({previewData?.periodLabel})</strong> সময়কালের <strong className="text-rose-300">{previewData?.counts.totalOperationalRecords} টি</strong> অপোরেশনাল ডাটা এক্সেলে ডাউনলোড করে ক্লাউড ডাটাবেজ থেকে মুছে ফেলতে চান?
+            </p>
+
+            <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-400">
+              নিশ্চিত করতে নিচে <strong className="text-white font-mono">ARCHIVE</strong> টাইপ করুন:
+            </div>
+
+            <input
+              type="text"
+              value={confirmInputText}
+              onChange={(e) => setConfirmInputText(e.target.value)}
+              placeholder="ARCHIVE টাইপ করুন"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-center font-mono font-extrabold text-sm text-cyan-400 uppercase"
+            />
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs"
+              >
+                বাতিল (Cancel)
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteArchive}
+                disabled={archiving || confirmInputText.trim().toUpperCase() !== 'ARCHIVE'}
+                className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 disabled:opacity-40 text-slate-950 font-bold text-xs shadow-lg shadow-rose-500/20"
+              >
+                {archiving ? 'আর্কাইভ হচ্ছে...' : 'হ্যাঁ, আর্কাইভ সম্পন্ন করুন'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
+

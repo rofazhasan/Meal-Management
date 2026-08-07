@@ -679,8 +679,46 @@ export class ApiService {
   }
 
   // ---------------------------------------------------------------------------
-  // SYSTEM RESET
+  // SYSTEM RESET & MONTHLY ARCHIVE
   // ---------------------------------------------------------------------------
+  static async previewArchive(params: { month?: string; startDate?: string; endDate?: string }): Promise<{
+    periodLabel: string;
+    counts: {
+      declarationsCount: number;
+      consumptionsCount: number;
+      guestMealsCount: number;
+      transactionsCount: number;
+      mealSettingsCount: number;
+      specialMealsCount: number;
+      totalOperationalRecords: number;
+    };
+  }> {
+    const q = new URLSearchParams();
+    if (params.month) q.set('month', params.month);
+    if (params.startDate) q.set('startDate', params.startDate);
+    if (params.endDate) q.set('endDate', params.endDate);
+    return apiFetch(`${API_BASE}/archive?${q.toString()}`);
+  }
+
+  static async executeArchive(params: { adminId: string; month?: string; startDate?: string; endDate?: string }): Promise<{
+    success: boolean;
+    periodLabel: string;
+    deletedCounts: {
+      declarations: number;
+      consumptions: number;
+      guestMeals: number;
+      mealSettings: number;
+      specialMeals: number;
+      transactions: number;
+    };
+    payload: any;
+  }> {
+    return apiFetch(`${API_BASE}/archive`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
   static async purgeSystemData(adminId?: string): Promise<void> {
     await apiFetch<{ success: boolean }>(`${API_BASE}/system/reset`, {
       method: 'POST',
@@ -688,5 +726,6 @@ export class ApiService {
     });
   }
 }
+
 
 

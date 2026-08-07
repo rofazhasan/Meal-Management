@@ -237,7 +237,13 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
           </div>
           <div className="border-t border-black/40 pt-1 text-[10px] flex justify-between text-gray-800">
             <span>নির্ধারিত মিল রেট ({currentUser.userType === 'PERMANENT' ? 'স্থায়ী মেম্বার' : 'গেস্ট মেম্বার'}):</span>
-            <span>নাস্তা: ৳{userRates.breakfast} | দুপুর: ৳{userRates.lunch} | রাত: ৳{userRates.dinner}</span>
+            <span>
+              {!isBGlobalOff && `নাস্তা: ৳${userRates.breakfast}`}
+              {!isBGlobalOff && (!isLGlobalOff || !isDGlobalOff) && ' | '}
+              {!isLGlobalOff && `দুপুর: ৳${userRates.lunch}`}
+              {!isLGlobalOff && !isDGlobalOff && ' | '}
+              {!isDGlobalOff && `রাত: ৳${userRates.dinner}`}
+            </span>
           </div>
         </div>
       </div>

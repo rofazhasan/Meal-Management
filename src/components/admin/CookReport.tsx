@@ -140,12 +140,15 @@ export const CookReport: React.FC<CookReportProps> = ({
     }, 0);
   };
 
-  const breakfastCost = calculateMealTotalCost(breakfastMembers, 'breakfast') + extraGuestStats.bCost;
-  const lunchCost = calculateMealTotalCost(lunchMembers, 'lunch') + extraGuestStats.lCost;
-  const dinnerCost = calculateMealTotalCost(dinnerMembers, 'dinner') + extraGuestStats.dCost;
+  const breakfastCost = isBGlobalOff ? 0 : (calculateMealTotalCost(breakfastMembers, 'breakfast') + extraGuestStats.bCost);
+  const lunchCost = isLGlobalOff ? 0 : (calculateMealTotalCost(lunchMembers, 'lunch') + extraGuestStats.lCost);
+  const dinnerCost = isDGlobalOff ? 0 : (calculateMealTotalCost(dinnerMembers, 'dinner') + extraGuestStats.dCost);
 
-  const totalMealsCount = breakfastMembers.length + lunchMembers.length + dinnerMembers.length + extraGuestStats.total;
+  const totalMealsCount = (isBGlobalOff ? 0 : (breakfastMembers.length + extraGuestStats.b)) +
+                          (isLGlobalOff ? 0 : (lunchMembers.length + extraGuestStats.l)) +
+                          (isDGlobalOff ? 0 : (dinnerMembers.length + extraGuestStats.d));
   const totalBazaarBudget = breakfastCost + lunchCost + dinnerCost;
+  const activeMealsCount = [!isBGlobalOff, !isLGlobalOff, !isDGlobalOff].filter(Boolean).length;
 
   // Breakdown of permanent vs guest for each meal
   const getBreakdown = (memberList: User[], extraGuestCount: number) => {
@@ -189,28 +192,34 @@ export const CookReport: React.FC<CookReportProps> = ({
 
     let text = `👨‍🍳 *বাবুর্চির দৈনিক বাজার ও মিল হিসাব*\n📅 তারিখ: ${dateLabel}\n----------------------------------\n`;
 
-    if (isBEmergencyOff) {
-      text += `🌅 নাস্তা: 🚨 (জরুরি বন্ধ)\n`;
-    } else if (specB) {
-      text += `🌅 নাস্তা (✨${specB.title}): ${breakfastMembers.length} জন (৳${breakfastCost} - ৳${specB.customRate}/জন)\n`;
-    } else {
-      text += `🌅 নাস্তা: ${breakfastMembers.length} জন (৳${breakfastCost})\n`;
+    if (!isBGlobalOff) {
+      if (isBEmergencyOff) {
+        text += `🌅 নাস্তা: 🚨 (জরুরি বন্ধ)\n`;
+      } else if (specB) {
+        text += `🌅 নাস্তা (✨${specB.title}): ${breakfastMembers.length} জন (৳${breakfastCost} - ৳${specB.customRate}/জন)\n`;
+      } else {
+        text += `🌅 নাস্তা: ${breakfastMembers.length} জন (৳${breakfastCost})\n`;
+      }
     }
 
-    if (isLEmergencyOff) {
-      text += `🍱 দুপুরের খাবার: 🚨 (জরুরি বন্ধ)\n`;
-    } else if (specL) {
-      text += `🍱 ✨ স্পেশাল মিল (${specL.title}): ${lunchMembers.length} জন (৳${lunchCost} - ৳${specL.customRate}/জন)\n`;
-    } else {
-      text += `🍱 দুপুরের খাবার: ${lunchMembers.length} জন (৳${lunchCost})\n`;
+    if (!isLGlobalOff) {
+      if (isLEmergencyOff) {
+        text += `🍱 দুপুরের খাবার: 🚨 (জরুরি বন্ধ)\n`;
+      } else if (specL) {
+        text += `🍱 ✨ স্পেশাল মিল (${specL.title}): ${lunchMembers.length} জন (৳${lunchCost} - ৳${specL.customRate}/জন)\n`;
+      } else {
+        text += `🍱 দুপুরের খাবার: ${lunchMembers.length} জন (৳${lunchCost})\n`;
+      }
     }
 
-    if (isDEmergencyOff) {
-      text += `🌙 রাতের খাবার: 🚨 (জরুরি বন্ধ)\n`;
-    } else if (specD) {
-      text += `🌙 রাতের খাবার (✨${specD.title}): ${dinnerMembers.length} জন (৳${dinnerCost} - ৳${specD.customRate}/জন)\n`;
-    } else {
-      text += `🌙 রাতের খাবার: ${dinnerMembers.length} জন (৳${dinnerCost})\n`;
+    if (!isDGlobalOff) {
+      if (isDEmergencyOff) {
+        text += `🌙 রাতের খাবার: 🚨 (জরুরি বন্ধ)\n`;
+      } else if (specD) {
+        text += `🌙 রাতের খাবার (✨${specD.title}): ${dinnerMembers.length} জন (৳${dinnerCost} - ৳${specD.customRate}/জন)\n`;
+      } else {
+        text += `🌙 রাতের খাবার: ${dinnerMembers.length} জন (৳${dinnerCost})\n`;
+      }
     }
 
     text += `----------------------------------\n📊 মোট মিল: ${totalMealsCount} টি\n💰 সর্বমোট বাজার বাজেট: ৳${totalBazaarBudget}\n`;
@@ -361,7 +370,9 @@ export const CookReport: React.FC<CookReportProps> = ({
 
       {/* KPI Cards for Cook */}
       <div
-        className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden relative transition-opacity duration-300 ${
+        className={`grid grid-cols-1 sm:grid-cols-2 ${
+          activeMealsCount === 3 ? 'lg:grid-cols-4' : activeMealsCount === 2 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'
+        } gap-4 print:hidden relative transition-opacity duration-300 ${
           isFetching ? 'opacity-50 pointer-events-none' : 'opacity-100'
         }`}
       >
@@ -375,169 +386,175 @@ export const CookReport: React.FC<CookReportProps> = ({
         )}
 
         {/* Breakfast Card */}
-        <div
-          className={`glass-panel p-5 rounded-3xl border flex flex-col justify-between shadow-xl transition-all ${
-            isBEmergencyOff
-              ? 'border-rose-500/40 bg-rose-950/10'
-              : specB
-              ? 'border-amber-500/50 bg-amber-950/20'
-              : 'border-emerald-500/30'
-          }`}
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-semibold text-slate-400 font-sans flex items-center gap-1.5">
-                {specB ? <Sparkles className="w-3.5 h-3.5 text-amber-400" /> : null}
-                {specB ? `✨ ${specB.title} (স্পেশাল)` : 'সকালের নাস্তা'}
+        {!isBGlobalOff && (
+          <div
+            className={`glass-panel p-5 rounded-3xl border flex flex-col justify-between shadow-xl transition-all ${
+              isBEmergencyOff
+                ? 'border-rose-500/40 bg-rose-950/10'
+                : specB
+                ? 'border-amber-500/50 bg-amber-950/20'
+                : 'border-emerald-500/30'
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs font-semibold text-slate-400 font-sans flex items-center gap-1.5">
+                  {specB ? <Sparkles className="w-3.5 h-3.5 text-amber-400" /> : null}
+                  {specB ? `✨ ${specB.title} (স্পেশাল)` : 'সকালের নাস্তা'}
+                </span>
+
+                {isBEmergencyOff ? (
+                  <div className="text-lg font-bold text-rose-400 font-display mt-2 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4" /> 🚨 জরুরি বন্ধ
+                  </div>
+                ) : (
+                  <div className="text-2xl font-extrabold text-emerald-400 font-display mt-1">
+                    {breakfastMembers.length} <span className="text-xs text-slate-400 font-normal">টি মিল</span>
+                  </div>
+                )}
+              </div>
+
+              <div
+                className={`p-3 rounded-2xl border ${
+                  isBEmergencyOff
+                    ? 'bg-rose-500/20 border-rose-500/30 text-rose-400'
+                    : specB
+                    ? 'bg-amber-500/20 border-amber-500/30 text-amber-400'
+                    : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                }`}
+              >
+                <Utensils className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono">
+              <span className="text-slate-400">
+                বাজেট: <span className="text-emerald-300 font-bold">৳{breakfastCost}</span>
               </span>
-
-              {isBEmergencyOff ? (
-                <div className="text-lg font-bold text-rose-400 font-display mt-2 flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4" /> 🚨 জরুরি বন্ধ
-                </div>
-              ) : (
-                <div className="text-2xl font-extrabold text-emerald-400 font-display mt-1">
-                  {breakfastMembers.length} <span className="text-xs text-slate-400 font-normal">টি মিল</span>
-                </div>
-              )}
-            </div>
-
-            <div
-              className={`p-3 rounded-2xl border ${
-                isBEmergencyOff
-                  ? 'bg-rose-500/20 border-rose-500/30 text-rose-400'
-                  : specB
-                  ? 'bg-amber-500/20 border-amber-500/30 text-amber-400'
-                  : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-              }`}
-            >
-              <Utensils className="w-6 h-6" />
+              <span className="text-slate-500 text-[11px]">
+                (স্থায়ী: {bBreakdown.perm} | অতিথি: {bBreakdown.guest})
+              </span>
             </div>
           </div>
-
-          <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono">
-            <span className="text-slate-400">
-              বাজেট: <span className="text-emerald-300 font-bold">৳{breakfastCost}</span>
-            </span>
-            <span className="text-slate-500 text-[11px]">
-              (স্থায়ী: {bBreakdown.perm} | অতিথি: {bBreakdown.guest})
-            </span>
-          </div>
-        </div>
+        )}
 
         {/* Lunch Card — SPECIAL OVERWRITE DYNAMIC LABEL */}
-        <div
-          className={`glass-panel p-5 rounded-3xl border flex flex-col justify-between shadow-xl transition-all ${
-            isLEmergencyOff
-              ? 'border-rose-500/40 bg-rose-950/10'
-              : specL
-              ? 'border-amber-500/60 bg-gradient-to-br from-amber-950/30 via-slate-900 to-slate-900 shadow-amber-500/10'
-              : 'border-cyan-500/30'
-          }`}
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-bold text-slate-400 font-sans flex items-center gap-1.5">
-                {specL ? (
-                  <>
-                    <Sparkles className="w-4 h-4 text-amber-400 animate-spin-slow" />
-                    <span className="text-amber-300 font-extrabold">✨ স্পেশাল মিল (Special Meal)</span>
-                  </>
-                ) : (
-                  'দুপুরের খাবার'
-                )}
-              </span>
-
-              {isLEmergencyOff ? (
-                <div className="text-lg font-bold text-rose-400 font-display mt-2 flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4" /> 🚨 জরুরি বন্ধ
-                </div>
-              ) : (
-                <div className="text-2xl font-extrabold text-cyan-400 font-display mt-1 flex items-baseline gap-2">
-                  <span>{lunchMembers.length}</span>
-                  <span className="text-xs text-slate-400 font-normal">টি মিল</span>
-                  {specL && (
-                    <span className="text-[11px] font-mono text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30 font-bold">
-                      ৳{specL.customRate}/জন
-                    </span>
+        {!isLGlobalOff && (
+          <div
+            className={`glass-panel p-5 rounded-3xl border flex flex-col justify-between shadow-xl transition-all ${
+              isLEmergencyOff
+                ? 'border-rose-500/40 bg-rose-950/10'
+                : specL
+                ? 'border-amber-500/60 bg-gradient-to-br from-amber-950/30 via-slate-900 to-slate-900 shadow-amber-500/10'
+                : 'border-cyan-500/30'
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-400 font-sans flex items-center gap-1.5">
+                  {specL ? (
+                    <>
+                      <Sparkles className="w-4 h-4 text-amber-400 animate-spin-slow" />
+                      <span className="text-amber-300 font-extrabold">✨ স্পেশাল মিল (Special Meal)</span>
+                    </>
+                  ) : (
+                    'দুপুরের খাবার'
                   )}
-                </div>
-              )}
+                </span>
+
+                {isLEmergencyOff ? (
+                  <div className="text-lg font-bold text-rose-400 font-display mt-2 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4" /> 🚨 জরুরি বন্ধ
+                  </div>
+                ) : (
+                  <div className="text-2xl font-extrabold text-cyan-400 font-display mt-1 flex items-baseline gap-2">
+                    <span>{lunchMembers.length}</span>
+                    <span className="text-xs text-slate-400 font-normal">টি মিল</span>
+                    {specL && (
+                      <span className="text-[11px] font-mono text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30 font-bold">
+                        ৳{specL.customRate}/জন
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div
+                className={`p-3 rounded-2xl border ${
+                  isLEmergencyOff
+                    ? 'bg-rose-500/20 border-rose-500/30 text-rose-400'
+                    : specL
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-400 shadow-lg shadow-amber-500/20'
+                    : 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
+                }`}
+              >
+                <Utensils className="w-6 h-6" />
+              </div>
             </div>
 
-            <div
-              className={`p-3 rounded-2xl border ${
-                isLEmergencyOff
-                  ? 'bg-rose-500/20 border-rose-500/30 text-rose-400'
-                  : specL
-                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-400 shadow-lg shadow-amber-500/20'
-                  : 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
-              }`}
-            >
-              <Utensils className="w-6 h-6" />
+            <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono">
+              <span className="text-slate-400">
+                বাজেট: <span className="text-cyan-300 font-bold">৳{lunchCost}</span>
+              </span>
+              <span className="text-slate-500 text-[11px]">
+                (স্থায়ী: {lBreakdown.perm} | অতিথি: {lBreakdown.guest})
+              </span>
             </div>
           </div>
-
-          <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono">
-            <span className="text-slate-400">
-              বাজেট: <span className="text-cyan-300 font-bold">৳{lunchCost}</span>
-            </span>
-            <span className="text-slate-500 text-[11px]">
-              (স্থায়ী: {lBreakdown.perm} | অতিথি: {lBreakdown.guest})
-            </span>
-          </div>
-        </div>
+        )}
 
         {/* Dinner Card */}
-        <div
-          className={`glass-panel p-5 rounded-3xl border flex flex-col justify-between shadow-xl transition-all ${
-            isDEmergencyOff
-              ? 'border-rose-500/40 bg-rose-950/10'
-              : specD
-              ? 'border-amber-500/50 bg-amber-950/20'
-              : 'border-indigo-500/30'
-          }`}
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-semibold text-slate-400 font-sans flex items-center gap-1.5">
-                {specD ? <Sparkles className="w-3.5 h-3.5 text-amber-400" /> : null}
-                {specD ? `✨ ${specD.title} (স্পেশাল)` : 'রাতের খাবার'}
+        {!isDGlobalOff && (
+          <div
+            className={`glass-panel p-5 rounded-3xl border flex flex-col justify-between shadow-xl transition-all ${
+              isDEmergencyOff
+                ? 'border-rose-500/40 bg-rose-950/10'
+                : specD
+                ? 'border-amber-500/50 bg-amber-950/20'
+                : 'border-indigo-500/30'
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs font-semibold text-slate-400 font-sans flex items-center gap-1.5">
+                  {specD ? <Sparkles className="w-3.5 h-3.5 text-amber-400" /> : null}
+                  {specD ? `✨ ${specD.title} (স্পেশাল)` : 'রাতের খাবার'}
+                </span>
+
+                {isDEmergencyOff ? (
+                  <div className="text-lg font-bold text-rose-400 font-display mt-2 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4" /> 🚨 জরুরি বন্ধ
+                  </div>
+                ) : (
+                  <div className="text-2xl font-extrabold text-indigo-400 font-display mt-1">
+                    {dinnerMembers.length} <span className="text-xs text-slate-400 font-normal">টি মিল</span>
+                  </div>
+                )}
+              </div>
+
+              <div
+                className={`p-3 rounded-2xl border ${
+                  isDEmergencyOff
+                    ? 'bg-rose-500/20 border-rose-500/30 text-rose-400'
+                    : specD
+                    ? 'bg-amber-500/20 border-amber-500/30 text-amber-400'
+                    : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
+                }`}
+              >
+                <Utensils className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono">
+              <span className="text-slate-400">
+                বাজেট: <span className="text-indigo-300 font-bold">৳{dinnerCost}</span>
               </span>
-
-              {isDEmergencyOff ? (
-                <div className="text-lg font-bold text-rose-400 font-display mt-2 flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4" /> 🚨 জরুরি বন্ধ
-                </div>
-              ) : (
-                <div className="text-2xl font-extrabold text-indigo-400 font-display mt-1">
-                  {dinnerMembers.length} <span className="text-xs text-slate-400 font-normal">টি মিল</span>
-                </div>
-              )}
-            </div>
-
-            <div
-              className={`p-3 rounded-2xl border ${
-                isDEmergencyOff
-                  ? 'bg-rose-500/20 border-rose-500/30 text-rose-400'
-                  : specD
-                  ? 'bg-amber-500/20 border-amber-500/30 text-amber-400'
-                  : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
-              }`}
-            >
-              <Utensils className="w-6 h-6" />
+              <span className="text-slate-500 text-[11px]">
+                (স্থায়ী: {dBreakdown.perm} | অতিথি: {dBreakdown.guest})
+              </span>
             </div>
           </div>
-
-          <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono">
-            <span className="text-slate-400">
-              বাজেট: <span className="text-indigo-300 font-bold">৳{dinnerCost}</span>
-            </span>
-            <span className="text-slate-500 text-[11px]">
-              (স্থায়ী: {dBreakdown.perm} | অতিথি: {dBreakdown.guest})
-            </span>
-          </div>
-        </div>
+        )}
 
         {/* Grand Total Summary Card */}
         <div className="glass-panel p-5 rounded-3xl border border-amber-500/40 bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-900 flex flex-col justify-between shadow-xl">
@@ -638,48 +655,54 @@ export const CookReport: React.FC<CookReportProps> = ({
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td className="border border-black p-1.5 font-bold">
-                  সকালের নাস্তা {specB ? `(✨${specB.title})` : ''}
-                </td>
-                <td className="border border-black p-1.5 text-center font-mono font-bold">
-                  {specB ? `৳${specB.customRate} (স্পেশাল)` : `৳${rates.permanent.breakfast} (স্থায়ী) / ৳${rates.guest.breakfast} (অতিথি)`}
-                </td>
-                <td className="border border-black p-1.5 text-center font-mono">{bBreakdown.perm} জন</td>
-                <td className="border border-black p-1.5 text-center font-mono">{bBreakdown.guest} জন</td>
-                <td className="border border-black p-1.5 text-center font-mono font-bold">
-                  {isBEmergencyOff ? 'জরুরি বন্ধ (০)' : `${breakfastMembers.length + extraGuestStats.b} টি`}
-                </td>
-                <td className="border border-black p-1.5 text-right font-mono font-bold">৳{breakfastCost}</td>
-              </tr>
-              <tr>
-                <td className="border border-black p-1.5 font-bold">
-                  দুপুরের খাবার {specL ? `(✨${specL.title})` : ''}
-                </td>
-                <td className="border border-black p-1.5 text-center font-mono font-bold">
-                  {specL ? `৳${specL.customRate} (স্পেশাল)` : `৳${rates.permanent.lunch} (স্থায়ী) / ৳${rates.guest.lunch} (অতিথি)`}
-                </td>
-                <td className="border border-black p-1.5 text-center font-mono">{lBreakdown.perm} জন</td>
-                <td className="border border-black p-1.5 text-center font-mono">{lBreakdown.guest} জন</td>
-                <td className="border border-black p-1.5 text-center font-mono font-bold">
-                  {isLEmergencyOff ? 'জরুরি বন্ধ (০)' : `${lunchMembers.length + extraGuestStats.l} টি`}
-                </td>
-                <td className="border border-black p-1.5 text-right font-mono font-bold">৳{lunchCost}</td>
-              </tr>
-              <tr>
-                <td className="border border-black p-1.5 font-bold">
-                  রাতের খাবার {specD ? `(✨${specD.title})` : ''}
-                </td>
-                <td className="border border-black p-1.5 text-center font-mono font-bold">
-                  {specD ? `৳${specD.customRate} (স্পেশাল)` : `৳${rates.permanent.dinner} (স্থায়ী) / ৳${rates.guest.dinner} (অতিথি)`}
-                </td>
-                <td className="border border-black p-1.5 text-center font-mono">{dBreakdown.perm} জন</td>
-                <td className="border border-black p-1.5 text-center font-mono">{dBreakdown.guest} জন</td>
-                <td className="border border-black p-1.5 text-center font-mono font-bold">
-                  {isDEmergencyOff ? 'জরুরি বন্ধ (০)' : `${dinnerMembers.length + extraGuestStats.d} টি`}
-                </td>
-                <td className="border border-black p-1.5 text-right font-mono font-bold">৳{dinnerCost}</td>
-              </tr>
+              {!isBGlobalOff && (
+                <tr>
+                  <td className="border border-black p-1.5 font-bold">
+                    সকালের নাস্তা {specB ? `(✨${specB.title})` : ''}
+                  </td>
+                  <td className="border border-black p-1.5 text-center font-mono font-bold">
+                    {specB ? `৳${specB.customRate} (স্পেশাল)` : `৳${rates.permanent.breakfast} (স্থায়ী) / ৳${rates.guest.breakfast} (অতিথি)`}
+                  </td>
+                  <td className="border border-black p-1.5 text-center font-mono">{bBreakdown.perm} জন</td>
+                  <td className="border border-black p-1.5 text-center font-mono">{bBreakdown.guest} জন</td>
+                  <td className="border border-black p-1.5 text-center font-mono font-bold">
+                    {isBEmergencyOff ? 'জরুরি বন্ধ (০)' : `${breakfastMembers.length + extraGuestStats.b} টি`}
+                  </td>
+                  <td className="border border-black p-1.5 text-right font-mono font-bold">৳{breakfastCost}</td>
+                </tr>
+              )}
+              {!isLGlobalOff && (
+                <tr>
+                  <td className="border border-black p-1.5 font-bold">
+                    দুপুরের খাবার {specL ? `(✨${specL.title})` : ''}
+                  </td>
+                  <td className="border border-black p-1.5 text-center font-mono font-bold">
+                    {specL ? `৳${specL.customRate} (স্পেশাল)` : `৳${rates.permanent.lunch} (স্থায়ী) / ৳${rates.guest.lunch} (অতিথি)`}
+                  </td>
+                  <td className="border border-black p-1.5 text-center font-mono">{lBreakdown.perm} জন</td>
+                  <td className="border border-black p-1.5 text-center font-mono">{lBreakdown.guest} জন</td>
+                  <td className="border border-black p-1.5 text-center font-mono font-bold">
+                    {isLEmergencyOff ? 'জরুরি বন্ধ (০)' : `${lunchMembers.length + extraGuestStats.l} টি`}
+                  </td>
+                  <td className="border border-black p-1.5 text-right font-mono font-bold">৳{lunchCost}</td>
+                </tr>
+              )}
+              {!isDGlobalOff && (
+                <tr>
+                  <td className="border border-black p-1.5 font-bold">
+                    রাতের খাবার {specD ? `(✨${specD.title})` : ''}
+                  </td>
+                  <td className="border border-black p-1.5 text-center font-mono font-bold">
+                    {specD ? `৳${specD.customRate} (স্পেশাল)` : `৳${rates.permanent.dinner} (স্থায়ী) / ৳${rates.guest.dinner} (অতিথি)`}
+                  </td>
+                  <td className="border border-black p-1.5 text-center font-mono">{dBreakdown.perm} জন</td>
+                  <td className="border border-black p-1.5 text-center font-mono">{dBreakdown.guest} জন</td>
+                  <td className="border border-black p-1.5 text-center font-mono font-bold">
+                    {isDEmergencyOff ? 'জরুরি বন্ধ (০)' : `${dinnerMembers.length + extraGuestStats.d} টি`}
+                  </td>
+                  <td className="border border-black p-1.5 text-right font-mono font-bold">৳{dinnerCost}</td>
+                </tr>
+              )}
               <tr className="bg-gray-100 font-bold">
                 <td className="border border-black p-1.5 text-left font-bold" colSpan={4}>
                   সর্বমোট সমষ্টি (Total Summary)
@@ -700,151 +723,159 @@ export const CookReport: React.FC<CookReportProps> = ({
           ২. মেম্বারভিত্তিক বিস্তারিত খাবার তালিকা (Meal Members Breakdown)
         </h3>
 
-        {/* 3 Detailed Member Tables */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:gap-4 print:grid-cols-3">
+        {/* Detailed Member Tables */}
+        <div className={`grid grid-cols-1 ${
+          activeMealsCount === 3 ? 'md:grid-cols-3 print:grid-cols-3' : activeMealsCount === 2 ? 'md:grid-cols-2 print:grid-cols-2' : 'md:grid-cols-1 print:grid-cols-1'
+        } gap-6 print:gap-4`}>
           {/* Breakfast List */}
-          <div className="rounded-2xl border border-slate-800/80 p-4 bg-slate-950/40 print:border-black print:bg-white print:p-2.5 print:rounded-none flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-black print:pb-1.5 print:mb-2">
-                <h3 className="font-bold text-emerald-400 text-sm font-display flex items-center gap-2 print:text-black print:text-xs">
-                  <Utensils className="w-4 h-4 print:hidden" />
-                  {specB ? `✨ ${specB.title} (৳${specB.customRate})` : `সকালের নাস্তা (৳${rates.permanent.breakfast})`} ({breakfastMembers.length} জন)
-                </h3>
-                <span className="text-xs font-mono font-bold text-slate-300 print:text-black">৳{breakfastCost}</span>
+          {!isBGlobalOff && (
+            <div className="rounded-2xl border border-slate-800/80 p-4 bg-slate-950/40 print:border-black print:bg-white print:p-2.5 print:rounded-none flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-black print:pb-1.5 print:mb-2">
+                  <h3 className="font-bold text-emerald-400 text-sm font-display flex items-center gap-2 print:text-black print:text-xs">
+                    <Utensils className="w-4 h-4 print:hidden" />
+                    {specB ? `✨ ${specB.title} (৳${specB.customRate})` : `সকালের নাস্তা (৳${rates.permanent.breakfast})`} ({breakfastMembers.length} জন)
+                  </h3>
+                  <span className="text-xs font-mono font-bold text-slate-300 print:text-black">৳{breakfastCost}</span>
+                </div>
+
+                {isBEmergencyOff ? (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs italic text-center print:border-black print:text-black">
+                    🚨 জরুরি বন্ধ থাকায় নাস্তা বাতিল
+                  </div>
+                ) : filteredB.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic py-2 print:text-black">কেউ নাস্তা খাবেন না</p>
+                ) : (
+                  <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-300 print:space-y-1">
+                    {filteredB.map((m, idx) => (
+                      <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black print:pt-1">
+                        <span className="font-medium print:text-[10pt]">
+                          {idx + 1}. {m.name}{' '}
+                          {m.profile?.roomNumber && (
+                            <span className="text-[10px] text-slate-400 font-mono font-normal print:text-black print:font-bold">
+                              (রুম {m.profile.roomNumber})
+                            </span>
+                          )}
+                        </span>
+                        <span className="font-mono text-emerald-300 font-bold bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40 print:bg-white print:text-black print:border-black text-[11px] print:text-[9pt]">
+                          {m.userType === 'PERMANENT' ? `স্থায়ী (৳${rates.permanent.breakfast})` : `অতিথি (৳${rates.guest.breakfast})`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
-              {isBEmergencyOff ? (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs italic text-center print:border-black print:text-black">
-                  🚨 জরুরি বন্ধ থাকায় নাস্তা বাতিল
-                </div>
-              ) : filteredB.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-2 print:text-black">কেউ নাস্তা খাবেন না</p>
-              ) : (
-                <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-300 print:space-y-1">
-                  {filteredB.map((m, idx) => (
-                    <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black print:pt-1">
-                      <span className="font-medium print:text-[10pt]">
-                        {idx + 1}. {m.name}{' '}
-                        {m.profile?.roomNumber && (
-                          <span className="text-[10px] text-slate-400 font-mono font-normal print:text-black print:font-bold">
-                            (রুম {m.profile.roomNumber})
-                          </span>
-                        )}
-                      </span>
-                      <span className="font-mono text-emerald-300 font-bold bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40 print:bg-white print:text-black print:border-black text-[11px] print:text-[9pt]">
-                        {m.userType === 'PERMANENT' ? `স্থায়ী (৳${rates.permanent.breakfast})` : `অতিথি (৳${rates.guest.breakfast})`}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <div className="mt-4 pt-2 border-t border-slate-800/50 text-[11px] text-slate-400 font-mono flex justify-between print:border-black print:text-black print:font-bold">
+                <span>স্থায়ী: {bBreakdown.perm}</span>
+                <span>অতিথি: {bBreakdown.guest}</span>
+              </div>
             </div>
-
-            <div className="mt-4 pt-2 border-t border-slate-800/50 text-[11px] text-slate-400 font-mono flex justify-between print:border-black print:text-black print:font-bold">
-              <span>স্থায়ী: {bBreakdown.perm}</span>
-              <span>অতিথি: {bBreakdown.guest}</span>
-            </div>
-          </div>
+          )}
 
           {/* Lunch List */}
-          <div
-            className={`rounded-2xl border p-4 flex flex-col justify-between transition-all print:p-2.5 print:rounded-none ${
-              specL
-                ? 'border-amber-500/40 bg-amber-950/10 print:border-black print:bg-white'
-                : 'border-slate-800/80 bg-slate-950/40 print:border-black print:bg-white'
-            }`}
-          >
-            <div>
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-black print:pb-1.5 print:mb-2">
-                <h3 className="font-bold text-cyan-400 text-sm font-display flex items-center gap-2 print:text-black print:text-xs">
-                  <Utensils className="w-4 h-4 print:hidden" />
-                  {specL ? (
-                    <span className="text-amber-300 font-extrabold flex items-center gap-1 print:text-black">
-                      ✨ স্পেশাল মিল ({specL.title} - ৳{specL.customRate}) ({lunchMembers.length} জন)
-                    </span>
-                  ) : (
-                    `দুপুরের খাবার (৳${rates.permanent.lunch}) (${lunchMembers.length} জন)`
-                  )}
-                </h3>
-                <span className="text-xs font-mono font-bold text-slate-300 print:text-black">৳{lunchCost}</span>
+          {!isLGlobalOff && (
+            <div
+              className={`rounded-2xl border p-4 flex flex-col justify-between transition-all print:p-2.5 print:rounded-none ${
+                specL
+                  ? 'border-amber-500/40 bg-amber-950/10 print:border-black print:bg-white'
+                  : 'border-slate-800/80 bg-slate-950/40 print:border-black print:bg-white'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-black print:pb-1.5 print:mb-2">
+                  <h3 className="font-bold text-cyan-400 text-sm font-display flex items-center gap-2 print:text-black print:text-xs">
+                    <Utensils className="w-4 h-4 print:hidden" />
+                    {specL ? (
+                      <span className="text-amber-300 font-extrabold flex items-center gap-1 print:text-black">
+                        ✨ স্পেশাল মিল ({specL.title} - ৳{specL.customRate}) ({lunchMembers.length} জন)
+                      </span>
+                    ) : (
+                      `দুপুরের খাবার (৳${rates.permanent.lunch}) (${lunchMembers.length} জন)`
+                    )}
+                  </h3>
+                  <span className="text-xs font-mono font-bold text-slate-300 print:text-black">৳{lunchCost}</span>
+                </div>
+
+                {isLEmergencyOff ? (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs italic text-center print:border-black print:text-black">
+                    🚨 জরুরি বন্ধ থাকায় দুপুরের খাবার বাতিল
+                  </div>
+                ) : filteredL.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic py-2 print:text-black">কেউ দুপুরে খাবেন না</p>
+                ) : (
+                  <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-300 print:space-y-1">
+                    {filteredL.map((m, idx) => (
+                      <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black print:pt-1">
+                        <span className="font-medium print:text-[10pt]">
+                          {idx + 1}. {m.name}{' '}
+                          {m.profile?.roomNumber && (
+                            <span className="text-[10px] text-slate-400 font-mono font-normal print:text-black print:font-bold">
+                              (রুম {m.profile.roomNumber})
+                            </span>
+                          )}
+                        </span>
+                        <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-white print:text-black print:border-black text-[11px] print:text-[9pt]">
+                          {m.userType === 'PERMANENT' ? `স্থায়ী (৳${specL ? specL.customRate : rates.permanent.lunch})` : `অতিথি (৳${specL ? specL.customRate : rates.guest.lunch})`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
-              {isLEmergencyOff ? (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs italic text-center print:border-black print:text-black">
-                  🚨 জরুরি বন্ধ থাকায় দুপুরের খাবার বাতিল
-                </div>
-              ) : filteredL.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-2 print:text-black">কেউ দুপুরে খাবেন না</p>
-              ) : (
-                <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-300 print:space-y-1">
-                  {filteredL.map((m, idx) => (
-                    <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black print:pt-1">
-                      <span className="font-medium print:text-[10pt]">
-                        {idx + 1}. {m.name}{' '}
-                        {m.profile?.roomNumber && (
-                          <span className="text-[10px] text-slate-400 font-mono font-normal print:text-black print:font-bold">
-                            (রুম {m.profile.roomNumber})
-                          </span>
-                        )}
-                      </span>
-                      <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-white print:text-black print:border-black text-[11px] print:text-[9pt]">
-                        {m.userType === 'PERMANENT' ? `স্থায়ী (৳${specL ? specL.customRate : rates.permanent.lunch})` : `অতিথি (৳${specL ? specL.customRate : rates.guest.lunch})`}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <div className="mt-4 pt-2 border-t border-slate-800/50 text-[11px] text-slate-400 font-mono flex justify-between print:border-black print:text-black print:font-bold">
+                <span>স্থায়ী: {lBreakdown.perm}</span>
+                <span>অতিথি: {lBreakdown.guest}</span>
+              </div>
             </div>
-
-            <div className="mt-4 pt-2 border-t border-slate-800/50 text-[11px] text-slate-400 font-mono flex justify-between print:border-black print:text-black print:font-bold">
-              <span>স্থায়ী: {lBreakdown.perm}</span>
-              <span>অতিথি: {lBreakdown.guest}</span>
-            </div>
-          </div>
+          )}
 
           {/* Dinner List */}
-          <div className="rounded-2xl border border-slate-800/80 p-4 bg-slate-950/40 print:border-black print:bg-white print:p-2.5 print:rounded-none flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-black print:pb-1.5 print:mb-2">
-                <h3 className="font-bold text-indigo-400 text-sm font-display flex items-center gap-2 print:text-black print:text-xs">
-                  <Utensils className="w-4 h-4 print:hidden" />
-                  {specD ? `✨ ${specD.title} (৳${specD.customRate})` : `রাতের খাবার (৳${rates.permanent.dinner})`} ({dinnerMembers.length} জন)
-                </h3>
-                <span className="text-xs font-mono font-bold text-slate-300 print:text-black">৳{dinnerCost}</span>
+          {!isDGlobalOff && (
+            <div className="rounded-2xl border border-slate-800/80 p-4 bg-slate-950/40 print:border-black print:bg-white print:p-2.5 print:rounded-none flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-black print:pb-1.5 print:mb-2">
+                  <h3 className="font-bold text-indigo-400 text-sm font-display flex items-center gap-2 print:text-black print:text-xs">
+                    <Utensils className="w-4 h-4 print:hidden" />
+                    {specD ? `✨ ${specD.title} (৳${specD.customRate})` : `রাতের খাবার (৳${rates.permanent.dinner})`} ({dinnerMembers.length} জন)
+                  </h3>
+                  <span className="text-xs font-mono font-bold text-slate-300 print:text-black">৳{dinnerCost}</span>
+                </div>
+
+                {isDEmergencyOff ? (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs italic text-center print:border-black print:text-black">
+                    🚨 জরুরি বন্ধ থাকায় রাতের খাবার বাতিল
+                  </div>
+                ) : filteredD.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic py-2 print:text-black">কেউ রাতে খাবেন না</p>
+                ) : (
+                  <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-300 print:space-y-1">
+                    {filteredD.map((m, idx) => (
+                      <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black print:pt-1">
+                        <span className="font-medium print:text-[10pt]">
+                          {idx + 1}. {m.name}{' '}
+                          {m.profile?.roomNumber && (
+                            <span className="text-[10px] text-slate-400 font-mono font-normal print:text-black print:font-bold">
+                              (রুম {m.profile.roomNumber})
+                            </span>
+                          )}
+                        </span>
+                        <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-white print:text-black print:border-black text-[11px] print:text-[9pt]">
+                          {m.userType === 'PERMANENT' ? `স্থায়ী (৳${specD ? specD.customRate : rates.permanent.dinner})` : `অতিথি (৳${specD ? specD.customRate : rates.guest.dinner})`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
-              {isDEmergencyOff ? (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs italic text-center print:border-black print:text-black">
-                  🚨 জরুরি বন্ধ থাকায় রাতের খাবার বাতিল
-                </div>
-              ) : filteredD.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-2 print:text-black">কেউ রাতে খাবেন না</p>
-              ) : (
-                <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-300 print:space-y-1">
-                  {filteredD.map((m, idx) => (
-                    <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black print:pt-1">
-                      <span className="font-medium print:text-[10pt]">
-                        {idx + 1}. {m.name}{' '}
-                        {m.profile?.roomNumber && (
-                          <span className="text-[10px] text-slate-400 font-mono font-normal print:text-black print:font-bold">
-                            (রুম {m.profile.roomNumber})
-                          </span>
-                        )}
-                      </span>
-                      <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-white print:text-black print:border-black text-[11px] print:text-[9pt]">
-                        {m.userType === 'PERMANENT' ? `স্থায়ী (৳${specD ? specD.customRate : rates.permanent.dinner})` : `অতিথি (৳${specD ? specD.customRate : rates.guest.dinner})`}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <div className="mt-4 pt-2 border-t border-slate-800/50 text-[11px] text-slate-400 font-mono flex justify-between print:border-black print:text-black print:font-bold">
+                <span>স্থায়ী: {dBreakdown.perm}</span>
+                <span>অতিথি: {dBreakdown.guest}</span>
+              </div>
             </div>
-
-            <div className="mt-4 pt-2 border-t border-slate-800/50 text-[11px] text-slate-400 font-mono flex justify-between print:border-black print:text-black print:font-bold">
-              <span>স্থায়ী: {dBreakdown.perm}</span>
-              <span>অতিথি: {dBreakdown.guest}</span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Clean Footer Timestamp Note (No Signature Needed for Cook Memo) */}
