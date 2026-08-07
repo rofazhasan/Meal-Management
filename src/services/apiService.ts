@@ -2,6 +2,7 @@ import {
   User,
   WalletTransaction,
   MealDeclaration,
+  GuestMeal,
   EmergencyClosure,
   SpecialMeal,
   MealRateConfig,
@@ -318,7 +319,44 @@ export class ApiService {
       ? { breakfast: prevDecl.breakfast, lunch: prevDecl.lunch, dinner: prevDecl.dinner }
       : { breakfast: true, lunch: true, dinner: true };
 
-    return this.updateDeclaration(userId, targetDate, mealsToCopy, false);
+    return this.updateDeclaration(userId, targetDate, mealsToCopy, true);
+  }
+
+  // ---------------------------------------------------------------------------
+  // GUEST MEALS
+  // ---------------------------------------------------------------------------
+  static async getGuestMeals(params?: { userId?: string; date?: string; startDate?: string; endDate?: string }): Promise<GuestMeal[]> {
+    const query = new URLSearchParams();
+    if (params?.userId) query.set('userId', params.userId);
+    if (params?.date) query.set('date', params.date);
+    if (params?.startDate) query.set('startDate', params.startDate);
+    if (params?.endDate) query.set('endDate', params.endDate);
+    const qStr = query.toString();
+    return apiFetch<GuestMeal[]>(`${API_BASE}/guest-meals${qStr ? `?${qStr}` : ''}`);
+  }
+
+  static async saveGuestMeal(data: {
+    userId: string;
+    date: string;
+    breakfastCount?: number;
+    lunchCount?: number;
+    dinnerCount?: number;
+    rateTier?: 'GUEST' | 'PERMANENT';
+    paymentMethod?: 'WALLET' | 'CASH';
+    createdBy?: string;
+  }): Promise<GuestMeal & { walletBalance?: number }> {
+    const res = await apiFetch<GuestMeal & { walletBalance?: number }>(`${API_BASE}/guest-meals`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+
+    const current = await this.getCurrentUser();
+    if (current?.id === data.userId && res.walletBalance !== undefined) {
+      const updatedUser = { ...current, walletBalance: res.walletBalance };
+      await this.setCurrentUser(updatedUser);
+    }
+
+    return res;
   }
 
   // ---------------------------------------------------------------------------

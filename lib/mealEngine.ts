@@ -213,6 +213,56 @@ export async function processEmergencyClosureWithRefunds(
     });
   }
 
+  try {
+    const guestMeals = await db.guestMeal.findMany({
+      where: { mealDate: declDate },
+      include: { user: { include: { wallet: true } } },
+    });
+
+    for (const gm of guestMeals) {
+      const charged = Number(gm.chargedAmount || 0);
+      if (gm.paymentMethod === 'WALLET' && charged > 0 && gm.user.wallet) {
+        const wallet = gm.user.wallet;
+        const currentBal = Number(wallet.currentBalance);
+        const newBal = currentBal + charged;
+
+        await db.wallet.update({
+          where: { id: wallet.id },
+          data: { currentBalance: newBal },
+        });
+
+        await db.walletTransaction.create({
+          data: {
+            walletId: wallet.id,
+            userId: wallet.userId,
+            transactionType: 'REFUND',
+            amount: charged,
+            balanceBefore: currentBal,
+            balanceAfter: newBal,
+            referenceType: 'GUEST_MEAL_EMERGENCY_REFUND',
+            referenceId: wallet.id,
+            note: `জরুরি মিল বন্ধে গেস্ট মিল ওয়ালেট রিফান্ড (${dateStr}): ${reason}`,
+          },
+        });
+
+        totalRefundedAmount += charged;
+        refundedUsersCount++;
+      }
+
+      await db.guestMeal.update({
+        where: { id: gm.id },
+        data: {
+          breakfastCount: 0,
+          lunchCount: 0,
+          dinnerCount: 0,
+          chargedAmount: 0,
+        },
+      });
+    }
+  } catch (err) {
+    // Fallback if table or query fails
+  }
+
   return { refundedUsersCount, totalRefundedAmount };
 }
 
@@ -399,9 +449,23 @@ export async function forecastKitchenDemand(
     if (d.dinnerSelected) isGuest ? guestD++ : permanentD++;
   }
 
-  const totalB = permanentB + guestB;
-  const totalL = permanentL + guestL;
-  const totalD = permanentD + guestD;
+  let extraGuestB = 0, extraGuestL = 0, extraGuestD = 0;
+  try {
+    const guestMeals = await db.guestMeal.findMany({
+      where: { mealDate: declDate },
+    });
+    for (const gm of guestMeals) {
+      extraGuestB += gm.breakfastCount || 0;
+      extraGuestL += gm.lunchCount || 0;
+      extraGuestD += gm.dinnerCount || 0;
+    }
+  } catch (err) {
+    // fallback if table missing
+  }
+
+  const totalB = permanentB + guestB + extraGuestB;
+  const totalL = permanentL + guestL + extraGuestL;
+  const totalD = permanentD + guestD + extraGuestD;
 
   const multiplier = 1 + safetyBufferPercent / 100;
   const bufferedB = Math.ceil(totalB * multiplier);
@@ -418,6 +482,7 @@ export async function forecastKitchenDemand(
       breakdown: {
         permanent: { breakfast: permanentB, lunch: permanentL, dinner: permanentD },
         guest: { breakfast: guestB, lunch: guestL, dinner: guestD },
+        extraGuests: { breakfast: extraGuestB, lunch: extraGuestL, dinner: extraGuestD },
       },
     },
     recommendedKitchenPrep: {

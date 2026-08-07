@@ -39,6 +39,68 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
   const [successBanner, setSuccessBanner] = useState(false);
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
 
+  // Guest Meal Modal & Data State
+  const [guestModalUser, setGuestModalUser] = useState<User | null>(null);
+  const [guestBCount, setGuestBCount] = useState(0);
+  const [guestLCount, setGuestLCount] = useState(0);
+  const [guestDCount, setGuestDCount] = useState(0);
+  const [guestRateTier, setGuestRateTier] = useState<'GUEST' | 'PERMANENT'>('GUEST');
+  const [guestPaymentMethod, setGuestPaymentMethod] = useState<'WALLET' | 'CASH'>('WALLET');
+  const [savingGuest, setSavingGuest] = useState(false);
+  const [guestMealsMap, setGuestMealsMap] = useState<Record<string, any>>({});
+
+  const fetchGuestMeals = async () => {
+    try {
+      const records = await ApiService.getGuestMeals({ date: selectedDate });
+      const map: Record<string, any> = {};
+      records.forEach((r) => {
+        map[r.userId] = r;
+      });
+      setGuestMealsMap(map);
+    } catch (err) {
+      console.error('Failed to fetch guest meals:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchGuestMeals();
+  }, [selectedDate]);
+
+  const openGuestModal = (u: User) => {
+    const existing = guestMealsMap[u.id];
+    setGuestModalUser(u);
+    setGuestBCount(existing?.breakfastCount || 0);
+    setGuestLCount(existing?.lunchCount || 0);
+    setGuestDCount(existing?.dinnerCount || 0);
+    setGuestRateTier(existing?.rateTier || 'GUEST');
+    setGuestPaymentMethod(existing?.paymentMethod || 'WALLET');
+  };
+
+  const handleSaveGuestMeal = async () => {
+    if (!guestModalUser) return;
+    setSavingGuest(true);
+    try {
+      await ApiService.saveGuestMeal({
+        userId: guestModalUser.id,
+        date: selectedDate,
+        breakfastCount: guestBCount,
+        lunchCount: guestLCount,
+        dinnerCount: guestDCount,
+        rateTier: guestRateTier,
+        paymentMethod: guestPaymentMethod,
+        createdBy: currentAdmin.id,
+      });
+      setAlertMsg(`✅ ${guestModalUser.name}-এর গেস্ট মিল সফলভাবে আপডেট হয়েছে!`);
+      setGuestModalUser(null);
+      await fetchGuestMeals();
+      onRefreshData();
+    } catch (err: any) {
+      setAlertMsg(`❌ গেস্ট মিল আপডেট করতে ব্যর্থ: ${err.message}`);
+    } finally {
+      setSavingGuest(false);
+    }
+  };
+
   // Selected users checkboxes state
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
 
@@ -803,6 +865,7 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
                 <th className="p-4 text-center">সকালের নাস্তা</th>
                 <th className="p-4 text-center">দুপুরের খাবার</th>
                 <th className="p-4 text-center">রাতের খাবার</th>
+                <th className="p-4 text-center">গেস্ট মিল (অতিরিক্ত)</th>
                 <th className="p-4 text-center">স্ট্যাটাস</th>
               </tr>
             </thead>
@@ -811,6 +874,9 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
                 const meals = mealMap[u.id] || { breakfast: true, lunch: true, dinner: true };
                 const totalActiveCount = (meals.breakfast ? 1 : 0) + (meals.lunch ? 1 : 0) + (meals.dinner ? 1 : 0);
                 const isSelected = selectedUserIds.has(u.id);
+
+                const gm = guestMealsMap[u.id];
+                const hasGuest = gm && (gm.breakfastCount > 0 || gm.lunchCount > 0 || gm.dinnerCount > 0);
 
                 return (
                   <tr
@@ -975,6 +1041,178 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Guest Meal Admin Modal */}
+      {guestModalUser && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-100 text-base font-display">গেস্ট মিল থালা নির্বাচন</h3>
+                  <p className="text-xs text-amber-400 font-mono">{guestModalUser.name} ({selectedDate})</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setGuestModalUser(null)}
+                className="text-slate-400 hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Counter Controls */}
+            <div className="space-y-3">
+              {/* Breakfast Counter */}
+              <div className="flex items-center justify-between bg-slate-950/60 p-3 rounded-2xl border border-slate-800">
+                <div>
+                  <span className="text-xs font-bold text-slate-200">🌅 সকালের নাস্তা গেস্ট</span>
+                  <p className="text-[10px] text-slate-400">অতিরিক্ত মেহমানের সংখ্যা</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setGuestBCount(Math.max(0, guestBCount - 1))}
+                    className="w-8 h-8 rounded-xl bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 active:scale-95"
+                  >
+                    -
+                  </button>
+                  <span className="w-8 text-center font-mono font-bold text-amber-400 text-sm">{guestBCount}</span>
+                  <button
+                    onClick={() => setGuestBCount(guestBCount + 1)}
+                    className="w-8 h-8 rounded-xl bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 active:scale-95"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Lunch Counter */}
+              <div className="flex items-center justify-between bg-slate-950/60 p-3 rounded-2xl border border-slate-800">
+                <div>
+                  <span className="text-xs font-bold text-slate-200">☀️ দুপুরের খাবার গেস্ট</span>
+                  <p className="text-[10px] text-slate-400">অতিরিক্ত মেহমানের সংখ্যা</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setGuestLCount(Math.max(0, guestLCount - 1))}
+                    className="w-8 h-8 rounded-xl bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 active:scale-95"
+                  >
+                    -
+                  </button>
+                  <span className="w-8 text-center font-mono font-bold text-cyan-400 text-sm">{guestLCount}</span>
+                  <button
+                    onClick={() => setGuestLCount(guestLCount + 1)}
+                    className="w-8 h-8 rounded-xl bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 active:scale-95"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Dinner Counter */}
+              <div className="flex items-center justify-between bg-slate-950/60 p-3 rounded-2xl border border-slate-800">
+                <div>
+                  <span className="text-xs font-bold text-slate-200">🌙 রাতের খাবার গেস্ট</span>
+                  <p className="text-[10px] text-slate-400">অতিরিক্ত মেহমানের সংখ্যা</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setGuestDCount(Math.max(0, guestDCount - 1))}
+                    className="w-8 h-8 rounded-xl bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 active:scale-95"
+                  >
+                    -
+                  </button>
+                  <span className="w-8 text-center font-mono font-bold text-purple-400 text-sm">{guestDCount}</span>
+                  <button
+                    onClick={() => setGuestDCount(guestDCount + 1)}
+                    className="w-8 h-8 rounded-xl bg-slate-800 text-slate-200 font-bold hover:bg-slate-700 active:scale-95"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Rate Tier Choice */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-300">মূল্য রেট টায়ার (Rate Tier):</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGuestRateTier('GUEST')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    guestRateTier === 'GUEST'
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      : 'bg-slate-950/40 text-slate-400 border-slate-800'
+                  }`}
+                >
+                  গেস্ট মেম্বার রেট
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGuestRateTier('PERMANENT')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    guestRateTier === 'PERMANENT'
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                      : 'bg-slate-950/40 text-slate-400 border-slate-800'
+                  }`}
+                >
+                  স্থায়ী মেম্বার রেট
+                </button>
+              </div>
+            </div>
+
+            {/* Payment Method Choice */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-300">পরিশোধ পদ্ধতি (Payment Method):</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGuestPaymentMethod('WALLET')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    guestPaymentMethod === 'WALLET'
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      : 'bg-slate-950/40 text-slate-400 border-slate-800'
+                  }`}
+                >
+                  💳 ওয়ালেট কর্তন (Wallet)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGuestPaymentMethod('CASH')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    guestPaymentMethod === 'CASH'
+                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                      : 'bg-slate-950/40 text-slate-400 border-slate-800'
+                  }`}
+                >
+                  💵 ক্যাশ/নগদ (Cash)
+                </button>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3 pt-3 border-t border-slate-800">
+              <button
+                onClick={() => setGuestModalUser(null)}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700"
+              >
+                বাতিল
+              </button>
+              <button
+                onClick={handleSaveGuestMeal}
+                disabled={savingGuest}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 hover:opacity-90 disabled:opacity-50"
+              >
+                {savingGuest ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

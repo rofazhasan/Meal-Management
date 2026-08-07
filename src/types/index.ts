@@ -82,6 +82,21 @@ export interface MealDeclaration {
   updatedAt: string;
 }
 
+export interface GuestMeal {
+  id: string;
+  userId: string;
+  date: string; // YYYY-MM-DD
+  breakfastCount: number;
+  lunchCount: number;
+  dinnerCount: number;
+  rateTier: 'GUEST' | 'PERMANENT';
+  paymentMethod: 'WALLET' | 'CASH';
+  chargedAmount: number;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface EmergencyClosure {
   id: string;
   date: string; // YYYY-MM-DD (Start Date)

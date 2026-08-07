@@ -2,10 +2,12 @@
 
 import React, { useState, useMemo } from 'react';
 import { BarChart3, Calendar, Utensils, CheckCircle2, Copy, PieChart, Printer, DollarSign, Download, Filter, Search, AlertCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { User, MealDeclaration, MealRateConfig, SpecialMeal, EmergencyClosure } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
+import { ApiService } from '../../services/apiService';
 import { getDayOfWeekFromDateStr, getBangladeshDateStr, getBangladeshNow, fillMissingDeclarationsForDateRange } from '../../utils/dateUtils';
 
 interface UserReportsProps {
@@ -19,6 +21,20 @@ interface UserReportsProps {
 export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarations, rates, specialMeals = [], emergencies = [] }) => {
   const [activeRange, setActiveRange] = useState<'daily' | 'weekly' | 'monthly' | 'all'>('monthly');
   const [searchDate, setSearchDate] = useState('');
+
+  const { data: userGuestMeals = [] } = useQuery({
+    queryKey: ['user_reports_guest_meals', currentUser.id],
+    queryFn: () => ApiService.getGuestMeals({ userId: currentUser.id }),
+    staleTime: 5000,
+  });
+
+  const guestMealsMap = useMemo(() => {
+    const map: Record<string, any> = {};
+    userGuestMeals.forEach((gm) => {
+      map[gm.date] = gm;
+    });
+    return map;
+  }, [userGuestMeals]);
 
   const defaultRates = {
     breakfast: currentUser.userType === 'PERMANENT' ? 40 : 50,
@@ -100,7 +116,14 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
       const lPrice = isLGlobalOff || isLEm ? 0 : (specL ? specL.customRate : userRates.lunch);
       const dPrice = isDGlobalOff || isDEm ? 0 : (specD ? specD.customRate : userRates.dinner);
 
-      const dailyCost = (isBOn ? bPrice : 0) + (isLOn ? lPrice : 0) + (isDOn ? dPrice : 0);
+      const selfCost = (isBOn ? bPrice : 0) + (isLOn ? lPrice : 0) + (isDOn ? dPrice : 0);
+
+      const gm = guestMealsMap[dec.date];
+      const guestB = gm ? gm.breakfastCount : 0;
+      const guestL = gm ? gm.lunchCount : 0;
+      const guestD = gm ? gm.dinnerCount : 0;
+      const guestCost = gm ? Number(gm.chargedAmount || 0) : 0;
+      const dailyCost = selfCost + guestCost;
 
       return {
         ...dec,
@@ -114,13 +137,17 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
         isBOn,
         isLOn,
         isDOn,
+        guestB,
+        guestL,
+        guestD,
+        guestCost,
+        dailyCost,
         specB,
         specL,
         specD,
         bPrice,
         lPrice,
         dPrice,
-        dailyCost,
       };
     });
   }, [rangeFilteredDecs, emergencies, isBGlobalOff, isLGlobalOff, isDGlobalOff, userRates]);

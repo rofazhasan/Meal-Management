@@ -312,3 +312,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_meal_settings_date ON meal_settings(meal_d
 CREATE INDEX IF NOT EXISTS idx_special_meals_date_type ON special_meals(meal_date, meal_type, is_active);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, created_at DESC) WHERE status = 'UNREAD';
 CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_events(status, next_retry_at) WHERE status IN ('PENDING', 'PROCESSING');
+
+CREATE TABLE IF NOT EXISTS guest_meals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    meal_date DATE NOT NULL,
+    breakfast_count INT NOT NULL DEFAULT 0,
+    lunch_count INT NOT NULL DEFAULT 0,
+    dinner_count INT NOT NULL DEFAULT 0,
+    rate_tier VARCHAR(20) NOT NULL DEFAULT 'GUEST',
+    payment_method VARCHAR(20) NOT NULL DEFAULT 'WALLET',
+    charged_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_user_guest_meal_date UNIQUE (user_id, meal_date)
+);
+CREATE INDEX IF NOT EXISTS idx_guest_meals_date ON guest_meals(meal_date);
+

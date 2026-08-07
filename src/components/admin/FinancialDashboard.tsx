@@ -24,6 +24,7 @@ import {
   RefreshCw,
   RotateCcw,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { FinancialMetrics, WalletTransaction, User } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
@@ -128,6 +129,30 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   onRefreshData,
 }) => {
   const [filterPeriod, setFilterPeriod] = useState<'today' | 'monthly' | 'yearly'>('monthly');
+
+  // Fetch Guest Meals for Financial Analytics
+  const { data: allGuestMeals = [] } = useQuery({
+    queryKey: ['financial_all_guest_meals'],
+    queryFn: () => ApiService.getGuestMeals({}),
+    staleTime: 5000,
+  });
+
+  const guestMealMetrics = useMemo(() => {
+    let walletTotal = 0;
+    let cashTotal = 0;
+    let totalMeals = 0;
+    allGuestMeals.forEach((gm) => {
+      const amt = Number(gm.chargedAmount || 0);
+      const count = (gm.breakfastCount || 0) + (gm.lunchCount || 0) + (gm.dinnerCount || 0);
+      totalMeals += count;
+      if (gm.paymentMethod === 'CASH') {
+        cashTotal += amt;
+      } else {
+        walletTotal += amt;
+      }
+    });
+    return { walletTotal, cashTotal, grandTotal: walletTotal + cashTotal, totalMeals };
+  }, [allGuestMeals]);
 
   // Master Ledger Filter & Voucher States
   const [ledgerSearch, setLedgerSearch] = useState('');
@@ -781,11 +806,16 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
 
             <div>
               <div className="flex justify-between text-xs font-semibold mb-1">
-                <span className="text-slate-300">{BN.guestRevenue}</span>
-                <span className="text-amber-300 font-mono">৳{(metrics.guestRevenue || 0).toLocaleString()}</span>
+                <span className="text-slate-300">{BN.guestRevenue} (মোট অতিরিক্ত গেস্ট মিল)</span>
+                <span className="text-amber-300 font-mono">৳{guestMealMetrics.grandTotal.toLocaleString()}</span>
               </div>
               <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
-                <div className="bg-gradient-to-r from-amber-500 to-yellow-400 h-full w-[25%]" />
+                <div className="bg-gradient-to-r from-amber-500 to-yellow-400 h-full w-[45%]" />
+              </div>
+              <div className="mt-2 text-[10px] text-slate-400 flex items-center justify-between font-mono bg-slate-950/60 p-2 rounded-xl border border-slate-800">
+                <span>💳 ওয়ালেট: ৳{guestMealMetrics.walletTotal}</span>
+                <span>💵 ক্যাশ: ৳{guestMealMetrics.cashTotal}</span>
+                <span>🍽️ মোট মিল: {guestMealMetrics.totalMeals}টি</span>
               </div>
             </div>
           </div>

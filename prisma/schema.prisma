@@ -109,6 +109,7 @@ model User {
   approvalRequests          ApprovalRequest[]
   auditLogs                 AuditLog[]
   walletTransactions        WalletTransaction[]
+  guestMeals                GuestMeal[]
 
   @@index([approvalStatus, deletedAt])
   @@index([role])
@@ -291,3 +292,25 @@ model SpecialMeal {
   @@index([mealDate, isActive])
   @@map("special_meals")
 }
+
+model GuestMeal {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  mealDate       DateTime @map("meal_date") @db.Date
+  breakfastCount Int      @default(0) @map("breakfast_count")
+  lunchCount     Int      @default(0) @map("lunch_count")
+  dinnerCount    Int      @default(0) @map("dinner_count")
+  rateTier       String   @default("GUEST") @map("rate_tier") @db.VarChar(20)
+  paymentMethod  String   @default("WALLET") @map("payment_method") @db.VarChar(20)
+  chargedAmount  Decimal  @default(0.00) @map("charged_amount") @db.Decimal(12, 2)
+  createdBy      String?  @map("created_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mealDate], name: "uq_user_guest_meal_date")
+  @@index([mealDate])
+  @@map("guest_meals")
+}
+

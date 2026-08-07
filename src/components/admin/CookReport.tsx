@@ -48,6 +48,13 @@ export const CookReport: React.FC<CookReportProps> = ({
     staleTime: 0,
   });
 
+  // Fetch extra guest meals for selectedDate from API
+  const { data: rawGuestMeals = [] } = useQuery({
+    queryKey: ['cook_guest_meals', selectedDate],
+    queryFn: () => ApiService.getGuestMeals({ date: selectedDate }),
+    staleTime: 0,
+  });
+
   // Approved active non-paused users
   const activeUsers = useMemo(
     () => users.filter((u) => u.status === 'APPROVED' && !u.isIndefinitelyPaused),
@@ -87,6 +94,26 @@ export const CookReport: React.FC<CookReportProps> = ({
   const isLEmergencyOff = !!emergencyForDate && (emergencyForDate.closedMeals?.includes('lunch') ?? true);
   const isDEmergencyOff = !!emergencyForDate && (emergencyForDate.closedMeals?.includes('dinner') ?? true);
 
+  const extraGuestStats = useMemo(() => {
+    let b = 0, l = 0, d = 0;
+    let bCost = 0, lCost = 0, dCost = 0;
+    rawGuestMeals.forEach((gm: any) => {
+      const numB = isBGlobalOff || isBEmergencyOff ? 0 : (gm.breakfastCount || 0);
+      const numL = isLGlobalOff || isLEmergencyOff ? 0 : (gm.lunchCount || 0);
+      const numD = isDGlobalOff || isDEmergencyOff ? 0 : (gm.dinnerCount || 0);
+
+      b += numB;
+      l += numL;
+      d += numD;
+
+      const rateObj = gm.rateTier === 'PERMANENT' ? rates.permanent : rates.guest;
+      bCost += numB * (specB ? specB.customRate : rateObj.breakfast);
+      lCost += numL * (specL ? specL.customRate : rateObj.lunch);
+      dCost += numD * (specD ? specD.customRate : rateObj.dinner);
+    });
+    return { b, l, d, bCost, lCost, dCost, total: b + l + d, totalCost: bCost + lCost + dCost };
+  }, [rawGuestMeals, rates, specB, specL, specD, isBGlobalOff, isBEmergencyOff, isLGlobalOff, isLEmergencyOff, isDGlobalOff, isDEmergencyOff]);
+
   // Members eating each meal
   const breakfastMembers: User[] = [];
   const lunchMembers: User[] = [];
@@ -113,23 +140,23 @@ export const CookReport: React.FC<CookReportProps> = ({
     }, 0);
   };
 
-  const breakfastCost = calculateMealTotalCost(breakfastMembers, 'breakfast');
-  const lunchCost = calculateMealTotalCost(lunchMembers, 'lunch');
-  const dinnerCost = calculateMealTotalCost(dinnerMembers, 'dinner');
+  const breakfastCost = calculateMealTotalCost(breakfastMembers, 'breakfast') + extraGuestStats.bCost;
+  const lunchCost = calculateMealTotalCost(lunchMembers, 'lunch') + extraGuestStats.lCost;
+  const dinnerCost = calculateMealTotalCost(dinnerMembers, 'dinner') + extraGuestStats.dCost;
 
-  const totalMealsCount = breakfastMembers.length + lunchMembers.length + dinnerMembers.length;
+  const totalMealsCount = breakfastMembers.length + lunchMembers.length + dinnerMembers.length + extraGuestStats.total;
   const totalBazaarBudget = breakfastCost + lunchCost + dinnerCost;
 
   // Breakdown of permanent vs guest for each meal
-  const getBreakdown = (memberList: User[]) => {
+  const getBreakdown = (memberList: User[], extraGuestCount: number) => {
     const perm = memberList.filter((m) => m.userType === 'PERMANENT').length;
-    const guest = memberList.filter((m) => m.userType === 'GUEST').length;
-    return { perm, guest };
+    const guest = memberList.filter((m) => m.userType === 'GUEST').length + extraGuestCount;
+    return { perm, guest, extraGuest: extraGuestCount };
   };
 
-  const bBreakdown = getBreakdown(breakfastMembers);
-  const lBreakdown = getBreakdown(lunchMembers);
-  const dBreakdown = getBreakdown(dinnerMembers);
+  const bBreakdown = getBreakdown(breakfastMembers, extraGuestStats.b);
+  const lBreakdown = getBreakdown(lunchMembers, extraGuestStats.l);
+  const dBreakdown = getBreakdown(dinnerMembers, extraGuestStats.d);
 
   // Quick Date Shift
   const shiftDate = (days: number) => {

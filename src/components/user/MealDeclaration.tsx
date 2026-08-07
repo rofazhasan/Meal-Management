@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, CheckCircle2, XCircle, Clock, Copy, ShieldAlert, Zap, Layers, Sparkles, Power } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { User, MealRateConfig, MealDeclaration as MealDeclarationType, EmergencyClosure, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
@@ -52,6 +53,14 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
   const [balanceAlertMsg, setBalanceAlertMsg] = useState<string | null>(null);
 
   const userRates = currentUser.userType === 'PERMANENT' ? rates.permanent : rates.guest;
+
+  const { data: userGuestMeals = [] } = useQuery({
+    queryKey: ['meal_declaration_guest_meals', currentUser.id, selectedDate],
+    queryFn: () => ApiService.getGuestMeals({ userId: currentUser.id, date: selectedDate }),
+    staleTime: 0,
+  });
+
+  const selectedGuestRecord = userGuestMeals[0];
 
   const handleToggleIndefinitePause = async () => {
     setTogglingPause(true);
@@ -527,6 +536,23 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
                 {specialForDate.description || 'আজকের বিশেষ খাবারের জন্য কাস্টম চার্জ প্রযোজ্য। খাবার না খেতে চাইলে অফ করে দিতে পারেন।'}
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Guest Meal Information Banner (Admin Assigned) */}
+      {selectedGuestRecord && (selectedGuestRecord.breakfastCount > 0 || selectedGuestRecord.lunchCount > 0 || selectedGuestRecord.dinnerCount > 0) && (
+        <div className="p-4 rounded-3xl bg-gradient-to-r from-amber-950/80 via-slate-900 to-slate-900 border border-amber-500/40 text-amber-200 flex items-center gap-3.5 shadow-xl">
+          <div className="p-3 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-400 shrink-0">
+            <Zap className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="font-bold text-sm text-amber-300 font-display">👥 {selectedDate} তারিখে নিবন্ধিত অতিরিক্ত গেস্ট মিল (এডমিন কর্তৃক):</h4>
+            <p className="text-xs text-amber-200/90 font-mono mt-0.5">
+              সকালের নাস্তা: {selectedGuestRecord.breakfastCount}টি | দুপুরের খাবার: {selectedGuestRecord.lunchCount}টি | রাতের খাবার: {selectedGuestRecord.dinnerCount}টি
+              &nbsp;({selectedGuestRecord.paymentMethod === 'CASH' ? '💵 নগদ/ক্যাশ' : '💳 ওয়ালেট কর্তন'})
+            </p>
+            <p className="text-[11px] text-slate-400 italic">নোট: গেস্ট মিল পরিবর্তন বা বাতিল করার জন্য এডমিনের সাথে যোগাযোগ করুন।</p>
           </div>
         </div>
       )}

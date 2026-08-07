@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { 
   Utensils, 
   Sun, 
@@ -37,6 +38,7 @@ import { BN } from '../../constants/banglaText';
 import { AppLogo } from '../common/AppLogo';
 import { getBangladeshDateStr, getBangladeshNow } from '../../utils/dateUtils';
 import { getUserMealStateForDate } from '../../utils/mealUtils';
+import { ApiService } from '../../services/apiService';
 
 interface PublicTodaysMealProps {
   users: User[];
@@ -125,6 +127,12 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
     return { cutoffStr, isPassed, hoursLeft, minsLeft };
   }, [rates?.cutoffTime]);
 
+  const { data: rawTodayGuestMeals = [] } = useQuery({
+    queryKey: ['public_todays_guest_meals', todayStr],
+    queryFn: () => ApiService.getGuestMeals({ date: todayStr }),
+    staleTime: 0,
+  });
+
   // Overall Statistics for Today (Counts & Financial Amounts)
   const stats = useMemo(() => {
     let breakfast = 0;
@@ -163,6 +171,22 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
         dinner += 1;
         dinnerMoney += dRate;
       }
+    });
+
+    // Add Extra Guest Meals
+    rawTodayGuestMeals.forEach((gm: any) => {
+      const bCount = gm.breakfastCount || 0;
+      const lCount = gm.lunchCount || 0;
+      const dCount = gm.dinnerCount || 0;
+
+      breakfast += bCount;
+      lunch += lCount;
+      dinner += dCount;
+
+      const rateObj = gm.rateTier === 'PERMANENT' ? permRates : guestRates;
+      breakfastMoney += bCount * (specB ? specB.customRate : rateObj.breakfast);
+      lunchMoney += lCount * (specL ? specL.customRate : rateObj.lunch);
+      dinnerMoney += dCount * (specD ? specD.customRate : rateObj.dinner);
     });
 
     const totalMeals = breakfast + lunch + dinner;

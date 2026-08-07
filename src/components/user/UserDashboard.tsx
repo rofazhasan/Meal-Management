@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Wallet, Clock, CheckCircle2, XCircle, ArrowUpRight, ArrowDownRight, Calendar, AlertCircle, UtensilsCrossed, Sparkles, ShieldAlert, ChevronRight, UserCheck, Lock, Edit3, X, Activity, TrendingUp, PieChart } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { User, MealRateConfig, MealDeclaration, WalletTransaction, EmergencyClosure, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
@@ -60,6 +61,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
   const todayStr = getBangladeshDateStr();
   const userRates = currentUser.userType === 'PERMANENT' ? rates.permanent : rates.guest;
+
+  const { data: userGuestMeals = [] } = useQuery({
+    queryKey: ['user_dashboard_guest_meals', currentUser.id, todayStr],
+    queryFn: () => ApiService.getGuestMeals({ userId: currentUser.id, date: todayStr }),
+    staleTime: 0,
+  });
+
+  const todayGuestRecord = userGuestMeals[0];
 
   const todayEmergency = emergencies.find(e => todayStr >= e.date && todayStr <= (e.endDate || e.date));
 
@@ -330,6 +339,22 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           <div>
             <h4 className="font-bold text-sm font-display text-rose-300">জরুরি নোটিশ: আজকের মিল বন্ধ!</h4>
             <p className="text-xs text-rose-200/80">{todayEmergency.reason}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Guest Meal Notification Banner for Today */}
+      {todayGuestRecord && (todayGuestRecord.breakfastCount > 0 || todayGuestRecord.lunchCount > 0 || todayGuestRecord.dinnerCount > 0) && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-950/80 via-slate-900 to-slate-900 border border-amber-500/40 text-amber-200 flex items-center justify-between gap-4 shadow-lg">
+          <div className="flex items-center gap-3">
+            <UtensilsCrossed className="w-5 h-5 text-amber-400 shrink-0" />
+            <div>
+              <h4 className="font-bold text-sm font-display text-amber-300">👥 আজ আপনার এডমিন কর্তৃক নিবন্ধিত গেস্ট মিল:</h4>
+              <p className="text-xs text-amber-200/90 font-mono mt-0.5">
+                সকালের নাস্তা: {todayGuestRecord.breakfastCount}টি | দুপুরের খাবার: {todayGuestRecord.lunchCount}টি | রাতের খাবার: {todayGuestRecord.dinnerCount}টি
+                &nbsp;(পরিশোধ: {todayGuestRecord.paymentMethod === 'CASH' ? '💵 নগদ/ক্যাশ' : '💳 ওয়ালেট কর্তন'})
+              </p>
+            </div>
           </div>
         </div>
       )}
