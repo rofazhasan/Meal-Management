@@ -258,14 +258,19 @@ h1, h2, h3, .font-display {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 12mm 15mm;
+    margin: 10mm 12mm 12mm 12mm;
   }
 
+  /* Universal hide for non-printable UI components */
   header,
   nav,
-  button,
+  footer:not(.print-footer),
+  button:not(.print-keep),
+  input:not(.print-keep),
+  select:not(.print-keep),
   .print\:hidden,
   div.print\:hidden,
+  span.print\:hidden,
   .no-print {
     display: none !important;
   }
@@ -273,13 +278,25 @@ h1, h2, h3, .font-display {
   body, html {
     background-color: #ffffff !important;
     background: #ffffff !important;
-    color: #0f172a !important;
-    font-size: 11pt !important;
-    line-height: 1.4 !important;
+    color: #000000 !important;
+    font-family: 'Hind Siliguri', 'Anek Bangla', 'Plus Jakarta Sans', sans-serif !important;
+    font-size: 10.5pt !important;
+    line-height: 1.45 !important;
     margin: 0 !important;
     padding: 0 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    -webkit-font-smoothing: antialiased !important;
+  }
+
+  /* Reset layout containers for crisp page rendering */
+  #root, main, div, section {
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   .glass-panel,
@@ -288,13 +305,20 @@ h1, h2, h3, .font-display {
   div[class*="glass"] {
     background: #ffffff !important;
     background-color: #ffffff !important;
-    color: #0f172a !important;
-    border: 1px solid #cbd5e1 !important;
+    color: #000000 !important;
+    border: 1px solid #000000 !important;
     box-shadow: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    border-radius: 8px !important;
+    border-radius: 6px !important;
     margin-bottom: 12px !important;
+    padding: 12px !important;
+  }
+
+  /* Text color overrides for high contrast readability */
+  h1, h2, h3, h4, h5, h6,
+  p, span, div, td, th, li, label, strong, b, a {
+    color: #000000 !important;
   }
 
   .text-white,
@@ -302,16 +326,20 @@ h1, h2, h3, .font-display {
   .text-slate-200,
   .text-slate-300,
   .text-slate-400,
-  .text-slate-500 {
-    color: #0f172a !important;
+  .text-slate-500,
+  .text-gray-400,
+  .text-gray-500 {
+    color: #000000 !important;
   }
 
+  /* Table styling for sharp print grids */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
     margin-top: 8px !important;
     margin-bottom: 8px !important;
     page-break-inside: auto !important;
+    border: 1px solid #000000 !important;
   }
 
   tr {
@@ -323,45 +351,71 @@ h1, h2, h3, .font-display {
     display: table-header-group !important;
   }
 
+  tbody {
+    display: table-row-group !important;
+  }
+
   th {
     background-color: #f1f5f9 !important;
-    color: #0f172a !important;
+    color: #000000 !important;
     font-weight: 700 !important;
-    border: 1px solid #94a3b8 !important;
+    border: 1px solid #000000 !important;
     padding: 6px 8px !important;
-    font-size: 10pt !important;
+    font-size: 9.5pt !important;
+    text-transform: uppercase !important;
   }
 
   td {
-    border: 1px solid #cbd5e1 !important;
+    border: 1px solid #64748b !important;
     padding: 6px 8px !important;
     font-size: 9.5pt !important;
-    color: #0f172a !important;
+    color: #000000 !important;
   }
 
+  tr:nth-child(even) td {
+    background-color: #f8fafc !important;
+  }
+
+  /* Print specific badge and card utility classes */
   .badge, span[class*="rounded"] {
-    border: 1px solid #94a3b8 !important;
-    background: #f8fafc !important;
-    color: #0f172a !important;
+    border: 1px solid #000000 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-weight: 600 !important;
   }
 
-  .text-emerald-400, .text-emerald-300 {
-    color: #047857 !important;
+  .text-emerald-400, .text-emerald-300, .text-emerald-500, .text-emerald-600 {
+    color: #000000 !important;
   }
 
-  .text-rose-400, .text-rose-300 {
-    color: #b91c1c !important;
+  .text-rose-400, .text-rose-300, .text-rose-500, .text-rose-600 {
+    color: #000000 !important;
   }
 
-  .text-cyan-400, .text-cyan-300 {
-    color: #0369a1 !important;
+  .text-cyan-400, .text-cyan-300, .text-cyan-500, .text-cyan-600 {
+    color: #000000 !important;
   }
 
-  .text-amber-400, .text-amber-300 {
-    color: #b45309 !important;
+  .text-amber-400, .text-amber-300, .text-amber-500, .text-amber-600 {
+    color: #000000 !important;
   }
 
-  .text-purple-400, .text-purple-300 {
-    color: #6b21a8 !important;
+  .text-purple-400, .text-purple-300, .text-indigo-400 {
+    color: #000000 !important;
+  }
+
+  /* Avoid page breaks inside important components */
+  .print-avoid-break,
+  .print-card,
+  .print-signature-grid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Force page break before section if requested */
+  .page-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
   }
 }
+

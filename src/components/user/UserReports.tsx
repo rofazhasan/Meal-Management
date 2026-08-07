@@ -199,6 +199,43 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
   return (
     <div className="space-y-6 pb-24 max-w-4xl mx-auto animate-scale-in">
       
+      {/* World-Class Printable Header (Visible ONLY when printing) */}
+      <div className="hidden print:block border-b-2 border-black pb-4 mb-5">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-black text-black font-display tracking-tight uppercase">
+              মেস ডাইনিং — সদস্য মিল গ্রহণ ও খরচ স্টেটমেন্ট
+            </h1>
+            <p className="text-xs font-semibold text-gray-800 mt-1">
+              ব্যক্তিগত খাবার গ্রহণ ও ওয়ালেট কর্তন বিবরণী
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-black font-mono">
+              <div><strong className="font-bold">সদস্যের নাম:</strong> {currentUser.name}</div>
+              <div><strong className="font-bold">ফোন:</strong> {currentUser.phone}</div>
+              <div><strong className="font-bold">রুম/সিট:</strong> {currentUser.profile?.roomNumber ? `রুম ${currentUser.profile.roomNumber}` : 'N/A'} {currentUser.profile?.seatNumber ? `(সিট ${currentUser.profile.seatNumber})` : ''}</div>
+              <div><strong className="font-bold">সদস্যের ধরণ:</strong> {currentUser.userType === 'PERMANENT' ? 'স্থায়ী মেম্বার' : 'গেস্ট মেম্বার'}</div>
+            </div>
+          </div>
+
+          <div className="text-right border-2 border-black p-3 bg-gray-50 rounded">
+            <div className="text-xs uppercase font-bold text-gray-700">বর্তমান ওয়ালেট ব্যালেন্স</div>
+            <div className="text-2xl font-black text-black font-mono">৳{currentUser.walletBalance}</div>
+            <div className="text-xs font-bold text-black border-t border-black mt-1 pt-0.5">
+              সময়কাল: {activeRange === 'daily' ? 'দৈনিক' : activeRange === 'weekly' ? 'গত ৭ দিন' : activeRange === 'monthly' ? 'চলতি মাস' : 'সর্বমোট'}
+            </div>
+          </div>
+        </div>
+
+        {/* Print Summary Metrics Bar */}
+        <div className="mt-4 border border-black p-2.5 bg-gray-100 flex justify-between text-xs font-mono font-bold text-black">
+          <span>মোট মিল: {totalMealsCount} টি</span>
+          <span>নাস্তা: {totalBreakfasts}</span>
+          <span>দুপুর: {totalLunches}</span>
+          <span>রাত: {totalDinners}</span>
+          <span>মোট মিল খরচ: ৳{totalMoneySpent}</span>
+        </div>
+      </div>
+
       {/* Global Off Notice Banner if any meal is globally disabled */}
       {(isBGlobalOff || isLGlobalOff || isDGlobalOff) && (
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-3 shadow-lg">
@@ -453,6 +490,29 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
             </table>
           </div>
         )}
+
+        {/* Printable Signature & Verification Footer */}
+        <div className="hidden print:block pt-10 mt-6 print-avoid-break border-t border-black">
+          <div className="grid grid-cols-2 gap-8 text-center text-xs">
+            <div>
+              <div className="border-t border-black pt-1 font-bold text-black w-48 mx-auto">
+                সদস্যের স্বাক্ষর (Member Signature)
+              </div>
+              <p className="text-[9pt] text-gray-700 mt-0.5">স্বাক্ষর: ................................................</p>
+            </div>
+            <div>
+              <div className="border-t border-black pt-1 font-bold text-black w-48 mx-auto">
+                ডাইনিং ম্যানেজার স্বাক্ষর (Manager)
+              </div>
+              <p className="text-[9pt] text-gray-700 mt-0.5">স্বাক্ষর: ................................................</p>
+            </div>
+          </div>
+
+          <div className="mt-6 text-center text-[8pt] text-gray-600 border-t border-gray-300 pt-2 font-mono">
+            মেস ম্যানেজমেন্ট সিস্টেম | স্টেটমেন্ট জেনারেশন সময়: {new Date().toLocaleString('bn-BD')}
+          </div>
+        </div>
+
       </div>
 
     </div>

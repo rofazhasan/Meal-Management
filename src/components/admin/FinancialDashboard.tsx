@@ -409,6 +409,44 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
 
   return (
     <div className="space-y-6 animate-scale-in pb-20">
+      
+      {/* World-Class Printable Master Ledger Header (Visible ONLY on print) */}
+      <div className="hidden print:block border-b-2 border-black pb-4 mb-5">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-black text-black font-display tracking-tight uppercase">
+              মেস ডাইনিং — সার্বিক লেনদেন মাস্টার লেজার ও ক্যাশ রেজিস্টার
+            </h1>
+            <p className="text-xs font-semibold text-gray-800 mt-1">
+              মেসের সমস্ত মেম্বার রিচার্জ, মিল কর্তন, মিল বন্ধের রিফান্ড এবং আর্থিক হিসেব রেজিস্টার
+            </p>
+            <div className="mt-3 flex items-center gap-4 text-xs text-black font-mono font-bold">
+              <span>রিপোর্ট সময়কাল: {filterPeriod === 'today' ? 'আজকের' : filterPeriod === 'monthly' ? 'চলতি মাসের' : 'সর্বমোট'}</span>
+              <span>|</span>
+              <span>মোট রেকর্ড: {filteredMasterTransactions.length} টি</span>
+              <span>|</span>
+              <span>জেনারেটর: {currentAdmin?.name || 'মেস এডমিন'}</span>
+            </div>
+          </div>
+
+          <div className="text-right border-2 border-black p-3 bg-gray-50 rounded">
+            <div className="text-xs uppercase font-bold text-gray-700">মোট মেস ওয়ালেট ব্যালেন্স ফান্ড</div>
+            <div className="text-2xl font-black text-black font-mono">৳{(metrics.totalWalletBalance || 0).toLocaleString()}</div>
+            <div className="text-xs font-bold text-black border-t border-black mt-1 pt-0.5">
+              অনুমোদিত মেম্বার: {users?.length || 0} জন
+            </div>
+          </div>
+        </div>
+
+        {/* Master Ledger Key Financial Metrics Strip (Print Only) */}
+        <div className="mt-4 border border-black p-2.5 bg-gray-100 grid grid-cols-4 gap-2 text-xs font-mono font-bold text-black text-center">
+          <div>ওয়ালেট জমা: ৳{ledgerStats.recharges.toLocaleString()}</div>
+          <div>মিল রিফান্ড: ৳{ledgerStats.refunds.toLocaleString()}</div>
+          <div>মিল কর্তন: ৳{ledgerStats.mealDeductions.toLocaleString()}</div>
+          <div>মাসিক মেস ফি: ৳{ledgerStats.monthlyCharges.toLocaleString()}</div>
+        </div>
+      </div>
+
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-6 rounded-3xl border border-slate-800">
         <div>
@@ -1048,6 +1086,35 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
             </tbody>
           </table>
         </div>
+
+        {/* Formal Master Ledger Audit Signature Block (Print Only) */}
+        <div className="hidden print:block pt-10 mt-8 print-avoid-break border-t border-black">
+          <div className="grid grid-cols-3 gap-6 text-center text-xs">
+            <div>
+              <div className="border-t border-black pt-1 font-bold text-black w-40 mx-auto">
+                হিসাব প্রস্তুতকারী (Prepared By)
+              </div>
+              <p className="text-[9pt] text-gray-700 mt-0.5">স্বাক্ষর: ....................................</p>
+            </div>
+            <div>
+              <div className="border-t border-black pt-1 font-bold text-black w-40 mx-auto">
+                মেস অডিটর / ক্যাশিয়ার (Auditor)
+              </div>
+              <p className="text-[9pt] text-gray-700 mt-0.5">স্বাক্ষর: ....................................</p>
+            </div>
+            <div>
+              <div className="border-t border-black pt-1 font-bold text-black w-40 mx-auto">
+                মেস প্রেসিডেন্ট / এডমিন (Admin)
+              </div>
+              <p className="text-[9pt] text-gray-700 mt-0.5">স্বাক্ষর: ....................................</p>
+            </div>
+          </div>
+
+          <div className="mt-6 text-center text-[8pt] text-gray-600 border-t border-gray-300 pt-2 font-mono">
+            মেস ম্যানেজমেন্ট মাস্টার লেজার রেজিস্টার | প্রিন্টিং তারিখ ও সময়: {new Date().toLocaleString('bn-BD')}
+          </div>
+        </div>
+
       </div>
 
       {/* Digital Receipt Modal Voucher */}

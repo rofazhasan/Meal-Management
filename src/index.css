@@ -122,6 +122,10 @@ h1, h2, h3, .font-display {
 /* Light Mode Master Theme Overrides */
 .light {
   background-color: #f8fafc !important;
+  background-image: radial-gradient(at 0% 0%, rgba(224, 242, 254, 0.5) 0px, transparent 50%),
+                    radial-gradient(at 100% 0%, rgba(254, 243, 199, 0.4) 0px, transparent 50%),
+                    radial-gradient(at 50% 100%, rgba(241, 245, 249, 0.8) 0px, transparent 50%) !important;
+  background-attachment: fixed !important;
   color: #0f172a !important;
 }
 
@@ -129,8 +133,7 @@ h1, h2, h3, .font-display {
 .light #root,
 .light div.min-h-screen,
 .light main {
-  background-color: #f8fafc !important;
-  background: #f8fafc !important;
+  background-color: transparent !important;
   color: #0f172a !important;
 }
 
@@ -138,17 +141,17 @@ h1, h2, h3, .font-display {
 .light .glass-panel,
 .light .glass-card,
 .light .glass-card-hover {
-  background: #ffffff !important;
-  backdrop-filter: blur(20px) !important;
-  -webkit-backdrop-filter: blur(20px) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
   border-color: #e2e8f0 !important;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02) !important;
+  box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.05), 0 4px 12px -2px rgba(15, 23, 42, 0.03) !important;
   color: #0f172a !important;
 }
 
 .light .glass-card-hover:hover {
   border-color: rgba(2, 132, 199, 0.4) !important;
-  box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.12) !important;
+  box-shadow: 0 14px 35px -5px rgba(2, 132, 199, 0.12) !important;
   transform: translateY(-2px) !important;
 }
 
@@ -157,6 +160,8 @@ h1, h2, h3, .font-display {
 .light .bg-slate-950,
 .light .bg-slate-900,
 .light .bg-slate-950\/40,
+.light .bg-slate-950\/60,
+.light .bg-slate-950\/80,
 .light .bg-slate-950\/90,
 .light .bg-slate-900\/80,
 .light .bg-slate-900\/90,
@@ -169,6 +174,7 @@ h1, h2, h3, .font-display {
 
 .light .bg-slate-800,
 .light .bg-slate-800\/80,
+.light .bg-slate-800\/60,
 .light .bg-slate-800\/50,
 .light .bg-slate-800\/30 {
   background-color: #f1f5f9 !important;
@@ -179,6 +185,8 @@ h1, h2, h3, .font-display {
 /* Border Class Remapping */
 .light .border-slate-800,
 .light .border-slate-800\/80,
+.light .border-slate-800\/50,
+.light .border-slate-800\/60,
 .light .border-slate-700,
 .light .border-slate-700\/80 {
   border-color: #e2e8f0 !important;
@@ -227,45 +235,108 @@ h1, h2, h3, .font-display {
   color: #0f172a !important;
 }
 
-/* Accent Color Enhancements for Light Mode */
-.light .text-cyan-300 {
+/* Table Light Mode Overrides */
+.light thead {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.light tbody tr:hover {
+  background-color: #f1f5f9 !important;
+}
+
+.light tbody tr {
+  border-bottom-color: #f1f5f9 !important;
+}
+
+/* Metallic & Holographic Cards in Light Mode */
+.light .wallet-card-holographic {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 45%, #0f172a 100%) !important;
+  box-shadow: 0 12px 30px -5px rgba(2, 132, 199, 0.3) !important;
+}
+
+.light .wallet-card-holographic .text-white,
+.light .wallet-card-holographic .text-slate-100,
+.light .wallet-card-holographic .text-slate-200,
+.light .wallet-card-holographic .text-cyan-300,
+.light .wallet-card-holographic .text-sky-300 {
+  color: #ffffff !important;
+}
+
+.light .wallet-card-gold {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 45%, #78350f 100%) !important;
+  box-shadow: 0 12px 30px -5px rgba(217, 119, 6, 0.3) !important;
+}
+
+.light .wallet-card-gold .text-white,
+.light .wallet-card-gold .text-slate-100,
+.light .wallet-card-gold .text-slate-200,
+.light .wallet-card-gold .text-amber-300 {
+  color: #ffffff !important;
+}
+
+/* Accent Badge & Gradient Enhancements for Light Mode */
+.light .bg-cyan-500\/10,
+.light .bg-cyan-500\/20,
+.light .bg-cyan-950\/40 {
+  background-color: #e0f2fe !important;
+  border-color: #bae6fd !important;
+}
+
+.light .bg-emerald-500\/10,
+.light .bg-emerald-500\/20,
+.light .bg-emerald-950\/40 {
+  background-color: #d1fae5 !important;
+  border-color: #a7f3d0 !important;
+}
+
+.light .bg-amber-500\/10,
+.light .bg-amber-500\/20,
+.light .bg-amber-950\/40,
+.light .bg-amber-950\/80,
+.light .bg-amber-950\/90 {
+  background-color: #fef3c7 !important;
+  border-color: #fde68a !important;
+}
+
+.light .bg-rose-500\/10,
+.light .bg-rose-500\/20,
+.light .bg-rose-950\/40 {
+  background-color: #ffe4e6 !important;
+  border-color: #fecdd3 !important;
+}
+
+.light .bg-purple-500\/10,
+.light .bg-purple-500\/20,
+.light .bg-purple-950\/40 {
+  background-color: #f3e8ff !important;
+  border-color: #e9d5ff !important;
+}
+
+.light .text-cyan-300,
+.light .text-cyan-400 {
   color: #0284c7 !important;
 }
 
-.light .text-cyan-400 {
-  color: #0369a1 !important;
-}
-
-.light .text-amber-300 {
+.light .text-amber-300,
+.light .text-amber-400 {
   color: #d97706 !important;
 }
 
-.light .text-amber-400 {
-  color: #b45309 !important;
-}
-
-.light .text-emerald-300 {
+.light .text-emerald-300,
+.light .text-emerald-400 {
   color: #059669 !important;
 }
 
-.light .text-emerald-400 {
-  color: #047857 !important;
-}
-
-.light .text-rose-300 {
+.light .text-rose-300,
+.light .text-rose-400 {
   color: #e11d48 !important;
 }
 
-.light .text-rose-400 {
-  color: #be123c !important;
-}
-
-.light .text-purple-300 {
-  color: #9333ea !important;
-}
-
+.light .text-purple-300,
 .light .text-purple-400 {
-  color: #7e22ce !important;
+  color: #9333ea !important;
 }
 
 /* High Quality Professional Print & PDF Styles */

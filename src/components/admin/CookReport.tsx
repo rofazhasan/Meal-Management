@@ -584,61 +584,145 @@ export const CookReport: React.FC<CookReportProps> = ({
 
       {/* Printable Cook Memo Sheet View */}
       <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800/80 space-y-6 shadow-2xl print:border-none print:shadow-none print:p-0 print:bg-white print:text-black">
-        {/* Print Only Header */}
-        <div className="hidden print:block border-b-2 border-black pb-4 mb-6">
-          <div className="flex justify-between items-center">
+        
+        {/* World Class Printable Header (Visible ONLY on print) */}
+        <div className="hidden print:block border-b-2 border-black pb-4 mb-5">
+          <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-2xl font-bold text-black font-display">মেস ডাইনিং - বাবুর্চির বাজার ও মিল মেমো</h1>
-              <p className="text-sm text-gray-700 font-sans mt-0.5">
-                তারিখ: <span className="font-bold font-mono">{selectedDate}</span>
+              <div className="flex items-center gap-2">
+                <ChefHat className="w-7 h-7 text-black stroke-[2.5]" />
+                <h1 className="text-2xl font-black text-black font-display tracking-tight uppercase">
+                  মেস ডাইনিং — বাবুর্চির দৈনিক বাজার ও মিল মেমো
+                </h1>
+              </div>
+              <p className="text-xs font-semibold text-gray-800 mt-1 font-sans">
+                অফিসিয়াল ডেইলি ডাইনিং বুকি ও রান্নার নির্দেশিকা বিবরণী
               </p>
+              <div className="flex items-center gap-4 text-xs font-mono font-bold mt-2 text-black">
+                <span>তারিখ: {selectedDate}</span>
+                <span>|</span>
+                <span>বার: {getDayOfWeekFromDateStr(selectedDate)}</span>
+              </div>
             </div>
-            <div className="text-right">
-              <div className="text-lg font-bold text-black">মোট মিল: {totalMealsCount} টি</div>
-              <div className="text-sm font-bold text-gray-800">সর্বমোট বাজার বাজেট: ৳{totalBazaarBudget}</div>
+
+            <div className="text-right border-2 border-black p-3 bg-gray-50 rounded">
+              <div className="text-xs uppercase font-bold text-gray-700">সর্বমোট দৈনিক বাজার বাজেট</div>
+              <div className="text-2xl font-black text-black font-mono">৳{totalBazaarBudget}</div>
+              <div className="text-xs font-bold text-black border-t border-black mt-1 pt-0.5">
+                মোট বুকিং মিল: {totalMealsCount} টি
+              </div>
             </div>
           </div>
 
           {emergencyForDate && (
-            <div className="mt-3 p-2 border border-red-600 bg-red-50 text-red-800 rounded text-xs font-bold">
-              🚨 জরুরি বন্ধ: {emergencyForDate.reason || 'Emergency Closure'}
+            <div className="mt-3 p-2.5 border-2 border-black bg-gray-100 text-black text-xs font-bold uppercase tracking-wider">
+              🚨 জরুরি বন্ধ নির্দেশিকা: {emergencyForDate.reason || 'Emergency Closure Active'}
             </div>
           )}
         </div>
 
-        {/* 3 Detailed Tables Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Executive Summary Table (Visible ONLY on print) */}
+        <div className="hidden print:block mb-5">
+          <h3 className="text-xs font-bold uppercase tracking-wider mb-1 text-black border-b border-black pb-1">
+            ১. দৈনিক মিল ও বাজার বাজেট সারসংক্ষেপ (Executive Summary)
+          </h3>
+          <table className="w-full text-xs border border-black border-collapse">
+            <thead>
+              <tr className="bg-gray-100 border-b border-black">
+                <th className="border border-black p-1.5 text-left font-bold">মিল সেশন</th>
+                <th className="border border-black p-1.5 text-center font-bold">স্থায়ী মেম্বার</th>
+                <th className="border border-black p-1.5 text-center font-bold">অতিথি মেম্বার</th>
+                <th className="border border-black p-1.5 text-center font-bold">মোট মিল</th>
+                <th className="border border-black p-1.5 text-right font-bold">বরাদ্দকৃত বাজেট (৳)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="border border-black p-1.5 font-bold">
+                  সকালের নাস্তা {specB ? `(✨${specB.title})` : ''}
+                </td>
+                <td className="border border-black p-1.5 text-center font-mono">{bBreakdown.perm} জন</td>
+                <td className="border border-black p-1.5 text-center font-mono">{bBreakdown.guest} জন</td>
+                <td className="border border-black p-1.5 text-center font-mono font-bold">
+                  {isBEmergencyOff ? 'জরুরি বন্ধ (০)' : `${breakfastMembers.length} টি`}
+                </td>
+                <td className="border border-black p-1.5 text-right font-mono font-bold">৳{breakfastCost}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1.5 font-bold">
+                  দুপুরের খাবার {specL ? `(✨${specL.title})` : ''}
+                </td>
+                <td className="border border-black p-1.5 text-center font-mono">{lBreakdown.perm} জন</td>
+                <td className="border border-black p-1.5 text-center font-mono">{lBreakdown.guest} জন</td>
+                <td className="border border-black p-1.5 text-center font-mono font-bold">
+                  {isLEmergencyOff ? 'জরুরি বন্ধ (০)' : `${lunchMembers.length} টি`}
+                </td>
+                <td className="border border-black p-1.5 text-right font-mono font-bold">৳{lunchCost}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1.5 font-bold">
+                  রাতের খাবার {specD ? `(✨${specD.title})` : ''}
+                </td>
+                <td className="border border-black p-1.5 text-center font-mono">{dBreakdown.perm} জন</td>
+                <td className="border border-black p-1.5 text-center font-mono">{dBreakdown.guest} জন</td>
+                <td className="border border-black p-1.5 text-center font-mono font-bold">
+                  {isDEmergencyOff ? 'জরুরি বন্ধ (০)' : `${dinnerMembers.length} টি`}
+                </td>
+                <td className="border border-black p-1.5 text-right font-mono font-bold">৳{dinnerCost}</td>
+              </tr>
+              <tr className="bg-gray-100 font-bold">
+                <td className="border border-black p-1.5 text-left font-bold" colSpan={3}>
+                  সর্বমোট সমষ্টি (Total Summary)
+                </td>
+                <td className="border border-black p-1.5 text-center font-mono text-sm font-black">
+                  {totalMealsCount} টি
+                </td>
+                <td className="border border-black p-1.5 text-right font-mono text-sm font-black">
+                  ৳{totalBazaarBudget}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Section Title for Detailed Lists */}
+        <h3 className="hidden print:block text-xs font-bold uppercase tracking-wider text-black border-b border-black pb-1 mb-3">
+          ২. মেম্বারভিত্তিক বিস্তারিত খাবার তালিকা (Meal Members Breakdown)
+        </h3>
+
+        {/* 3 Detailed Member Tables */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:gap-4 print:grid-cols-3">
           {/* Breakfast List */}
-          <div className="rounded-2xl border border-slate-800/80 p-4 bg-slate-950/40 print:border-gray-300 print:bg-white flex flex-col justify-between">
+          <div className="rounded-2xl border border-slate-800/80 p-4 bg-slate-950/40 print:border-black print:bg-white print:p-2.5 print:rounded-none flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-gray-300">
-                <h3 className="font-bold text-emerald-400 text-sm font-display flex items-center gap-2 print:text-black">
-                  <Utensils className="w-4 h-4" />
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-black print:pb-1.5 print:mb-2">
+                <h3 className="font-bold text-emerald-400 text-sm font-display flex items-center gap-2 print:text-black print:text-xs">
+                  <Utensils className="w-4 h-4 print:hidden" />
                   {specB ? `✨ ${specB.title}` : 'সকালের নাস্তা'} ({breakfastMembers.length} জন)
                 </h3>
-                <span className="text-xs font-mono font-bold text-slate-300 print:text-gray-800">৳{breakfastCost}</span>
+                <span className="text-xs font-mono font-bold text-slate-300 print:text-black">৳{breakfastCost}</span>
               </div>
 
               {isBEmergencyOff ? (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs italic text-center print:border-red-400 print:text-red-700">
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs italic text-center print:border-black print:text-black">
                   🚨 জরুরি বন্ধ থাকায় নাস্তা বাতিল
                 </div>
               ) : filteredB.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-2">কেউ নাস্তা খাবেন না</p>
+                <p className="text-xs text-slate-500 italic py-2 print:text-black">কেউ নাস্তা খাবেন না</p>
               ) : (
-                <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-200">
+                <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-300 print:space-y-1">
                   {filteredB.map((m, idx) => (
-                    <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black">
-                      <span className="font-medium">
+                    <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black print:pt-1">
+                      <span className="font-medium print:text-[10pt]">
                         {idx + 1}. {m.name}{' '}
                         {m.profile?.roomNumber && (
-                          <span className="text-[10px] text-slate-400 font-mono font-normal print:text-gray-600">
-                            ({m.profile.roomNumber})
+                          <span className="text-[10px] text-slate-400 font-mono font-normal print:text-black print:font-bold">
+                            (রুম {m.profile.roomNumber})
                           </span>
                         )}
                       </span>
-                      <span className="font-mono text-emerald-300 font-bold bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40 print:bg-gray-100 print:text-black print:border-gray-300 text-[11px]">
-                        {m.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'} | {m.phone}
+                      <span className="font-mono text-emerald-300 font-bold bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40 print:bg-white print:text-black print:border-black text-[11px] print:text-[9pt]">
+                        {m.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'}
                       </span>
                     </li>
                   ))}
@@ -646,56 +730,55 @@ export const CookReport: React.FC<CookReportProps> = ({
               )}
             </div>
 
-            <div className="mt-4 pt-2 border-t border-slate-800/50 text-[11px] text-slate-400 font-mono flex justify-between print:border-gray-300 print:text-gray-600">
-              <span>স্থায়ী: {bBreakdown.perm} জন</span>
-              <span>অতিথি: {bBreakdown.guest} জন</span>
+            <div className="mt-4 pt-2 border-t border-slate-800/50 text-[11px] text-slate-400 font-mono flex justify-between print:border-black print:text-black print:font-bold">
+              <span>স্থায়ী: {bBreakdown.perm}</span>
+              <span>অতিথি: {bBreakdown.guest}</span>
             </div>
           </div>
 
-          {/* Lunch List — OVERWRITE TITLE TO SPECIAL MEAL WHEN SPECIAL EXISTS */}
+          {/* Lunch List */}
           <div
-            className={`rounded-2xl border p-4 flex flex-col justify-between transition-all ${
+            className={`rounded-2xl border p-4 flex flex-col justify-between transition-all print:p-2.5 print:rounded-none ${
               specL
-                ? 'border-amber-500/40 bg-amber-950/10 print:border-amber-500 print:bg-white'
-                : 'border-slate-800/80 bg-slate-950/40 print:border-gray-300 print:bg-white'
+                ? 'border-amber-500/40 bg-amber-950/10 print:border-black print:bg-white'
+                : 'border-slate-800/80 bg-slate-950/40 print:border-black print:bg-white'
             }`}
           >
             <div>
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-gray-300">
-                <h3 className="font-bold text-cyan-400 text-sm font-display flex items-center gap-2 print:text-black">
-                  <Utensils className="w-4 h-4" />
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-black print:pb-1.5 print:mb-2">
+                <h3 className="font-bold text-cyan-400 text-sm font-display flex items-center gap-2 print:text-black print:text-xs">
+                  <Utensils className="w-4 h-4 print:hidden" />
                   {specL ? (
-                    <span className="text-amber-300 font-extrabold flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-amber-300 font-extrabold flex items-center gap-1 print:text-black">
                       ✨ স্পেশাল মিল ({specL.title}) ({lunchMembers.length} জন)
                     </span>
                   ) : (
                     `দুপুরের খাবার (${lunchMembers.length} জন)`
                   )}
                 </h3>
-                <span className="text-xs font-mono font-bold text-slate-300 print:text-gray-800">৳{lunchCost}</span>
+                <span className="text-xs font-mono font-bold text-slate-300 print:text-black">৳{lunchCost}</span>
               </div>
 
               {isLEmergencyOff ? (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs italic text-center print:border-red-400 print:text-red-700">
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs italic text-center print:border-black print:text-black">
                   🚨 জরুরি বন্ধ থাকায় দুপুরের খাবার বাতিল
                 </div>
               ) : filteredL.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-2">কেউ দুপুরে খাবেন না</p>
+                <p className="text-xs text-slate-500 italic py-2 print:text-black">কেউ দুপুরে খাবেন না</p>
               ) : (
-                <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-200">
+                <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-300 print:space-y-1">
                   {filteredL.map((m, idx) => (
-                    <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black">
-                      <span className="font-medium">
+                    <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black print:pt-1">
+                      <span className="font-medium print:text-[10pt]">
                         {idx + 1}. {m.name}{' '}
                         {m.profile?.roomNumber && (
-                          <span className="text-[10px] text-slate-400 font-mono font-normal print:text-gray-600">
-                            ({m.profile.roomNumber})
+                          <span className="text-[10px] text-slate-400 font-mono font-normal print:text-black print:font-bold">
+                            (রুম {m.profile.roomNumber})
                           </span>
                         )}
                       </span>
-                      <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-gray-100 print:text-black print:border-gray-300 text-[11px]">
-                        {m.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'} | {m.phone}
+                      <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-white print:text-black print:border-black text-[11px] print:text-[9pt]">
+                        {m.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'}
                       </span>
                     </li>
                   ))}
@@ -703,43 +786,43 @@ export const CookReport: React.FC<CookReportProps> = ({
               )}
             </div>
 
-            <div className="mt-4 pt-2 border-t border-slate-800/50 text-[11px] text-slate-400 font-mono flex justify-between print:border-gray-300 print:text-gray-600">
-              <span>স্থায়ী: {lBreakdown.perm} জন</span>
-              <span>অতিথি: {lBreakdown.guest} জন</span>
+            <div className="mt-4 pt-2 border-t border-slate-800/50 text-[11px] text-slate-400 font-mono flex justify-between print:border-black print:text-black print:font-bold">
+              <span>স্থায়ী: {lBreakdown.perm}</span>
+              <span>অতিথি: {lBreakdown.guest}</span>
             </div>
           </div>
 
           {/* Dinner List */}
-          <div className="rounded-2xl border border-slate-800/80 p-4 bg-slate-950/40 print:border-gray-300 print:bg-white flex flex-col justify-between">
+          <div className="rounded-2xl border border-slate-800/80 p-4 bg-slate-950/40 print:border-black print:bg-white print:p-2.5 print:rounded-none flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-gray-300">
-                <h3 className="font-bold text-indigo-400 text-sm font-display flex items-center gap-2 print:text-black">
-                  <Utensils className="w-4 h-4" />
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 print:border-black print:pb-1.5 print:mb-2">
+                <h3 className="font-bold text-indigo-400 text-sm font-display flex items-center gap-2 print:text-black print:text-xs">
+                  <Utensils className="w-4 h-4 print:hidden" />
                   {specD ? `✨ ${specD.title}` : 'রাতের খাবার'} ({dinnerMembers.length} জন)
                 </h3>
-                <span className="text-xs font-mono font-bold text-slate-300 print:text-gray-800">৳{dinnerCost}</span>
+                <span className="text-xs font-mono font-bold text-slate-300 print:text-black">৳{dinnerCost}</span>
               </div>
 
               {isDEmergencyOff ? (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs italic text-center print:border-red-400 print:text-red-700">
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs italic text-center print:border-black print:text-black">
                   🚨 জরুরি বন্ধ থাকায় রাতের খাবার বাতিল
                 </div>
               ) : filteredD.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-2">কেউ রাতে খাবেন না</p>
+                <p className="text-xs text-slate-500 italic py-2 print:text-black">কেউ রাতে খাবেন না</p>
               ) : (
-                <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-200">
+                <ul className="space-y-2 text-xs divide-y divide-slate-800/50 print:divide-gray-300 print:space-y-1">
                   {filteredD.map((m, idx) => (
-                    <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black">
-                      <span className="font-medium">
+                    <li key={m.id} className="pt-2 flex justify-between items-center text-slate-200 print:text-black print:pt-1">
+                      <span className="font-medium print:text-[10pt]">
                         {idx + 1}. {m.name}{' '}
                         {m.profile?.roomNumber && (
-                          <span className="text-[10px] text-slate-400 font-mono font-normal print:text-gray-600">
-                            ({m.profile.roomNumber})
+                          <span className="text-[10px] text-slate-400 font-mono font-normal print:text-black print:font-bold">
+                            (রুম {m.profile.roomNumber})
                           </span>
                         )}
                       </span>
-                      <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-gray-100 print:text-black print:border-gray-300 text-[11px]">
-                        {m.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'} | {m.phone}
+                      <span className="font-mono text-cyan-300 font-bold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40 print:bg-white print:text-black print:border-black text-[11px] print:text-[9pt]">
+                        {m.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'}
                       </span>
                     </li>
                   ))}
@@ -747,12 +830,37 @@ export const CookReport: React.FC<CookReportProps> = ({
               )}
             </div>
 
-            <div className="mt-4 pt-2 border-t border-slate-800/50 text-[11px] text-slate-400 font-mono flex justify-between print:border-gray-300 print:text-gray-600">
-              <span>স্থায়ী: {dBreakdown.perm} জন</span>
-              <span>অতিথি: {dBreakdown.guest} জন</span>
+            <div className="mt-4 pt-2 border-t border-slate-800/50 text-[11px] text-slate-400 font-mono flex justify-between print:border-black print:text-black print:font-bold">
+              <span>স্থায়ী: {dBreakdown.perm}</span>
+              <span>অতিথি: {dBreakdown.guest}</span>
             </div>
           </div>
         </div>
+
+        {/* Formal Signature Section (Visible ONLY on print) */}
+        <div className="hidden print:block pt-12 mt-8 print-avoid-break border-t border-black">
+          <div className="grid grid-cols-2 gap-8 text-center text-xs">
+            <div>
+              <div className="border-t border-black pt-1 font-bold text-black w-48 mx-auto">
+                বাবুর্চির স্বাক্ষর (Cook Signature)
+              </div>
+              <p className="text-[9pt] text-gray-700 mt-0.5">নাম: ................................................</p>
+              <p className="text-[9pt] text-gray-700">তারিখ: {selectedDate}</p>
+            </div>
+            <div>
+              <div className="border-t border-black pt-1 font-bold text-black w-48 mx-auto">
+                ডাইনিং ম্যানেজার স্বাক্ষর (Manager)
+              </div>
+              <p className="text-[9pt] text-gray-700 mt-0.5">নাম: ................................................</p>
+              <p className="text-[9pt] text-gray-700">তারিখ: {selectedDate}</p>
+            </div>
+          </div>
+
+          <div className="mt-6 text-center text-[8pt] text-gray-600 border-t border-gray-300 pt-2 font-mono">
+            মেস ম্যানেজমেন্ট সফটওয়্যার থেকে স্বয়ংক্রিয়ভাবে জেনারেটেড | প্রিন্ট সমাাপ্তি সময়: {new Date().toLocaleString('bn-BD')}
+          </div>
+        </div>
+
       </div>
     </div>
   );

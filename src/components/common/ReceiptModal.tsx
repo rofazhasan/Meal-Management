@@ -353,6 +353,29 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
         </div>
 
+        {/* Printable Formal Voucher Signatures & Authorization (Print Only) */}
+        <div className="hidden print:block pt-8 mt-6 print-avoid-break border-t-2 border-black">
+          <div className="grid grid-cols-2 gap-8 text-center text-xs">
+            <div>
+              <div className="border-t border-black pt-1 font-bold text-black w-44 mx-auto">
+                গ্রাহক / মেম্বারের স্বাক্ষর
+              </div>
+              <p className="text-[8pt] text-gray-700 mt-0.5">(জমা প্রদানকারী / গ্রহণকারী)</p>
+            </div>
+            <div>
+              <div className="border-t border-black pt-1 font-bold text-black w-44 mx-auto">
+                ক্যাশিয়ার / এডমিন সীল ও স্বাক্ষর
+              </div>
+              <p className="text-[8pt] text-gray-700 mt-0.5">(অনুমোদনকারী মেস এডমিন)</p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex justify-between items-center text-[8pt] text-gray-600 border-t border-gray-300 pt-1.5 font-mono">
+            <span>কপি: ১ম কপি - মেস অফিস ফাইল | ২য় কপি - গ্রাহক নথি</span>
+            <span>প্রিন্ট সময়: {new Date().toLocaleString('bn-BD')}</span>
+          </div>
+        </div>
+
         {/* Printable Action Buttons */}
         <div className="mt-5 flex items-center gap-3 print:hidden">
           <button

@@ -899,34 +899,60 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             </div>
 
             {/* Master Member Table */}
-            <div className="overflow-x-auto rounded-2xl border border-slate-800 print:border-gray-300">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-900/90 text-slate-300 uppercase text-[10px] font-mono border-b border-slate-800 print:bg-gray-100 print:text-black print:border-gray-300">
+            <div className="overflow-x-auto rounded-2xl border border-slate-800 print:border-black">
+              <table className="w-full text-left text-xs border border-black border-collapse">
+                <thead className="bg-slate-900/90 text-slate-300 uppercase text-[10px] font-mono border-b border-slate-800 print:bg-gray-100 print:text-black print:border-black">
                   <tr>
-                    <th className="p-3 font-bold">ক্রঃ</th>
-                    <th className="p-3 font-bold">নাম ও ফোন</th>
-                    <th className="p-3 font-bold">রুম</th>
-                    <th className="p-3 font-bold">ধরণ</th>
-                    <th className="p-3 font-bold">স্ট্যাটাস</th>
-                    <th className="p-3 font-bold text-right">পার্স ব্যালেন্স</th>
+                    <th className="p-3 font-bold border border-black">ক্রঃ</th>
+                    <th className="p-3 font-bold border border-black">মেম্বারের নাম ও ফোন</th>
+                    <th className="p-3 font-bold border border-black">রুম ও সিট</th>
+                    <th className="p-3 font-bold border border-black">ধরণ</th>
+                    <th className="p-3 font-bold border border-black">স্ট্যাটাস</th>
+                    <th className="p-3 font-bold text-right border border-black">ওয়ালেট ব্যালেন্স</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 print:divide-gray-200">
+                <tbody className="divide-y divide-slate-800 print:divide-gray-300">
                   {users.map((u, index) => (
                     <tr key={u.id} className="hover:bg-slate-900/50 print:hover:bg-transparent">
-                      <td className="p-3 font-mono text-slate-400 print:text-black">{index + 1}</td>
-                      <td className="p-3 font-bold text-white print:text-black">
+                      <td className="p-3 font-mono text-slate-400 print:text-black border border-black">{index + 1}</td>
+                      <td className="p-3 font-bold text-white print:text-black border border-black">
                         {u.name}
-                        <span className="block text-[10px] text-slate-400 print:text-gray-600 font-normal font-mono">{u.phone}</span>
+                        <span className="block text-[10px] text-slate-400 print:text-black font-normal font-mono">{u.phone}</span>
                       </td>
-                      <td className="p-3 text-slate-300 print:text-black">{u.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'}</td>
-                      <td className="p-3 text-slate-300 print:text-black">{u.status}</td>
-                      <td className="p-3 text-right font-mono font-bold text-emerald-400 print:text-black">৳{u.walletBalance}</td>
+                      <td className="p-3 text-slate-300 print:text-black font-mono border border-black font-bold">
+                        {u.profile?.roomNumber ? `রুম ${u.profile.roomNumber}` : 'N/A'} {u.profile?.seatNumber ? `(${u.profile.seatNumber})` : ''}
+                      </td>
+                      <td className="p-3 text-slate-300 print:text-black border border-black">{u.userType === 'PERMANENT' ? 'স্থায়ী' : 'অতিথি'}</td>
+                      <td className="p-3 text-slate-300 print:text-black border border-black">{u.status === 'APPROVED' ? 'অনুমোদিত' : u.status}</td>
+                      <td className="p-3 text-right font-mono font-bold text-emerald-400 print:text-black border border-black">৳{u.walletBalance}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+
+            {/* Printable Formal Signatures */}
+            <div className="hidden print:block pt-10 mt-6 print-avoid-break border-t border-black">
+              <div className="grid grid-cols-2 gap-8 text-center text-xs">
+                <div>
+                  <div className="border-t border-black pt-1 font-bold text-black w-48 mx-auto">
+                    মেস ম্যানেজার / ক্যাশিয়ার
+                  </div>
+                  <p className="text-[8pt] text-gray-700 mt-0.5">স্বাক্ষর: ................................................</p>
+                </div>
+                <div>
+                  <div className="border-t border-black pt-1 font-bold text-black w-48 mx-auto">
+                    মেস প্রেসিডেন্ট / এডমিন
+                  </div>
+                  <p className="text-[8pt] text-gray-700 mt-0.5">স্বাক্ষর: ................................................</p>
+                </div>
+              </div>
+
+              <div className="mt-6 text-center text-[8pt] text-gray-600 border-t border-gray-300 pt-2 font-mono">
+                মেস ম্যানেজমেন্ট সিস্টেম — সদস্য মাস্টার রেজিস্টার | জেনারেশন সময়: {new Date().toLocaleString('bn-BD')}
+              </div>
+            </div>
+
           </div>
         </div>
       )}
