@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { resolveMealPricing, parseDateToUtcMidday } from '@/lib/mealEngine';
+import { getSystemRatesFromDb } from '@/lib/rates';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,7 +83,11 @@ export async function POST(req: Request) {
 
     const mealDate = parseDateToUtcMidday(date);
 
-    // 1. Check emergency closure for target date
+    // 1. Check system global meal status
+    const ratesConfig = await getSystemRatesFromDb(prisma);
+    const globalStatus = ratesConfig?.globalMealStatus || { breakfast: true, lunch: true, dinner: true };
+
+    // 2. Check emergency closure for target date
     const emSetting = await prisma.mealSetting.findFirst({
       where: { mealDate, emergencyOff: true },
     });
@@ -99,6 +104,11 @@ export async function POST(req: Request) {
     let finalB = numB;
     let finalL = numL;
     let finalD = numD;
+
+    // Suppress counts if meal slot is globally OFF or emergency OFF
+    if (globalStatus.breakfast === false) finalB = 0;
+    if (globalStatus.lunch === false) finalL = 0;
+    if (globalStatus.dinner === false) finalD = 0;
 
     if (emSetting && emSetting.emergencyOff) {
       finalB = 0;

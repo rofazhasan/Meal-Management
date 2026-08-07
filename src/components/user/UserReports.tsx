@@ -119,10 +119,10 @@ export const UserReports: React.FC<UserReportsProps> = ({ currentUser, declarati
       const selfCost = (isBOn ? bPrice : 0) + (isLOn ? lPrice : 0) + (isDOn ? dPrice : 0);
 
       const gm = guestMealsMap[dec.date];
-      const guestB = gm ? gm.breakfastCount : 0;
-      const guestL = gm ? gm.lunchCount : 0;
-      const guestD = gm ? gm.dinnerCount : 0;
-      const guestCost = gm ? Number(gm.chargedAmount || 0) : 0;
+      const guestB = (isBGlobalOff || isBEm) ? 0 : (gm ? gm.breakfastCount : 0);
+      const guestL = (isLGlobalOff || isLEm) ? 0 : (gm ? gm.lunchCount : 0);
+      const guestD = (isDGlobalOff || isDEm) ? 0 : (gm ? gm.dinnerCount : 0);
+      const guestCost = (guestB === 0 && guestL === 0 && guestD === 0) ? 0 : (gm ? Number(gm.chargedAmount || 0) : 0);
       const dailyCost = selfCost + guestCost;
 
       return {

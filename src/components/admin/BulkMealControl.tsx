@@ -190,9 +190,9 @@ export const BulkMealControl: React.FC<BulkMealControlProps> = ({
   // Calculate counters incorporating both regular member declarations and guest meal counts
   let extraGuestB = 0, extraGuestL = 0, extraGuestD = 0;
   Object.values(guestMealsMap).forEach((gm) => {
-    extraGuestB += gm.breakfastCount || 0;
-    extraGuestL += gm.lunchCount || 0;
-    extraGuestD += gm.dinnerCount || 0;
+    extraGuestB += (isBEmergencyOff || isBGlobalOff) ? 0 : (gm.breakfastCount || 0);
+    extraGuestL += (isLEmergencyOff || isLGlobalOff) ? 0 : (gm.lunchCount || 0);
+    extraGuestD += (isDEmergencyOff || isDGlobalOff) ? 0 : (gm.dinnerCount || 0);
   });
 
   const totalB = Object.values(mealMap).filter((m) => m.breakfast).length + extraGuestB;

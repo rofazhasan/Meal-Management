@@ -173,11 +173,19 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
       }
     });
 
+    const isBGlobalOff = rates?.globalMealStatus?.breakfast === false;
+    const isLGlobalOff = rates?.globalMealStatus?.lunch === false;
+    const isDGlobalOff = rates?.globalMealStatus?.dinner === false;
+
+    const isBEmergencyOff = !!todayEmergency && (todayEmergency.closedMeals?.includes('breakfast') ?? true);
+    const isLEmergencyOff = !!todayEmergency && (todayEmergency.closedMeals?.includes('lunch') ?? true);
+    const isDEmergencyOff = !!todayEmergency && (todayEmergency.closedMeals?.includes('dinner') ?? true);
+
     // Add Extra Guest Meals
     rawTodayGuestMeals.forEach((gm: any) => {
-      const bCount = gm.breakfastCount || 0;
-      const lCount = gm.lunchCount || 0;
-      const dCount = gm.dinnerCount || 0;
+      const bCount = (isBGlobalOff || isBEmergencyOff) ? 0 : (gm.breakfastCount || 0);
+      const lCount = (isLGlobalOff || isLEmergencyOff) ? 0 : (gm.lunchCount || 0);
+      const dCount = (isDGlobalOff || isDEmergencyOff) ? 0 : (gm.dinnerCount || 0);
 
       breakfast += bCount;
       lunch += lCount;

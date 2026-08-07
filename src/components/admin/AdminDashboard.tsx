@@ -185,11 +185,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   });
 
+  const isBGlobalOff = rates?.globalMealStatus?.breakfast === false;
+  const isLGlobalOff = rates?.globalMealStatus?.lunch === false;
+  const isDGlobalOff = rates?.globalMealStatus?.dinner === false;
+
   // Aggregate extra guest meals into today's overview counters & financial totals
   todayGuestMeals.forEach((gm: any) => {
-    const numB = gm.breakfastCount || 0;
-    const numL = gm.lunchCount || 0;
-    const numD = gm.dinnerCount || 0;
+    const numB = isBGlobalOff ? 0 : (gm.breakfastCount || 0);
+    const numL = isLGlobalOff ? 0 : (gm.lunchCount || 0);
+    const numD = isDGlobalOff ? 0 : (gm.dinnerCount || 0);
 
     todayBreakfasts += numB;
     todayLunches += numL;
