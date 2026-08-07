@@ -111,8 +111,13 @@ const MainApplication: React.FC = () => {
       ApiService.getUsers().then((usrs) => {
         const updatedSelf = usrs.find((u) => u.id === currentUser.id);
         if (updatedSelf) {
-          setCurrentUser(updatedSelf);
-          ApiService.setCurrentUser(updatedSelf);
+          const merged: User = {
+            ...updatedSelf,
+            activeMode: currentUser.activeMode,
+            isDualMode: currentUser.isDualMode,
+          };
+          setCurrentUser(merged);
+          ApiService.setCurrentUser(merged);
         }
       });
     }
@@ -184,11 +189,13 @@ const MainApplication: React.FC = () => {
           latest.isIndefinitelyPaused !== currentUser.isIndefinitelyPaused ||
           latest.status !== currentUser.status)
       ) {
-        const updated = {
+        const updated: User = {
           ...currentUser,
           walletBalance: latest.walletBalance,
           isIndefinitelyPaused: latest.isIndefinitelyPaused,
           status: latest.status,
+          activeMode: currentUser.activeMode,
+          isDualMode: currentUser.isDualMode,
         };
         setCurrentUser(updated);
         ApiService.setCurrentUser(updated);

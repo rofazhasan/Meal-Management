@@ -63,7 +63,13 @@ export class ApiService {
     if (!user) {
       sessionStorage.removeItem('meal_app_current_user');
     } else {
-      sessionStorage.setItem('meal_app_current_user', JSON.stringify(user));
+      const existing = this.getCurrentUserSync();
+      const merged: User = {
+        ...user,
+        activeMode: user.activeMode || existing?.activeMode,
+        isDualMode: user.isDualMode ?? existing?.isDualMode,
+      };
+      sessionStorage.setItem('meal_app_current_user', JSON.stringify(merged));
     }
   }
 
