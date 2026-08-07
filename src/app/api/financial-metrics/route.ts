@@ -96,76 +96,121 @@ export async function GET() {
           where: { status: 'PENDING' },
         });
 
-        const permRevenueAgg = await prisma.walletTransaction.aggregate({
+        // Permanent Users Net Deductions (Deductions - Refunds)
+        const permDeductionAgg = await prisma.walletTransaction.aggregate({
           _sum: { amount: true },
           where: {
             transactionType: { in: ['MEAL_DEDUCTION', 'DEBIT'] },
             wallet: { user: { userType: 'PERMANENT' } },
           },
         });
+        const permRefundAgg = await prisma.walletTransaction.aggregate({
+          _sum: { amount: true },
+          where: {
+            transactionType: 'REFUND',
+            wallet: { user: { userType: 'PERMANENT' } },
+          },
+        });
 
-        const guestRevenueAgg = await prisma.walletTransaction.aggregate({
+        // Guest Users Net Deductions (Deductions - Refunds)
+        const guestDeductionAgg = await prisma.walletTransaction.aggregate({
           _sum: { amount: true },
           where: {
             transactionType: { in: ['MEAL_DEDUCTION', 'DEBIT'] },
             wallet: { user: { userType: 'GUEST' } },
           },
         });
+        const guestRefundAgg = await prisma.walletTransaction.aggregate({
+          _sum: { amount: true },
+          where: {
+            transactionType: 'REFUND',
+            wallet: { user: { userType: 'GUEST' } },
+          },
+        });
 
-        const todayExpensesAgg = await prisma.walletTransaction.aggregate({
+        // Today's Net Expenses (Today Deductions - Today Refunds)
+        const todayDeductionAgg = await prisma.walletTransaction.aggregate({
           _sum: { amount: true },
           where: {
             transactionType: { in: ['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE'] },
             createdAt: { gte: startOfToday },
           },
         });
-
-        const topSpendersGroup = await prisma.walletTransaction.groupBy({
-          by: ['walletId'],
+        const todayRefundAgg = await prisma.walletTransaction.aggregate({
           _sum: { amount: true },
           where: {
-            transactionType: { in: ['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE'] },
-            createdAt: { gte: startOfMonth },
+            transactionType: 'REFUND',
+            createdAt: { gte: startOfToday },
           },
-          orderBy: {
-            _sum: { amount: 'desc' },
-          },
-          take: 5,
         });
 
-        const topSpenderWalletIds = topSpendersGroup.map((g) => g.walletId);
+        // Calculate Net Top Spenders for current month (Net Spending = Deductions - Refunds)
+        const monthTx = await prisma.walletTransaction.findMany({
+          where: {
+            transactionType: { in: ['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE', 'REFUND'] },
+            createdAt: { gte: startOfMonth },
+          },
+          select: {
+            walletId: true,
+            transactionType: true,
+            amount: true,
+          },
+        });
+
+        const walletSpendingMap = new Map<string, number>();
+        monthTx.forEach((tx) => {
+          if (!tx.walletId) return;
+          const current = walletSpendingMap.get(tx.walletId) || 0;
+          const amt = Number(tx.amount || 0);
+          if (tx.transactionType === 'REFUND') {
+            walletSpendingMap.set(tx.walletId, current - amt);
+          } else {
+            walletSpendingMap.set(tx.walletId, current + amt);
+          }
+        });
+
+        const sortedWallets = Array.from(walletSpendingMap.entries())
+          .map(([walletId, amount]) => ({ walletId, amount: Math.max(0, amount) }))
+          .sort((a, b) => b.amount - a.amount)
+          .slice(0, 5);
+
+        const topSpenderWalletIds = sortedWallets.map((w) => w.walletId);
         const topSpenderWallets = await prisma.wallet.findMany({
           where: { id: { in: topSpenderWalletIds } },
           include: { user: { select: { id: true, fullName: true, phoneNumber: true } } },
         });
         const walletMap = new Map(topSpenderWallets.map((w) => [w.id, w.user]));
 
-        const topSpenders = topSpendersGroup.map((g) => {
-          const u = walletMap.get(g.walletId);
+        const topSpenders = sortedWallets.map((w) => {
+          const u = walletMap.get(w.walletId);
           return {
             name: u?.fullName || 'অজানা মেম্বার',
             phone: u?.phoneNumber || 'N/A',
-            amount: Number(g._sum.amount || 0),
+            amount: w.amount,
           };
         });
 
         const totalColl = Number(totalRechargesAgg._sum.amount || 0);
         const totalDeduct = Number(totalDeductionsAgg._sum.amount || 0);
         const totalRef = Number(totalRefundsAgg._sum.amount || 0);
-        const netDeduct = totalDeduct - totalRef;
+        const netDeduct = Math.max(0, totalDeduct - totalRef);
         const walletBal = Number(totalWalletBalAgg._sum.currentBalance || 0);
+
+        const permanentRevenue = Math.max(0, Number(permDeductionAgg._sum.amount || 0) - Number(permRefundAgg._sum.amount || 0));
+        const guestRevenue = Math.max(0, Number(guestDeductionAgg._sum.amount || 0) - Number(guestRefundAgg._sum.amount || 0));
+        const todayExpenses = Math.max(0, Number(todayDeductionAgg._sum.amount || 0) - Number(todayRefundAgg._sum.amount || 0));
 
         metrics = {
           todayCollection: Number(todayRechargesAgg._sum.amount || 0),
           monthlyCollection: Number(monthRechargesAgg._sum.amount || 0),
           yearlyCollection: Number(yearRechargesAgg._sum.amount || 0),
-          todayExpenses: Number(todayExpensesAgg._sum.amount || 0),
+          todayExpenses,
           netProfit: netDeduct,
           outstandingBalance: 0,
           totalWalletBalance: walletBal,
           totalRefunds: totalRef,
-          permanentRevenue: Number(permRevenueAgg._sum.amount || 0),
-          guestRevenue: Number(guestRevenueAgg._sum.amount || 0),
+          permanentRevenue,
+          guestRevenue,
           totalCollected: totalColl,
           totalSpent: netDeduct,
           netReserve: walletBal,

@@ -276,8 +276,74 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
       }
     });
 
-    return { recharges, refunds, mealDeductions, monthlyCharges };
+    const netMealDeductions = Math.max(0, mealDeductions + monthlyCharges - refunds);
+
+    return { recharges, refunds, mealDeductions, monthlyCharges, netMealDeductions };
   }, [filteredMasterTransactions]);
+
+  // Dynamic Timeframe Financial Metrics & Top Spenders (Subtracting Refunds from Gross Deductions)
+  const timeframeMetrics = useMemo(() => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const periodTx = transactions.filter((tx) => {
+      const d = new Date(tx.date);
+      const dStr = d.toISOString().split('T')[0];
+      if (filterPeriod === 'today') return dStr === todayStr;
+      if (filterPeriod === 'monthly') return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      if (filterPeriod === 'yearly') return d.getFullYear() === currentYear;
+      return true;
+    });
+
+    let collections = 0;
+    let grossDeductions = 0;
+    let refunds = 0;
+    const userSpendMap = new Map<string, number>();
+
+    periodTx.forEach((tx) => {
+      const amt = Number(tx.amount || 0);
+      if (['RECHARGE', 'ADMIN_TOPUP', 'CREDIT', 'CASH_PAID'].includes(tx.type)) {
+        collections += amt;
+      } else if (['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE'].includes(tx.type)) {
+        grossDeductions += amt;
+        if (tx.userId) {
+          userSpendMap.set(tx.userId, (userSpendMap.get(tx.userId) || 0) + amt);
+        }
+      } else if (tx.type === 'REFUND') {
+        refunds += amt;
+        if (tx.userId) {
+          userSpendMap.set(tx.userId, (userSpendMap.get(tx.userId) || 0) - amt);
+        }
+      }
+    });
+
+    const netExpenses = Math.max(0, grossDeductions - refunds);
+
+    const topSpendersList = Array.from(userSpendMap.entries())
+      .map(([userId, amt]) => {
+        const u = users.find((usr) => usr.id === userId);
+        return {
+          name: u?.name || 'অজানা মেম্বার',
+          phone: u?.phone || 'N/A',
+          amount: Math.max(0, amt),
+        };
+      })
+      .filter((s) => s.amount > 0)
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
+
+    const activeTopSpenders = topSpendersList.length > 0 ? topSpendersList : metrics.topSpenders || [];
+
+    return {
+      collections: collections || (filterPeriod === 'today' ? metrics.todayCollection : filterPeriod === 'monthly' ? metrics.monthlyCollection : metrics.yearlyCollection),
+      netExpenses: periodTx.length > 0 ? netExpenses : metrics.todayExpenses,
+      netProfit: periodTx.length > 0 ? netExpenses : metrics.netProfit,
+      topSpenders: activeTopSpenders,
+      refunds,
+    };
+  }, [transactions, users, filterPeriod, metrics]);
 
   const handlePrintFeeReport = () => {
     const style = `
@@ -556,7 +622,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
           <div className="mt-3 flex items-baseline gap-1">
             <span className="text-2xl font-black text-white font-mono">
               <AnimatedNumber
-                value={filterPeriod === 'today' ? metrics.todayCollection : filterPeriod === 'monthly' ? metrics.monthlyCollection : metrics.yearlyCollection}
+                value={timeframeMetrics.collections}
                 prefix={BN.tkSymbol}
               />
             </span>
@@ -569,18 +635,20 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
         {/* Expenses / Meal Deduction */}
         <div className="glass-panel p-5 rounded-2xl border border-amber-500/30 relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-semibold">{BN.todayExpenses}</span>
+            <span className="text-xs text-slate-400 font-semibold">
+              {filterPeriod === 'today' ? 'আজকের নিট খরচ (কাঁচামাল ও মিল)' : filterPeriod === 'monthly' ? 'চলতি মাসের নিট খরচ' : 'বার্ষিক নিট খরচ'}
+            </span>
             <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
               <TrendingDown className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-1">
             <span className="text-2xl font-black text-white font-mono">
-              <AnimatedNumber value={metrics.todayExpenses} prefix={BN.tkSymbol} />
+              <AnimatedNumber value={timeframeMetrics.netExpenses} prefix={BN.tkSymbol} />
             </span>
           </div>
           <p className="text-[11px] text-amber-400/80 mt-2 flex items-center gap-1">
-            <ArrowDownRight className="w-3.5 h-3.5" /> আজকের কাঁচামাল ও মিল ব্যয়
+            <ArrowDownRight className="w-3.5 h-3.5" /> *(রিফান্ড বাদ দিয়ে নিট ব্যয়)
           </p>
         </div>
 
@@ -594,11 +662,11 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
           </div>
           <div className="mt-3 flex items-baseline gap-1">
             <span className="text-2xl font-black text-white font-mono">
-              <AnimatedNumber value={metrics.netProfit} prefix={BN.tkSymbol} />
+              <AnimatedNumber value={timeframeMetrics.netProfit} prefix={BN.tkSymbol} />
             </span>
           </div>
           <p className="text-[11px] text-sky-400/80 mt-2 flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5" /> নিট অপারেটিং প্রফিট
+            <Sparkles className="w-3.5 h-3.5" /> *(মোট মিল ও সার্ভিস কর্তন - রিফান্ড)
           </p>
         </div>
       </div>
@@ -880,14 +948,16 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-white font-display flex items-center gap-2">
               <Users className="w-4 h-4 text-emerald-400" />
-              {BN.topSpenders}
+              {BN.topSpenders} (নিট খরচ)
             </h3>
-            <span className="text-xs text-slate-400 font-mono">চলতি মাস</span>
+            <span className="text-xs text-slate-400 font-mono">
+              {filterPeriod === 'today' ? 'আজকের' : filterPeriod === 'monthly' ? 'চলতি মাস' : 'বার্ষিক'}
+            </span>
           </div>
 
           <div className="divide-y divide-slate-800/80">
-            {metrics.topSpenders && metrics.topSpenders.length > 0 ? (
-              metrics.topSpenders.map((user, i) => (
+            {timeframeMetrics.topSpenders && timeframeMetrics.topSpenders.length > 0 ? (
+              timeframeMetrics.topSpenders.map((user, i) => (
                 <div key={i} className="py-3 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-3">
                     <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-cyan-300">
@@ -900,13 +970,13 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
                   </div>
                   <div className="text-right">
                     <span className="font-bold text-emerald-400 font-mono text-sm">৳{user.amount}</span>
-                    <p className="text-[10px] text-slate-400">মোট খরচ</p>
+                    <p className="text-[10px] text-slate-400">নিট খরচ (রিফান্ড সমন্বিত)</p>
                   </div>
                 </div>
               ))
             ) : (
               <div className="py-6 text-center text-slate-500 text-xs">
-                চলতি মাসে কোনো মেম্বারের খরচের ইতিহাস পাওয়া যায়নি
+                নির্বাচিত সময়কালে কোনো মেম্বারের খরচের ইতিহাস পাওয়া যায়নি
               </div>
             )}
           </div>
