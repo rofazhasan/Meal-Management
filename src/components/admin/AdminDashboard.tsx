@@ -351,6 +351,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [topUpAmount, setTopUpAmount] = useState<number>(500);
   const [topUpNote, setTopUpNote] = useState('ক্যাশ ডিপোজিট');
 
+  // Quick Guest Meal Tool State
+  const [guestUser, setGuestUser] = useState<User | null>(null);
+  const [guestMealDate, setGuestMealDate] = useState<string>(todayStr);
+  const [guestB, setGuestB] = useState<number>(0);
+  const [guestL, setGuestL] = useState<number>(0);
+  const [guestD, setGuestD] = useState<number>(0);
+  const [guestRateTier, setGuestRateTier] = useState<'GUEST' | 'PERMANENT'>('GUEST');
+  const [guestPaymentMethod, setGuestPaymentMethod] = useState<'WALLET' | 'CASH'>('WALLET');
+  const [guestSaving, setGuestSaving] = useState<boolean>(false);
+  const [guestStatusMsg, setGuestStatusMsg] = useState<string | null>(null);
+
+  const handleGuestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guestUser) {
+      alert('অনুগ্রহ করে একজন মেম্বার সিলেক্ট করুন');
+      return;
+    }
+    setGuestSaving(true);
+    setGuestStatusMsg(null);
+    try {
+      await ApiService.saveGuestMeal({
+        userId: guestUser.id,
+        date: guestMealDate,
+        breakfastCount: guestB,
+        lunchCount: guestL,
+        dinnerCount: guestD,
+        rateTier: guestRateTier,
+        paymentMethod: guestPaymentMethod,
+        createdBy: currentAdmin.name,
+      });
+      setGuestStatusMsg('✅ গেস্ট মিল সফলভাবে এন্ট্রি/আপডেট করা হয়েছে!');
+      onRefreshData();
+      setTimeout(() => setGuestStatusMsg(null), 3000);
+    } catch (err: any) {
+      alert(`গেস্ট মিল এন্ট্রিতে সমস্যা: ${err.message}`);
+    } finally {
+      setGuestSaving(false);
+    }
+  };
+
   const handleApprove = async (userId: string) => {
     await ApiService.updateUserStatus(userId, 'APPROVED', currentAdmin.id);
     onRefreshData();
@@ -862,6 +902,146 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-extrabold text-sm transition-all shadow-lg shadow-emerald-500/25 active:scale-95 font-display"
                 >
                   {BN.confirmTopUp}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Guest Meal Tool */}
+        <div className="glass-panel p-6 sm:p-7 rounded-3xl border border-amber-500/30 space-y-4 shadow-xl shadow-amber-950/10">
+          <div className="flex items-center gap-3 text-amber-400">
+            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <Utensils className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-100 text-base font-display">👥 দ্রুত গেস্ট মিল এন্ট্রি ও ব্যবস্থাপনা</h3>
+              <p className="text-xs text-slate-400 font-sans">সদস্যের মেহমানের মিল সংখ্যা, রেট ও পেমেন্ট মোড সেভ করুন</p>
+            </div>
+          </div>
+
+          {guestStatusMsg && (
+            <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold font-sans animate-fade-in">
+              {guestStatusMsg}
+            </div>
+          )}
+
+          <div className="space-y-3.5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1 font-sans">সদস্য নির্বাচন করুন</label>
+              <select
+                value={guestUser?.id || ''}
+                onChange={(e) => {
+                  const u = activeUsers.find(usr => usr.id === e.target.value);
+                  setGuestUser(u || null);
+                }}
+                className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:border-amber-500 focus:outline-none"
+              >
+                <option value="">-- মেম্বার সিলেক্ট করুন --</option>
+                {activeUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.phone})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {guestUser && (
+              <form onSubmit={handleGuestSubmit} className="space-y-3.5 bg-slate-900/60 p-4 rounded-2xl border border-slate-800 animate-slide-up">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1 font-sans">তারিখ</label>
+                    <input
+                      type="date"
+                      required
+                      value={guestMealDate}
+                      onChange={(e) => setGuestMealDate(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700/80 rounded-xl p-2.5 text-xs text-slate-100 font-mono focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1 font-sans">রেট ধরণ (Tier)</label>
+                    <select
+                      value={guestRateTier}
+                      onChange={(e) => setGuestRateTier(e.target.value as any)}
+                      className="w-full bg-slate-950 border border-slate-700/80 rounded-xl p-2.5 text-xs text-slate-100 focus:border-amber-500 focus:outline-none"
+                    >
+                      <option value="GUEST">গেস্ট রেট</option>
+                      <option value="PERMANENT">প্যার্মানেন্ট রেট</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1 font-sans">পেমেন্ট মেথড</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setGuestPaymentMethod('WALLET')}
+                      className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                        guestPaymentMethod === 'WALLET'
+                          ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+                          : 'bg-slate-950 border-slate-800 text-slate-400'
+                      }`}
+                    >
+                      <span>💳 ওয়ালেট কর্তন</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGuestPaymentMethod('CASH')}
+                      className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                        guestPaymentMethod === 'CASH'
+                          ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                          : 'bg-slate-950 border-slate-800 text-slate-400'
+                      }`}
+                    >
+                      <span>💵 নগদ/ক্যাশ</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1 text-center font-mono">নাস্তা count</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={guestB}
+                      onChange={(e) => setGuestB(parseInt(e.target.value, 10) || 0)}
+                      className="w-full bg-slate-950 border border-slate-700/80 rounded-xl p-2.5 text-center text-sm font-extrabold text-amber-400 font-mono focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1 text-center font-mono">লাঞ্চ count</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={guestL}
+                      onChange={(e) => setGuestL(parseInt(e.target.value, 10) || 0)}
+                      className="w-full bg-slate-950 border border-slate-700/80 rounded-xl p-2.5 text-center text-sm font-extrabold text-amber-400 font-mono focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1 text-center font-mono">ডিনার count</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={guestD}
+                      onChange={(e) => setGuestD(parseInt(e.target.value, 10) || 0)}
+                      className="w-full bg-slate-950 border border-slate-700/80 rounded-xl p-2.5 text-center text-sm font-extrabold text-amber-400 font-mono focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={guestSaving}
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-extrabold text-sm transition-all shadow-lg shadow-amber-500/25 active:scale-95 font-display"
+                >
+                  {guestSaving ? 'সংরক্ষণ হচ্ছে...' : 'গেস্ট মিল সেভ করুন'}
                 </button>
               </form>
             )}
