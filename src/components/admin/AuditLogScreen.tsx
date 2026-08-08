@@ -20,16 +20,26 @@ export const AuditLogScreen: React.FC<AuditLogScreenProps> = ({ users }) => {
   }, []);
 
   const filteredAudits = audits.filter(log => {
-    const matchesSearch = log.details.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          log.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesAction = selectedAction === 'ALL' || log.action === selectedAction;
+    const detailsText = (log.details || '').toLowerCase();
+    const actionText = (log.action || '').toLowerCase();
+    const idText = (log.id || '').toLowerCase();
+    const query = searchQuery.toLowerCase();
+
+    const matchesSearch = detailsText.includes(query) || actionText.includes(query) || idText.includes(query);
+    const matchesAction = selectedAction === 'ALL' || log.action === selectedAction ||
+      (selectedAction === 'USER_MANAGEMENT' && (log.action?.startsWith('USER_') || log.action?.includes('PASSWORD'))) ||
+      (selectedAction === 'SETTINGS_AND_RATES' && (log.action?.includes('RATE') || log.action?.includes('SETTING'))) ||
+      (selectedAction === 'FINANCE_RECHARGE' && (log.action?.includes('RECHARGE') || log.action?.includes('TOPUP') || log.action?.includes('FEE'))) ||
+      (selectedAction === 'SPECIAL_MEAL' && log.action?.includes('SPECIAL_MEAL')) ||
+      (selectedAction === 'ARCHIVE_AND_SYSTEM' && (log.action?.includes('ARCHIVE') || log.action?.includes('PURGE') || log.action?.includes('RESET')));
+
     return matchesSearch && matchesAction;
   });
 
   const getUserName = (userId?: string) => {
-    if (!userId) return 'System';
+    if (!userId || userId === 'admin' || userId === 'user' || userId === 'system') return 'সিস্টেম অ্যাডমিন';
     const found = users.find(u => u.id === userId);
-    return found ? found.name : userId;
+    return found ? (found.name || (found as any).fullName || userId) : userId;
   };
 
   return (
@@ -67,10 +77,11 @@ export const AuditLogScreen: React.FC<AuditLogScreenProps> = ({ users }) => {
             className="py-2.5 px-3.5 rounded-xl bg-slate-900/80 border border-slate-700/80 text-xs text-slate-100 focus:outline-none focus:border-amber-500 font-sans"
           >
             <option value="ALL">সকল অ্যাকশন</option>
-            <option value="USER_APPROVED">ইউজার অনুমোদন</option>
-            <option value="USER_REJECTED">ইউজার বাতিল</option>
-            <option value="RATE_UPDATE">রেট আপডেট</option>
-            <option value="RECHARGE">পার্স রিচার্জ</option>
+            <option value="USER_MANAGEMENT">ইউজার অ্যাকশনসমূহ</option>
+            <option value="SETTINGS_AND_RATES">রেট ও সেটিংস</option>
+            <option value="FINANCE_RECHARGE">রিচার্জ ও অর্থ সংক্রান্ত</option>
+            <option value="SPECIAL_MEAL">স্পেশাল মিল</option>
+            <option value="ARCHIVE_AND_SYSTEM">আর্কাইভ ও সিস্টেম</option>
           </select>
         </div>
       </div>

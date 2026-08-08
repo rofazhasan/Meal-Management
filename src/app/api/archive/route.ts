@@ -20,9 +20,16 @@ const BGL_DAYS = ['রবিবার', 'সোমবার', 'মঙ্গল�
 function getPeriodBounds(month?: string | null, startDateParam?: string | null, endDateParam?: string | null) {
   let startStr = startDateParam;
   let endStr = endDateParam;
+  let activeMonth = month;
 
-  if (month && (!startStr || !endStr)) {
-    const [yearStr, mStr] = month.split('-');
+  if (!activeMonth && (!startStr || !endStr)) {
+    const today = new Date();
+    const prevMonthDate = new Date(Date.UTC(today.getFullYear(), today.getMonth() - 1, 1));
+    activeMonth = prevMonthDate.toISOString().slice(0, 7);
+  }
+
+  if (activeMonth && (!startStr || !endStr)) {
+    const [yearStr, mStr] = activeMonth.split('-');
     const year = parseInt(yearStr, 10);
     const m = parseInt(mStr, 10);
     const firstDay = new Date(Date.UTC(year, m - 1, 1));

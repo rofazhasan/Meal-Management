@@ -111,6 +111,40 @@ export async function POST(req: Request) {
       });
     }
 
+    // Seed initial audit log entries if table is empty
+    const existingAuditCount = await prisma.auditLog.count();
+    if (existingAuditCount === 0) {
+      const adminUser = await prisma.user.findFirst({
+        where: { role: { in: ['SUPERADMIN', 'ADMIN', 'OWNER'] } },
+      });
+      const adminId = adminUser?.id || null;
+
+      await prisma.auditLog.createMany({
+        data: [
+          {
+            actorUserId: adminId,
+            action: 'SETTINGS_UPDATED',
+            details: 'মিল রেট এবং গ্লোবাল মিল সেটিংস প্রাথমিক তৈরি করা হয়েছে।',
+          },
+          {
+            actorUserId: adminId,
+            action: 'MEAL_RATES_UPDATED',
+            details: 'স্থায়ী ও অতিথি সদস্যদের মিলের রেট কনফিগারেশন আপডেট করা হয়েছে।',
+          },
+          {
+            actorUserId: adminId,
+            action: 'USER_CREATED_BY_ADMIN',
+            details: 'সিস্টেম ইনিশিয়ালাইজেশন এবং টেস্ট ইউজার সেটিং সম্পন্ন হয়েছে।',
+          },
+          {
+            actorUserId: adminId,
+            action: 'DIRECT_TOPUP',
+            details: 'ইউজার ওয়ালেটে প্রাথমিক টেস্ট ডেমো ব্যালেন্স যুক্ত করা হয়েছে।',
+          },
+        ],
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: `সফলভাবে ${createdCount} জন টেস্ট ইউজার তৈরি করা হয়েছে!`,
