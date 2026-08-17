@@ -3,7 +3,7 @@ import { Heart, Mail, Facebook, ExternalLink } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="w-full py-6 px-4 mt-auto border-t border-slate-800/80 bg-slate-950/70 backdrop-blur-md relative z-20 print:hidden">
+    <footer className="w-full py-6 pb-28 sm:pb-6 px-4 mt-auto border-t border-slate-800/80 bg-slate-950/70 backdrop-blur-md relative z-20 print:hidden">
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
         
         {/* Made with Love credit */}

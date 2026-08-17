@@ -293,21 +293,21 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={() => setShowProfileModal(true)}
-              className="px-4 py-2.5 rounded-2xl bg-slate-900/90 border border-slate-700 hover:border-cyan-500/50 text-slate-200 hover:text-white font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 flex items-center gap-2"
+              className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2.5 rounded-2xl bg-slate-900/90 border border-slate-700 hover:border-cyan-500/50 text-slate-200 hover:text-white font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
             >
               <Edit3 className="w-4 h-4 text-cyan-400" />
-              <span>প্রোফাইল ও পাসওয়ার্ড আপডেট</span>
+              <span>প্রোফাইল সংশোধন</span>
             </button>
 
             <button
               onClick={() => onNavigateTab('meals')}
-              className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-400 hover:from-cyan-400 hover:to-sky-300 text-slate-950 font-bold text-xs sm:text-sm transition-all shadow-lg shadow-cyan-500/25 active:scale-95 flex items-center gap-2"
+              className="flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-400 hover:from-cyan-400 hover:to-sky-300 text-slate-950 font-bold text-xs sm:text-sm transition-all shadow-lg shadow-cyan-500/25 active:scale-95 flex items-center justify-center gap-2"
             >
               <Calendar className="w-4 h-4" />
-              <span>মিল প্ল্যান পরিবর্তন</span>
+              <span>মিল প্ল্যান</span>
             </button>
           </div>
         </div>

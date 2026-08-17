@@ -47,12 +47,17 @@ async function apiFetch<T>(
  */
 export class ApiService {
   // ---------------------------------------------------------------------------
-  // SESSION — current user stored only in sessionStorage (cleared on tab close)
+  // SESSION — persistent user stored in localStorage (with sessionStorage fallback)
   // ---------------------------------------------------------------------------
   static getCurrentUserSync(): User | null {
-    const json = sessionStorage.getItem('meal_app_current_user');
-    if (!json) return null;
-    try { return JSON.parse(json); } catch { return null; }
+    if (typeof window === 'undefined') return null;
+    try {
+      const json = localStorage.getItem('meal_app_current_user') || sessionStorage.getItem('meal_app_current_user');
+      if (!json) return null;
+      return JSON.parse(json);
+    } catch {
+      return null;
+    }
   }
 
   static async getCurrentUser(): Promise<User | null> {
@@ -60,16 +65,24 @@ export class ApiService {
   }
 
   static async setCurrentUser(user: User | null): Promise<void> {
-    if (!user) {
-      sessionStorage.removeItem('meal_app_current_user');
-    } else {
-      const existing = this.getCurrentUserSync();
-      const merged: User = {
-        ...user,
-        activeMode: user.activeMode || existing?.activeMode,
-        isDualMode: user.isDualMode ?? existing?.isDualMode,
-      };
-      sessionStorage.setItem('meal_app_current_user', JSON.stringify(merged));
+    if (typeof window === 'undefined') return;
+    try {
+      if (!user) {
+        localStorage.removeItem('meal_app_current_user');
+        sessionStorage.removeItem('meal_app_current_user');
+      } else {
+        const existing = this.getCurrentUserSync();
+        const merged: User = {
+          ...user,
+          activeMode: user.activeMode || existing?.activeMode,
+          isDualMode: user.isDualMode ?? existing?.isDualMode,
+        };
+        const str = JSON.stringify(merged);
+        localStorage.setItem('meal_app_current_user', str);
+        sessionStorage.setItem('meal_app_current_user', str);
+      }
+    } catch (e) {
+      console.error('Failed to save user session:', e);
     }
   }
 

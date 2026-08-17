@@ -216,56 +216,60 @@ const MainApplication: React.FC = () => {
 
   if (!currentUser || currentUser.status === 'PENDING') {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 relative selection:bg-cyan-500 selection:text-white">
+      <div className="min-h-screen bg-slate-950 text-slate-100 relative selection:bg-cyan-500 selection:text-white flex flex-col justify-between">
         <AmbientBackground />
         
-        {/* Top persistent mode switcher bar for guest/unauthenticated users */}
-        <div className="relative z-30 pt-4 px-4 max-w-7xl mx-auto flex justify-center">
-          <div className="inline-flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-xl">
-            <button
-              onClick={() => setUnauthView('public-meals')}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all active:scale-95 flex items-center gap-2 font-display ${
-                unauthView === 'public-meals'
-                  ? 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow-lg shadow-cyan-500/25'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              🌐 আজকের মিল (পাবলিক)
-            </button>
-            <button
-              onClick={() => setUnauthView('login')}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all active:scale-95 flex items-center gap-2 font-display ${
-                unauthView === 'login'
-                  ? 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow-lg shadow-cyan-500/25'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              🔐 অ্যাকাউন্টে লগইন
-            </button>
+        <div className="w-full">
+          {/* Top persistent mode switcher bar for guest/unauthenticated users */}
+          <div className="relative z-30 pt-4 px-4 max-w-7xl mx-auto flex justify-center">
+            <div className="inline-flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-xl">
+              <button
+                onClick={() => setUnauthView('public-meals')}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all active:scale-95 flex items-center gap-2 font-display ${
+                  unauthView === 'public-meals'
+                    ? 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow-lg shadow-cyan-500/25'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                🌐 আজকের মিল (পাবলিক)
+              </button>
+              <button
+                onClick={() => setUnauthView('login')}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all active:scale-95 flex items-center gap-2 font-display ${
+                  unauthView === 'login'
+                    ? 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow-lg shadow-cyan-500/25'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                🔐 অ্যাকাউন্টে লগইন
+              </button>
+            </div>
+          </div>
+
+          <div className="px-3 sm:px-6 py-4 sm:py-6">
+            {unauthView === 'public-meals' ? (
+              <PublicTodaysMeal
+                users={users}
+                declarations={declarations}
+                rates={rates}
+                specialMeals={specialMeals}
+                emergencies={emergencies}
+                onNavigateToLogin={() => setUnauthView('login')}
+              />
+            ) : (
+              <AuthScreen
+                onLoginSuccess={(u) => {
+                  setCurrentUser(u);
+                  if (ADMIN_ROLES.has(u.role)) setActiveTab('admin-dashboard');
+                  else setActiveTab('dashboard');
+                  handleRefreshAll();
+                }}
+              />
+            )}
           </div>
         </div>
 
-        <div className="px-4 py-6">
-          {unauthView === 'public-meals' ? (
-            <PublicTodaysMeal
-              users={users}
-              declarations={declarations}
-              rates={rates}
-              specialMeals={specialMeals}
-              emergencies={emergencies}
-              onNavigateToLogin={() => setUnauthView('login')}
-            />
-          ) : (
-            <AuthScreen
-              onLoginSuccess={(u) => {
-                setCurrentUser(u);
-                if (ADMIN_ROLES.has(u.role)) setActiveTab('admin-dashboard');
-                else setActiveTab('dashboard');
-                handleRefreshAll();
-              }}
-            />
-          )}
-        </div>
+        <Footer />
       </div>
     );
   }
@@ -300,8 +304,8 @@ const MainApplication: React.FC = () => {
         pendingApprovalsCount={pendingCount}
       />
 
-      {/* Main Content Area */}
-      <main className="px-4 py-6 sm:px-6 relative z-10">
+      {/* Main Content Area with safe bottom spacing for mobile floating nav */}
+      <main className="px-3 sm:px-6 py-4 sm:py-6 relative z-10 pb-32 sm:pb-12 min-h-[calc(100vh-140px)]">
         
         {/* Admin Detail Overlay */}
         {selectedUserForDetail ? (

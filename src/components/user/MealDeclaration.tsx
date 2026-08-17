@@ -558,7 +558,7 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
       )}
 
       {/* Date Carousel Selector */}
-      <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 sm:gap-2.5">
         {nextDays.map((item) => (
           <button
             key={item.dateStr}

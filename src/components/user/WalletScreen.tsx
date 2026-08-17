@@ -422,7 +422,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ currentUser, transac
       {/* Send Recharge Request Modal */}
       {showRechargeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 w-full max-w-md space-y-6 shadow-2xl relative">
+          <div className="glass-panel p-5 sm:p-8 rounded-3xl border border-slate-800 w-full max-w-md space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">
 
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">

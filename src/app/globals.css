@@ -31,7 +31,28 @@ body {
   color: var(--text-primary);
   font-family: 'Hind Siliguri', 'Plus Jakarta Sans', sans-serif;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
   transition: background-color 0.4s ease, color 0.4s ease;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+button, a, input, select {
+  touch-action: manipulation;
+}
+
+.pb-mobile-nav {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
 }
 
 h1, h2, h3, .font-display {

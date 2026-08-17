@@ -83,12 +83,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
 
   return (
-    <div className="min-h-screen flex flex-col justify-between p-4 relative overflow-hidden bg-[#050811]">
-      {/* Background Floating Orbs */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-cyan-600/20 rounded-full blur-3xl animate-float-slow" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl animate-float-delayed" />
-
-      <div className="w-full max-w-md z-10 animate-scale-in my-auto mx-auto py-8">
+    <div className="w-full flex flex-col justify-center items-center py-4 sm:py-8 relative">
+      <div className="w-full max-w-md z-10 animate-scale-in mx-auto">
         
         {/* Header Hero Branding */}
         <div className="text-center mb-8">
@@ -374,7 +370,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         </div>
       )}
 
-      <Footer />
     </div>
   );
 };
