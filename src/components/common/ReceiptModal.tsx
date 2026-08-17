@@ -97,7 +97,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in print:p-0 print:bg-white print:block print:inset-auto print:static overflow-y-auto">
       
       {/* Luxury Voucher Card */}
-      <div className="relative w-full max-w-lg bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-slate-700/60 rounded-3xl p-6 sm:p-7 shadow-2xl shadow-cyan-950/50 overflow-hidden print:shadow-none print:border-none print:bg-white print:text-black print:rounded-none print:max-w-none print:p-8">
+      <div className="relative w-full max-w-lg bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-slate-700/60 rounded-3xl p-5 sm:p-7 shadow-2xl shadow-cyan-950/50 max-h-[92vh] overflow-y-auto print:shadow-none print:border-none print:bg-white print:text-black print:rounded-none print:max-w-none print:p-8">
         
         {/* Glowing Top Ambient Accent */}
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-64 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none print:hidden" />

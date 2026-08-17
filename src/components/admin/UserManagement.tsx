@@ -574,7 +574,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           </button>
 
           {/* Filters & Search */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
             {/* Role Filter */}
             <select
               value={roleFilter}
