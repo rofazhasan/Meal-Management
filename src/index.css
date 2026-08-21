@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -23,6 +24,28 @@
     --text-primary: #0f172a;
     --text-secondary: #475569;
     --accent-glow: rgba(2, 132, 199, 0.15);
+  }
+
+  .bauhaus {
+    --bg-primary: #F0F0F0;
+    --bg-surface: #FFFFFF;
+    --bg-card: #FFFFFF;
+    --border-card: #121212;
+    --border-card-hover: #D02020;
+    --text-primary: #121212;
+    --text-secondary: #333333;
+    --accent-glow: #1040C0;
+  }
+
+  .bauhaus-dark {
+    --bg-primary: #121212;
+    --bg-surface: #1E1E1E;
+    --bg-card: #181818;
+    --border-card: #F0F0F0;
+    --border-card-hover: #F0C020;
+    --text-primary: #F0F0F0;
+    --text-secondary: #B0B0B0;
+    --accent-glow: #D02020;
   }
 }
 
@@ -91,6 +114,137 @@ h1, h2, h3, .font-display {
   border-color: var(--border-card-hover);
   transform: translateY(-3px);
   box-shadow: 0 12px 30px -10px var(--accent-glow);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BAUHAUS CONSTRUCTIVIST THEME SPECIFIC OVERRIDES & UTILITIES
+   ═══════════════════════════════════════════════════════════ */
+.bauhaus h1, .bauhaus h2, .bauhaus h3, .bauhaus .font-display,
+.bauhaus-dark h1, .bauhaus-dark h2, .bauhaus-dark h3, .bauhaus-dark .font-display {
+  font-family: 'Outfit', 'Anek Bangla', sans-serif;
+  letter-spacing: -0.03em;
+  font-weight: 900;
+}
+
+.bauhaus .glass-panel {
+  background: #FFFFFF !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 4px solid #121212 !important;
+  box-shadow: 8px 8px 0px 0px #121212 !important;
+  border-radius: 0px !important;
+}
+
+.bauhaus .glass-card,
+.bauhaus .glass-card-hover {
+  background: #FFFFFF !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 3px solid #121212 !important;
+  box-shadow: 6px 6px 0px 0px #121212 !important;
+  border-radius: 0px !important;
+}
+
+.bauhaus .glass-card-hover:hover {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 8px 8px 0px 0px #D02020 !important;
+  border-color: #121212 !important;
+}
+
+.bauhaus-dark .glass-panel {
+  background: #181818 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 4px solid #F0F0F0 !important;
+  box-shadow: 8px 8px 0px 0px #D02020 !important;
+  border-radius: 0px !important;
+}
+
+.bauhaus-dark .glass-card,
+.bauhaus-dark .glass-card-hover {
+  background: #1E1E1E !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 3px solid #F0F0F0 !important;
+  box-shadow: 6px 6px 0px 0px #1040C0 !important;
+  border-radius: 0px !important;
+}
+
+.bauhaus-btn-red {
+  background-color: #D02020;
+  color: #FFFFFF;
+  border: 2px solid #121212;
+  box-shadow: 4px 4px 0px 0px #121212;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  transition: all 0.15s ease-out;
+}
+.bauhaus-btn-red:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px transparent;
+}
+
+.bauhaus-btn-blue {
+  background-color: #1040C0;
+  color: #FFFFFF;
+  border: 2px solid #121212;
+  box-shadow: 4px 4px 0px 0px #121212;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  transition: all 0.15s ease-out;
+}
+.bauhaus-btn-blue:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px transparent;
+}
+
+.bauhaus-btn-yellow {
+  background-color: #F0C020;
+  color: #121212;
+  border: 2px solid #121212;
+  box-shadow: 4px 4px 0px 0px #121212;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  transition: all 0.15s ease-out;
+}
+.bauhaus-btn-yellow:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px transparent;
+}
+
+.bauhaus-btn-white {
+  background-color: #FFFFFF;
+  color: #121212;
+  border: 2px solid #121212;
+  box-shadow: 4px 4px 0px 0px #121212;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  transition: all 0.15s ease-out;
+}
+.bauhaus-btn-white:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px transparent;
+}
+
+.bauhaus button:active:not(:disabled),
+.bauhaus-dark button:active:not(:disabled) {
+  transform: translate(2px, 2px);
+}
+
+.bauhaus .dot-grid-pattern {
+  background-image: radial-gradient(#121212 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+  opacity: 0.08;
+}
+
+.bauhaus-dark .dot-grid-pattern {
+  background-image: radial-gradient(#F0F0F0 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+  opacity: 0.08;
 }
 
 /* Metallic & Holographic Card Gradients */

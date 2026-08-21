@@ -37,6 +37,7 @@ import { User, MealDeclaration, MealRateConfig, SpecialMeal, EmergencyClosure } 
 import { BN } from '../../constants/banglaText';
 import { AppLogo } from '../common/AppLogo';
 import { CloudShader } from '../ui/cloud-shader';
+import { BauhausCornerShape } from '../bauhaus/BauhausDecorations';
 import { getBangladeshDateStr, getBangladeshNow } from '../../utils/dateUtils';
 import { getUserMealStateForDate } from '../../utils/mealUtils';
 import { ApiService } from '../../services/apiService';

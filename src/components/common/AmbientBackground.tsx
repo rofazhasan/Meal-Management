@@ -31,6 +31,9 @@ export const AmbientBackground: React.FC = () => {
       {/* Modern Grid Overlay Pattern */}
       <div className="absolute inset-0 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:32px_32px] opacity-[0.03] dark:opacity-[0.03]" />
 
+      {/* Bauhaus Architectural Dot Grid Layer */}
+      <div className="absolute inset-0 dot-grid-pattern pointer-events-none" />
+
       {/* Radial Gradient Vignette Layer */}
       <div className="absolute inset-0 bg-radial from-transparent via-transparent to-slate-100/60 dark:to-[#050811]" />
     </div>

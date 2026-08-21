@@ -13,6 +13,7 @@ export type UserRole =
 export type UserType = 'PERMANENT' | 'GUEST';
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type MealType = 'breakfast' | 'lunch' | 'dinner';
+export type AppTheme = 'dark' | 'light' | 'bauhaus' | 'bauhaus-dark';
 
 export interface RichProfile {
   avatarUrl?: string;

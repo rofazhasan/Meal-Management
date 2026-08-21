@@ -22,7 +22,7 @@ import { AuditLogScreen } from './components/admin/AuditLogScreen';
 import { FinancialDashboard } from './components/admin/FinancialDashboard';
 import { PublicTodaysMeal } from './components/public/PublicTodaysMeal';
 import { ApiService } from './services/apiService';
-import { User } from './types';
+import { User, AppTheme } from './types';
 
 // All roles that have administrative access
 const ADMIN_ROLES = new Set([
@@ -46,7 +46,7 @@ const MainApplication: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [unauthView, setUnauthView] = useState<'public-meals' | 'login'>('public-meals');
   const [selectedUserForDetail, setSelectedUserForDetail] = useState<User | null>(null);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<AppTheme>('dark');
 
   // Load active user on mount
   useEffect(() => {
@@ -148,21 +148,35 @@ const MainApplication: React.FC = () => {
 
   // Theme Synchronization Effect
   useEffect(() => {
-    if (theme === 'light') {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-      document.body.classList.remove('dark');
-      document.body.classList.add('light');
-    } else {
-      document.documentElement.classList.remove('light');
+    const classList = ['dark', 'light', 'bauhaus', 'bauhaus-dark'];
+    document.documentElement.classList.remove(...classList);
+    document.body.classList.remove(...classList);
+
+    document.documentElement.classList.add(theme);
+    document.body.classList.add(theme);
+
+    if (theme === 'dark' || theme === 'bauhaus-dark') {
       document.documentElement.classList.add('dark');
-      document.body.classList.remove('light');
       document.body.classList.add('dark');
+    } else {
+      document.documentElement.classList.add('light');
+      document.body.classList.add('light');
+    }
+
+    try {
+      localStorage.setItem('app_theme_style', theme);
+    } catch {
+      // ignore
     }
   }, [theme]);
 
   const handleToggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    setTheme((prev) => {
+      if (prev === 'dark') return 'light';
+      if (prev === 'light') return 'bauhaus';
+      if (prev === 'bauhaus') return 'bauhaus-dark';
+      return 'dark';
+    });
   };
 
   const pendingCount = users.filter((u) => u.status === 'PENDING').length;
@@ -216,29 +230,47 @@ const MainApplication: React.FC = () => {
 
   if (!currentUser || currentUser.status === 'PENDING') {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 relative selection:bg-cyan-500 selection:text-white flex flex-col justify-between">
+      <div className="min-h-screen bg-slate-950 text-slate-100 relative selection:bg-cyan-500 selection:text-white flex flex-col justify-between transition-colors duration-300">
         <AmbientBackground />
+        
+        {/* Top Header with Theme Switcher for Guests & Public View */}
+        <Header
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onSwitchRole={handleSwitchRole}
+          theme={theme}
+          onToggleTheme={handleToggleTheme}
+          onThemeChange={(newTheme) => setTheme(newTheme)}
+        />
         
         <div className="w-full">
           {/* Top persistent mode switcher bar for guest/unauthenticated users */}
           <div className="relative z-30 pt-4 px-4 max-w-7xl mx-auto flex justify-center">
-            <div className="inline-flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-xl">
+            <div className={`inline-flex p-1.5 shadow-2xl backdrop-blur-xl ${
+              theme === 'bauhaus' || theme === 'bauhaus-dark'
+                ? 'rounded-none bg-white dark:bg-slate-900 border-4 border-black dark:border-white shadow-[6px_6px_0px_0px_black]'
+                : 'rounded-2xl bg-slate-900/90 border border-slate-800'
+            }`}>
               <button
                 onClick={() => setUnauthView('public-meals')}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all active:scale-95 flex items-center gap-2 font-display ${
+                className={`px-4 py-2 text-xs font-extrabold transition-all active:scale-95 flex items-center gap-2 font-display ${
                   unauthView === 'public-meals'
-                    ? 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow-lg shadow-cyan-500/25'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? theme === 'bauhaus' || theme === 'bauhaus-dark'
+                      ? 'bg-[#1040C0] text-white border-2 border-black shadow-[3px_3px_0px_0px_black] rounded-none'
+                      : 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow-lg shadow-cyan-500/25 rounded-xl'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 🌐 আজকের মিল (পাবলিক)
               </button>
               <button
                 onClick={() => setUnauthView('login')}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all active:scale-95 flex items-center gap-2 font-display ${
+                className={`px-4 py-2 text-xs font-extrabold transition-all active:scale-95 flex items-center gap-2 font-display ${
                   unauthView === 'login'
-                    ? 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow-lg shadow-cyan-500/25'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? theme === 'bauhaus' || theme === 'bauhaus-dark'
+                      ? 'bg-[#D02020] text-white border-2 border-black shadow-[3px_3px_0px_0px_black] rounded-none'
+                      : 'bg-gradient-to-r from-cyan-500 to-sky-400 text-slate-950 shadow-lg shadow-cyan-500/25 rounded-xl'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 🔐 অ্যাকাউন্টে লগইন
@@ -255,6 +287,7 @@ const MainApplication: React.FC = () => {
                 specialMeals={specialMeals}
                 emergencies={emergencies}
                 onNavigateToLogin={() => setUnauthView('login')}
+                currentUser={currentUser}
               />
             ) : (
               <AuthScreen
@@ -286,6 +319,7 @@ const MainApplication: React.FC = () => {
         onSwitchRole={handleSwitchRole}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        onThemeChange={(newTheme) => setTheme(newTheme)}
       />
 
       {/* Primary Navigation Bar */}
