@@ -309,9 +309,15 @@ const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshDa
   const [isRecurring, setIsRecurring] = useState(false);
   const [repeatDayOfWeek, setRepeatDayOfWeek] = useState<number>(6); // Default Saturday
 
+  const todayStr = getBangladeshDateStr();
+
   const handleAddSpecial = async () => {
     if (!title.trim() || customRate <= 0) {
       alert('সঠিক নাম ও কাস্টম রেট লিখুন');
+      return;
+    }
+    if (!isRecurring && date < todayStr) {
+      alert('অতীতের তারিখের জন্য স্পেশাল মিল শিডিউল করা সম্ভব নয়।');
       return;
     }
     setSaving(true);
@@ -352,6 +358,7 @@ const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshDa
           <input
             type="date"
             value={date}
+            min={todayStr}
             onChange={(e) => {
               const newDate = e.target.value;
               setDate(newDate);
@@ -464,6 +471,7 @@ const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshDa
               const days = ['রবিবার', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার'];
               // FIX 6: Use timezone-safe helper instead of new Date(sm.date).getDay() which gives wrong weekday
               const dayName = days[sm.repeatDayOfWeek !== undefined ? sm.repeatDayOfWeek : getDayOfWeekFromDateStr(sm.date)];
+              const isPast = !sm.isRecurring && sm.date < todayStr;
 
               return (
                 <div key={sm.id} className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
@@ -487,35 +495,43 @@ const SpecialMealScheduler: React.FC<{ specialMeals?: SpecialMeal[]; onRefreshDa
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await ApiService.toggleSpecialMealActive(currentUser.id, sm.id, sm.isActive !== false);
-                        await ApiService.logAudit(currentUser.id, 'SPECIAL_MEAL_STATUS_CHANGED', sm.id, `Set special meal "${sm.title}" to ${sm.isActive !== false ? 'inactive' : 'active'}.`);
-                        onRefreshData();
-                      }}
-                      className={`px-3 py-1 rounded-xl text-[11px] font-bold border transition ${
-                        sm.isActive !== false
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                          : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
-                      }`}
-                    >
-                      {sm.isActive !== false ? '✅ সক্রিয়' : '⛔ বন্ধ'}
-                    </button>
+                    {isPast ? (
+                      <span className="px-2.5 py-1 rounded-xl bg-slate-800/80 text-slate-400 border border-slate-700 text-[11px] font-bold">
+                        🔒 দিন অতিক্রান্ত (View Only)
+                      </span>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await ApiService.toggleSpecialMealActive(currentUser.id, sm.id, sm.isActive !== false);
+                            await ApiService.logAudit(currentUser.id, 'SPECIAL_MEAL_STATUS_CHANGED', sm.id, `Set special meal "${sm.title}" to ${sm.isActive !== false ? 'inactive' : 'active'}.`);
+                            onRefreshData();
+                          }}
+                          className={`px-3 py-1 rounded-xl text-[11px] font-bold border transition ${
+                            sm.isActive !== false
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                              : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                          }`}
+                        >
+                          {sm.isActive !== false ? '✅ সক্রিয়' : '⛔ বন্ধ'}
+                        </button>
 
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (confirm(`আপনি কি সত্যিই "${sm.title}" মুছে ফেলতে চান?`)) {
-                          await ApiService.deleteSpecialMeal(currentUser.id, sm.id);
-                          await ApiService.logAudit(currentUser.id, 'SPECIAL_MEAL_DELETED', sm.id, `Deleted special meal: ${sm.title}`);
-                          onRefreshData();
-                        }
-                      }}
-                      className="px-2.5 py-1 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-[11px] font-bold transition"
-                    >
-                      মুছুন
-                    </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (confirm(`আপনি কি সত্যিই "${sm.title}" মুছে ফেলতে চান?`)) {
+                              await ApiService.deleteSpecialMeal(currentUser.id, sm.id);
+                              await ApiService.logAudit(currentUser.id, 'SPECIAL_MEAL_DELETED', sm.id, `Deleted special meal: ${sm.title}`);
+                              onRefreshData();
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-[11px] font-bold transition"
+                        >
+                          মুছুন
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               );

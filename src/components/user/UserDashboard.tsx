@@ -8,6 +8,7 @@ import { BN } from '../../constants/banglaText';
 import { StatusBadge } from '../common/StatusBadge';
 import { AnimatedNumber } from '../common/AnimatedNumber';
 import { EmptyState } from '../common/EmptyState';
+import { InsufficientBalanceModal } from '../common/InsufficientBalanceModal';
 import { ApiService } from '../../services/apiService';
 import { getBangladeshDateStr, getBangladeshNow, getDayOfWeekFromDateStr, fillMissingDeclarationsForDateRange } from '../../utils/dateUtils';
 
@@ -40,6 +41,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   const [editName, setEditName] = useState(currentUser.name);
   const [editPassword, setEditPassword] = useState(currentUser.password || '');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [showInsufficientModal, setShowInsufficientModal] = useState(false);
+  const [insufficientRequiredAmt, setInsufficientRequiredAmt] = useState<number | undefined>(undefined);
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,7 +246,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
     const costDiff = newCost - currentCost;
 
     if (costDiff > 0 && costDiff > currentUser.walletBalance) {
-      alert(`আপনার ওয়ালেট ব্যালেন্স (৳${currentUser.walletBalance}) দিয়ে এই মিলটি চালু রাখা সম্ভব নয় (প্রয়োজন ৳${costDiff})। মেস এডমিন থেকে রিচার্জ করুন।`);
+      setInsufficientRequiredAmt(costDiff);
+      setShowInsufficientModal(true);
       return;
     }
 
@@ -265,7 +269,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
       onRefreshData();
     } catch (err: any) {
       setLocalTodayDec(propTodayDec);
-      alert(err.message || 'মিল আপডেট করতে সমস্যা হয়েছে');
+      if (err.message && (err.message.includes('পর্যাপ্ত ওয়ালেট ব্যালেন্স নেই') || err.message.includes('Insufficient balance') || err.message.includes('ব্যালেন্স'))) {
+        setInsufficientRequiredAmt(effectiveBRate || effectiveLRate || effectiveDRate);
+        setShowInsufficientModal(true);
+      } else {
+        alert(err.message || 'মিল আপডেট করতে সমস্যা হয়েছে');
+      }
     } finally {
       setTogglingMeal(false);
     }
@@ -792,6 +801,15 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* Insufficient Balance Meme Modal */}
+      <InsufficientBalanceModal
+        isOpen={showInsufficientModal}
+        onClose={() => setShowInsufficientModal(false)}
+        walletBalance={currentUser.walletBalance}
+        requiredAmount={insufficientRequiredAmt}
+        onRechargeClick={() => onNavigateTab('wallet')}
+      />
 
     </div>
   );

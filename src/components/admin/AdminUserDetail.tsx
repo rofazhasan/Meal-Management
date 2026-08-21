@@ -64,8 +64,23 @@ export const AdminUserDetail: React.FC<AdminUserDetailProps> = ({
   };
 
   const handleStatusChange = async (status: 'APPROVED' | 'REJECTED') => {
-    await ApiService.updateUserStatus(user.id, status, adminId);
-    onRefreshData();
+    if (status === 'REJECTED') {
+      if (!confirm(`আপনি কি নিশ্চিত যে ${user.name} এর আবেদন প্রত্যাখ্যান করে ডাটাবেজ থেকে স্থায়ীভাবে মুছে ফেলতে চান?`)) {
+        return;
+      }
+    }
+    try {
+      await ApiService.updateUserStatus(user.id, status, adminId);
+      if (status === 'REJECTED') {
+        alert(`${user.name} এর আবেদন প্রত্যাখ্যান করে ডাটাবেজ থেকে তথ্য মুছে ফেলা হয়েছে।`);
+        onRefreshData();
+        onBack();
+        return;
+      }
+      onRefreshData();
+    } catch (err: any) {
+      alert(err.message || 'ইউজার স্ট্যাটাস পরিবর্তন করতে সমস্যা হয়েছে');
+    }
   };
 
   const handleResetPassword = async () => {

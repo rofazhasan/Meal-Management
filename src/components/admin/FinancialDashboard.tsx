@@ -23,6 +23,7 @@ import {
   Eye,
   RefreshCw,
   RotateCcw,
+  AlertTriangle,
   X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -64,7 +65,7 @@ export function getTxTypeInfo(type: string): {
       };
     case 'REFUND':
       return {
-        label: '🔄 মিল বন্ধের টাকা রিফান্ড',
+        label: '🔄 রিফান্ড (সমন্বয় / রিভার্সাল)',
         badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
         amountPrefix: '+ ৳',
         amountClass: 'text-cyan-300',
@@ -281,6 +282,43 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
     return { recharges, refunds, mealDeductions, monthlyCharges, netMealDeductions };
   }, [filteredMasterTransactions]);
 
+  // System-wide Global Double-Entry Accounting Audit Stats
+  const globalAuditStats = useMemo(() => {
+    let allInflow = 0;
+    let allGrossDeduct = 0;
+    let allRefunds = 0;
+
+    transactions.forEach((tx) => {
+      const amt = Number(tx.amount || 0);
+      if (['RECHARGE', 'ADMIN_TOPUP', 'CREDIT', 'CASH_PAID'].includes(tx.type)) {
+        allInflow += amt;
+      } else if (['MEAL_DEDUCTION', 'DEBIT', 'MONTHLY_CHARGE'].includes(tx.type)) {
+        allGrossDeduct += amt;
+      } else if (tx.type === 'REFUND') {
+        allRefunds += amt;
+      }
+    });
+
+    const totalInflow = allInflow || metrics.totalCollected || (metrics.totalWalletBalance + (metrics.grossDeductions || metrics.totalSpent || 0) - (metrics.totalRefunds || 0));
+    const grossDeductions = allGrossDeduct || metrics.grossDeductions || metrics.totalSpent || 0;
+    const totalRefunds = allRefunds || metrics.totalRefunds || 0;
+    const realNetSpent = Math.max(0, grossDeductions - totalRefunds);
+    const memberWalletReserve = metrics.totalWalletBalance || 0;
+
+    const accountingVariance = Math.abs(totalInflow - (realNetSpent + memberWalletReserve));
+    const isBalanced = accountingVariance < 1;
+
+    return {
+      totalInflow,
+      grossDeductions,
+      totalRefunds,
+      realNetSpent,
+      memberWalletReserve,
+      accountingVariance: Math.round(accountingVariance * 100) / 100,
+      isBalanced,
+    };
+  }, [transactions, metrics]);
+
   // Dynamic Timeframe Financial Metrics & Top Spenders (Subtracting Refunds from Gross Deductions)
   const timeframeMetrics = useMemo(() => {
     const now = new Date();
@@ -338,6 +376,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
 
     return {
       collections: collections || (filterPeriod === 'today' ? metrics.todayCollection : filterPeriod === 'monthly' ? metrics.monthlyCollection : metrics.yearlyCollection),
+      grossDeductions,
       netExpenses: periodTx.length > 0 ? netExpenses : metrics.todayExpenses,
       netProfit: periodTx.length > 0 ? netExpenses : metrics.netProfit,
       topSpenders: activeTopSpenders,
@@ -591,25 +630,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
 
       {/* Top Financial KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Wallet Deposits */}
-        <div className="glass-panel p-5 rounded-2xl border border-cyan-500/30 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-semibold">{BN.totalWalletBalance}</span>
-            <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              <CreditCard className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-1">
-            <span className="text-2xl font-black text-white font-mono">
-              <AnimatedNumber value={metrics.totalWalletBalance} prefix={BN.tkSymbol} />
-            </span>
-          </div>
-          <p className="text-[11px] text-cyan-400/80 mt-2 flex items-center gap-1">
-            <ArrowUpRight className="w-3.5 h-3.5" /> মেম্বারদের অগ্রিম জমাকৃত ফান্ড
-          </p>
-        </div>
-
-        {/* Total Collections */}
+        {/* 1. Total Collections / Inflow */}
         <div className="glass-panel p-5 rounded-2xl border border-emerald-500/30 relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-xs text-slate-400 font-semibold">
@@ -628,15 +649,15 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
             </span>
           </div>
           <p className="text-[11px] text-emerald-400/80 mt-2 flex items-center gap-1">
-            <ArrowUpRight className="w-3.5 h-3.5" /> মোট রিচার্জ কালেকশন
+            <ArrowUpRight className="w-3.5 h-3.5" /> মোট সংগৃহীত তহবিল (Inflow)
           </p>
         </div>
 
-        {/* Expenses / Meal Deduction */}
+        {/* 2. Real Net Spent / Expense */}
         <div className="glass-panel p-5 rounded-2xl border border-amber-500/30 relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-xs text-slate-400 font-semibold">
-              {filterPeriod === 'today' ? 'আজকের নিট খরচ (কাঁচামাল ও মিল)' : filterPeriod === 'monthly' ? 'চলতি মাসের নিট খরচ' : 'বার্ষিক নিট খরচ'}
+              {filterPeriod === 'today' ? 'আজকের প্রকৃত নিট খরচ' : filterPeriod === 'monthly' ? 'চলতি মাসের প্রকৃত নিট খরচ' : 'বার্ষিক প্রকৃত নিট খরচ'}
             </span>
             <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
               <TrendingDown className="w-5 h-5" />
@@ -647,27 +668,130 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
               <AnimatedNumber value={timeframeMetrics.netExpenses} prefix={BN.tkSymbol} />
             </span>
           </div>
-          <p className="text-[11px] text-amber-400/80 mt-2 flex items-center gap-1">
-            <ArrowDownRight className="w-3.5 h-3.5" /> *(রিফান্ড বাদ দিয়ে নিট ব্যয়)
+          <p className="text-[10px] text-amber-300/80 mt-2 font-mono flex items-center gap-1">
+            <span>(গ্রস ৳{timeframeMetrics.grossDeductions} - রিফান্ড ৳{timeframeMetrics.refunds})</span>
           </p>
         </div>
 
-        {/* Net Profit / Balance */}
+        {/* 3. Total Refunds (Net-Zero Reversals) */}
+        <div className="glass-panel p-5 rounded-2xl border border-cyan-500/30 relative overflow-hidden">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400 font-semibold">মোট সমন্বয়কৃত রিফান্ড</span>
+            <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              <RotateCcw className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-1">
+            <span className="text-2xl font-black text-cyan-300 font-mono">
+              <AnimatedNumber value={timeframeMetrics.refunds} prefix={BN.tkSymbol} />
+            </span>
+          </div>
+          <p className="text-[10px] text-cyan-400/80 mt-2 flex items-center gap-1 font-sans">
+            <span>🔄 কর্তন + রিফান্ড = ৳০ নিট ব্যয় প্রভাব</span>
+          </p>
+        </div>
+
+        {/* 4. Active Member Balances / Reserve */}
         <div className="glass-panel p-5 rounded-2xl border border-sky-500/30 relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-semibold">{BN.netProfit}</span>
+            <span className="text-xs text-slate-400 font-semibold">{BN.totalWalletBalance}</span>
             <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
-              <DollarSign className="w-5 h-5" />
+              <CreditCard className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-1">
             <span className="text-2xl font-black text-white font-mono">
-              <AnimatedNumber value={timeframeMetrics.netProfit} prefix={BN.tkSymbol} />
+              <AnimatedNumber value={metrics.totalWalletBalance} prefix={BN.tkSymbol} />
             </span>
           </div>
           <p className="text-[11px] text-sky-400/80 mt-2 flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5" /> *(মোট মিল ও সার্ভিস কর্তন - রিফান্ড)
+            <Sparkles className="w-3.5 h-3.5" /> মেম্বারদের বর্তমান অব্যবহৃত রিজার্ভ
           </p>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════
+          DOUBLE-ENTRY ACCOUNTING & ECONOMIC EQUILIBRIUM AUDIT CARD
+          ═══════════════════════════════════════════════════════════ */}
+      <div className="glass-panel p-6 rounded-3xl border border-sky-500/30 space-y-4 shadow-xl bg-gradient-to-br from-slate-900/90 via-slate-950/80 to-slate-900/90">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-sky-500/20 text-cyan-400 border border-cyan-500/30">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-white font-display flex items-center gap-2">
+                ডাবল-এন্ট্রি হিসাব সমীকরণ ও অর্থনৈতিক অডিট স্থিতি (Economic Equilibrium)
+              </h3>
+              <p className="text-xs text-slate-400 font-sans">
+                সিস্টেমের মোট সংগৃহীত তহবিল, প্রকৃত নিট ব্যয় এবং মেম্বার ওয়ালেট ব্যালেন্সের নিখুঁত গাণিতিক সমতা
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {globalAuditStats.isBalanced ? (
+              <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-bold font-mono flex items-center gap-1.5 shadow-sm">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>হিসাব ১০০% ব্যালেন্সড ও নির্ভুল</span>
+              </span>
+            ) : (
+              <span className="px-3.5 py-1.5 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-bold font-mono flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <span>পার্থক্য: ৳{globalAuditStats.accountingVariance}</span>
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Double-Entry Equation Visual Strip */}
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-center text-center font-mono">
+          {/* Box 1: Total Inflow */}
+          <div className="md:col-span-2 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-left">
+            <span className="text-[10px] text-emerald-400 uppercase font-bold block">১. মোট সংগৃহীত তহবিল (Inflow)</span>
+            <span className="text-xl font-black text-white mt-1 block">
+              ৳{globalAuditStats.totalInflow.toLocaleString()}
+            </span>
+            <span className="text-[10px] text-emerald-300/80 font-sans mt-0.5 block">রিচার্জ + টপআপ + ক্যাশ ফি</span>
+          </div>
+
+          {/* Equals Symbol */}
+          <div className="text-2xl font-black text-slate-500 md:col-span-1 flex items-center justify-center">
+            =
+          </div>
+
+          {/* Box 2: Real Net Spent */}
+          <div className="md:col-span-2 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-left">
+            <span className="text-[10px] text-amber-400 uppercase font-bold block">২. প্রকৃত নিট খরচ (Real Spent)</span>
+            <span className="text-xl font-black text-white mt-1 block">
+              ৳{globalAuditStats.realNetSpent.toLocaleString()}
+            </span>
+            <span className="text-[10px] text-amber-300/80 font-sans mt-0.5 block">
+              গ্রস ৳{globalAuditStats.grossDeductions.toLocaleString()} - রিফান্ড ৳{globalAuditStats.totalRefunds.toLocaleString()}
+            </span>
+          </div>
+
+          {/* Plus Symbol */}
+          <div className="text-2xl font-black text-slate-500 md:col-span-1 flex items-center justify-center">
+            +
+          </div>
+
+          {/* Box 3: Wallet Reserves */}
+          <div className="md:col-span-1 p-4 rounded-2xl bg-sky-500/10 border border-sky-500/25 text-left">
+            <span className="text-[10px] text-sky-400 uppercase font-bold block">৩. মেম্বার ব্যালেন্স</span>
+            <span className="text-xl font-black text-white mt-1 block">
+              ৳{globalAuditStats.memberWalletReserve.toLocaleString()}
+            </span>
+            <span className="text-[10px] text-sky-300/80 font-sans mt-0.5 block">ওয়ালেট রিজার্ভ</span>
+          </div>
+        </div>
+
+        {/* Economic Accounting Guidance Note */}
+        <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-[11px] text-slate-400 flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
+          <span>
+            <strong className="text-slate-200">অর্থনৈতিক নীতি (Economics Law):</strong> একই মিলের কর্তন (Deduction) ও রিফান্ড (Refund) হওয়া মানে নিট লেনদেন ৳০ (Net Zero Transaction)। মেস এডমিন সর্বদা রিয়েল-টাইমে সঠিক ব্যয়, কালেকশন এবং অবশিষ্ট তহবিলের স্বচ্ছতা দেখতে পাবেন।
+          </span>
         </div>
       </div>
 
@@ -1059,31 +1183,33 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
         {/* Master Ledger Filtered Summary Pills */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-            <span className="text-[10px] text-emerald-400 font-semibold block">মোট ওয়ালেট রিচার্জ</span>
+            <span className="text-[10px] text-emerald-400 font-semibold block">মোট ওয়ালেট রিচার্জ (জমা)</span>
             <span className="text-lg font-bold text-emerald-300 font-mono mt-0.5 block">
               + ৳{ledgerStats.recharges.toLocaleString()}
             </span>
           </div>
 
           <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">
-            <span className="text-[10px] text-cyan-300 font-semibold block">মিল বন্ধের টাকা রিফান্ড</span>
+            <span className="text-[10px] text-cyan-300 font-semibold block">মিল রিফান্ড সমন্বয় (রিভার্সাল)</span>
             <span className="text-lg font-bold text-cyan-200 font-mono mt-0.5 block">
               + ৳{ledgerStats.refunds.toLocaleString()}
             </span>
+            <span className="text-[9px] text-cyan-400/80 font-mono">Net ৳০ প্রভাব</span>
           </div>
 
           <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20">
-            <span className="text-[10px] text-rose-400 font-semibold block">মোট মিল কর্তন</span>
+            <span className="text-[10px] text-rose-400 font-semibold block">মোট গ্রস কর্তন</span>
             <span className="text-lg font-bold text-rose-300 font-mono mt-0.5 block">
-              - ৳{ledgerStats.mealDeductions.toLocaleString()}
+              - ৳{(ledgerStats.mealDeductions + ledgerStats.monthlyCharges).toLocaleString()}
             </span>
           </div>
 
           <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-            <span className="text-[10px] text-amber-400 font-semibold block">মাসিক মেস ফি</span>
+            <span className="text-[10px] text-amber-400 font-semibold block">প্রকৃত নিট মিল ব্যয়</span>
             <span className="text-lg font-bold text-amber-300 font-mono mt-0.5 block">
-              - ৳{ledgerStats.monthlyCharges.toLocaleString()}
+              ৳{ledgerStats.netMealDeductions.toLocaleString()}
             </span>
+            <span className="text-[9px] text-amber-300/80 font-mono">গ্রস - রিফান্ড</span>
           </div>
         </div>
 
@@ -1126,6 +1252,11 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold font-mono border ${typeInfo.badgeClass}`}>
                           {typeInfo.label}
                         </span>
+                        {tx.type === 'REFUND' && (
+                          <span className="block text-[9px] text-cyan-400 font-mono mt-0.5">
+                            (রিভার্সাল: Net ৳০ প্রভাব)
+                          </span>
+                        )}
                       </td>
 
                       <td className="p-3.5 text-slate-300 font-sans max-w-xs truncate">

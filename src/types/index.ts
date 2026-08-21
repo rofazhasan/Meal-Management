@@ -198,10 +198,16 @@ export interface FinancialMetrics {
   outstandingBalance: number;
   totalWalletBalance: number;
   totalRefunds: number;
+  grossDeductions?: number;
+  totalCollected?: number;
+  totalSpent?: number;
+  netReserve?: number;
   permanentRevenue: number;
   guestRevenue: number;
   topSpenders: { name: string; amount: number; phone: string }[];
   lowBalanceUsersCount: number;
+  isBalanced?: boolean;
+  accountingVariance?: number;
 }
 
 export interface AiInsight {

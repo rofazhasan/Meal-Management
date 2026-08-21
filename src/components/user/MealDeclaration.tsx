@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { User, MealRateConfig, MealDeclaration as MealDeclarationType, EmergencyClosure, SpecialMeal } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AnimatedNumber } from '../common/AnimatedNumber';
+import { InsufficientBalanceModal } from '../common/InsufficientBalanceModal';
 import { ApiService } from '../../services/apiService';
 import { getBangladeshDateStr, getBangladeshNow, parseDateStr, getDayOfWeekFromDateStr } from '../../utils/dateUtils';
 
@@ -51,6 +52,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState(false);
   const [balanceAlertMsg, setBalanceAlertMsg] = useState<string | null>(null);
+  const [showInsufficientModal, setShowInsufficientModal] = useState(false);
+  const [insufficientRequiredAmt, setInsufficientRequiredAmt] = useState<number | undefined>(undefined);
 
   const userRates = currentUser.userType === 'PERMANENT' ? rates.permanent : rates.guest;
 
@@ -271,6 +274,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
     const costDiff = nextCost - currentCost;
 
     if (costDiff > 0 && costDiff > currentUser.walletBalance) {
+      setInsufficientRequiredAmt(costDiff);
+      setShowInsufficientModal(true);
       setBalanceAlertMsg(
         `আপনার ওয়ালেট ব্যালেন্স (৳${currentUser.walletBalance}) দিয়ে এই মিলটি চালু রাখা সম্ভব নয় (অতিরিক্ত প্রয়োজন ৳${costDiff})। ওয়ালেট ব্যালেন্স বাড়াতে মেস এডমিন থেকে রিচার্জ করুন।`
       );
@@ -302,6 +307,10 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
       setTimeout(() => setSuccessMsg(false), 2500);
       onRefreshData();
     } catch (err: any) {
+      if (err.message && (err.message.includes('পর্যাপ্ত ওয়ালেট ব্যালেন্স নেই') || err.message.includes('Insufficient balance') || err.message.includes('ব্যালেন্স'))) {
+        setInsufficientRequiredAmt(estimatedDailyCost || minMealRate);
+        setShowInsufficientModal(true);
+      }
       setBalanceAlertMsg(err.message || 'মিল ডিক্লারেশন সংরক্ষণ করতে সমস্যা হয়েছে');
     } finally {
       setSaving(false);
@@ -318,6 +327,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
       return;
     }
     if (isInsufficientBalance) {
+      setInsufficientRequiredAmt(minMealRate);
+      setShowInsufficientModal(true);
       setBalanceAlertMsg(`আপনার ওয়ালেট ব্যালেন্স পর্যাপ্ত না থাকায় গতকালের মিল কপি করা সম্ভব নয়। এডমিন থেকে ওয়ালেট রিচার্জ করুন।`);
       return;
     }
@@ -331,6 +342,10 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
       setTimeout(() => setSuccessMsg(false), 2500);
       onRefreshData();
     } catch (err: any) {
+      if (err.message && (err.message.includes('পর্যাপ্ত ওয়ালেট ব্যালেন্স নেই') || err.message.includes('Insufficient balance') || err.message.includes('ব্যালেন্স'))) {
+        setInsufficientRequiredAmt(minMealRate);
+        setShowInsufficientModal(true);
+      }
       setBalanceAlertMsg(err.message || 'গতকালকের মিল কপি করতে সমস্যা হয়েছে');
     } finally {
       setSaving(false);
@@ -366,6 +381,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
       (d ? effectiveDRate : 0);
 
     if (reqBalance > currentUser.walletBalance) {
+      setInsufficientRequiredAmt(reqBalance);
+      setShowInsufficientModal(true);
       setBalanceAlertMsg(
         `আপনার ওয়ালেট ব্যালেন্স (৳${currentUser.walletBalance}) দিয়ে পছন্দকৃত মিলগুলো একত্রে চালু রাখা যাচ্ছে না (প্রয়োজন ৳${reqBalance})। ব্যালেন্স রিচার্জ করুন।`
       );
@@ -382,6 +399,8 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
       return;
     }
     if (isInsufficientBalance) {
+      setInsufficientRequiredAmt(minMealRate * 3);
+      setShowInsufficientModal(true);
       setBalanceAlertMsg(`আপনার ওয়ালেট ব্যালেন্স পর্যাপ্ত না থাকায় সারা সপ্তাহের মিল অন করা সম্ভব নয়।`);
       return;
     }
@@ -402,6 +421,10 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
       setTimeout(() => setSuccessMsg(false), 2500);
       onRefreshData();
     } catch (err: any) {
+      if (err.message && (err.message.includes('পর্যাপ্ত ওয়ালেট ব্যালেন্স নেই') || err.message.includes('Insufficient balance') || err.message.includes('ব্যালেন্স'))) {
+        setInsufficientRequiredAmt(minMealRate * 3);
+        setShowInsufficientModal(true);
+      }
       setBalanceAlertMsg(err.message || 'সারা সপ্তাহের মিল আপডেট করতে সমস্যা হয়েছে');
     } finally {
       setSaving(false);
@@ -793,6 +816,14 @@ export const MealDeclaration: React.FC<MealDeclarationProps> = ({
       >
         {saving ? 'সংরক্ষণ করা হচ্ছে...' : 'মিল চয়েস পরিবর্তন সংরক্ষণ করুন'}
       </button>
+
+      {/* Insufficient Balance Meme Modal */}
+      <InsufficientBalanceModal
+        isOpen={showInsufficientModal}
+        onClose={() => setShowInsufficientModal(false)}
+        walletBalance={currentUser.walletBalance}
+        requiredAmount={insufficientRequiredAmt}
+      />
 
     </div>
   );

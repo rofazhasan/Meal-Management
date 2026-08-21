@@ -28,10 +28,17 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const { date, endDate, reason, emergencyOff = true } = await req.json();
-    const startDateStr = date || getBgdDateStr();
+    const todayStr = getBgdDateStr();
+    const startDateStr = date || todayStr;
     const endDateStr = endDate || startDateStr;
 
     if (emergencyOff === false) {
+      if (startDateStr < todayStr) {
+        return NextResponse.json(
+          { error: 'দিন অতিক্রান্ত হওয়ায় অতীতের জরুরি বন্ধ বাতিল করা সম্ভব নয়।' },
+          { status: 400 }
+        );
+      }
       const mealDate = parseDateToUtcMidday(startDateStr);
       const existing = await prisma.mealSetting.findFirst({ where: { mealDate } });
       if (existing) {

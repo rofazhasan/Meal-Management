@@ -28,9 +28,17 @@ export async function DELETE(
     const ratesConfig = await getSystemRatesFromDb();
     const cutoffTime = ratesConfig.cutoffTime || '10:00';
 
+    const todayStr = getBgdDateStr();
+    if (targetDateStr < todayStr) {
+      return NextResponse.json(
+        { error: 'দিন অতিক্রান্ত হওয়ায় অতীতের জরুরি বন্ধের রেকর্ড পরিবর্তন বা বাতিল করা সম্ভব নয়।' },
+        { status: 400 }
+      );
+    }
+
     // Enforce Cutoff Lock: Emergency can only be turned off BEFORE declaration cutoff time on that day
     const lockCheck = isMealDateLocked(targetDateStr, cutoffTime);
-    if (lockCheck.isLocked && targetDateStr === getBgdDateStr()) {
+    if (lockCheck.isLocked) {
       return NextResponse.json(
         { error: `আজকের ডেডলাইন সময় (${cutoffTime}) পার হয়ে যাওয়ায় জরুরি বন্ধ উঠানো সম্ভব নয়।` },
         { status: 400 }

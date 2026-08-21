@@ -16,6 +16,7 @@ export async function GET() {
     permanentRevenue: 0,
     guestRevenue: 0,
     totalCollected: 0,
+    grossDeductions: 0,
     totalSpent: 0,
     netReserve: 0,
     pendingRechargesCount: 0,
@@ -26,6 +27,8 @@ export async function GET() {
     pausedUsersCount: 0,
     topSpenders: [] as { name: string; phone: string; amount: number }[],
     lowBalanceUsersCount: 0,
+    isBalanced: true,
+    accountingVariance: 0,
   };
 
   try {
@@ -200,6 +203,9 @@ export async function GET() {
         const guestRevenue = Math.max(0, Number(guestDeductionAgg._sum.amount || 0) - Number(guestRefundAgg._sum.amount || 0));
         const todayExpenses = Math.max(0, Number(todayDeductionAgg._sum.amount || 0) - Number(todayRefundAgg._sum.amount || 0));
 
+        const accountingVariance = Math.abs(totalColl - netDeduct - walletBal);
+        const isBalanced = accountingVariance < 1;
+
         metrics = {
           todayCollection: Number(todayRechargesAgg._sum.amount || 0),
           monthlyCollection: Number(monthRechargesAgg._sum.amount || 0),
@@ -209,6 +215,7 @@ export async function GET() {
           outstandingBalance: 0,
           totalWalletBalance: walletBal,
           totalRefunds: totalRef,
+          grossDeductions: totalDeduct,
           permanentRevenue,
           guestRevenue,
           totalCollected: totalColl,
@@ -222,6 +229,8 @@ export async function GET() {
           pausedUsersCount,
           topSpenders,
           lowBalanceUsersCount: lowBalCount,
+          isBalanced,
+          accountingVariance: Math.round(accountingVariance * 100) / 100,
         };
       } catch (e) {
         console.error('Error calculating database financial metrics:', e);

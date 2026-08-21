@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { MealType } from '@prisma/client';
-import { parseDateToUtcMidday, processSpecialMealCreationWithRefunds } from '@/lib/mealEngine';
+import { parseDateToUtcMidday, processSpecialMealCreationWithRefunds, getBgdDateStr } from '@/lib/mealEngine';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,13 +49,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid meal type. Must be BREAKFAST, LUNCH, or DINNER.' }, { status: 400 });
     }
 
+    const todayStr = getBgdDateStr();
+    if (!isRecurring && date < todayStr) {
+      return NextResponse.json(
+        { error: 'অতীতের তারিখের জন্য নতুন স্পেশাল মিল যোগ করা সম্ভব নয়।' },
+        { status: 400 }
+      );
+    }
+
     const mealDate = parseDateToUtcMidday(date);
     const dbMealType = upperMealType as MealType;
     const dateStr = date;
 
     const formatted = await prisma.$transaction(async (tx) => {
       // 1. Reset user declarations for the targeted meal slot on dateStr & refund previously deducted fees
-      await processSpecialMealCreationWithRefunds(dateStr, dbMealType as 'BREAKFAST' | 'LUNCH' | 'DINNER', tx);
+      if (dateStr >= todayStr) {
+        await processSpecialMealCreationWithRefunds(dateStr, dbMealType as 'BREAKFAST' | 'LUNCH' | 'DINNER', tx);
+      }
 
       // 2. Create the SpecialMeal record
       const created = await tx.specialMeal.create({
@@ -99,10 +109,24 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Special meal ID required' }, { status: 400 });
     }
 
+    const existing = await prisma.specialMeal.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Special meal not found' }, { status: 404 });
+    }
+
+    const todayStr = getBgdDateStr();
+    const dateStr = existing.mealDate.toISOString().split('T')[0];
+
+    // Block modifying past date non-recurring special meals
+    if (!existing.isRecurring && dateStr < todayStr) {
+      return NextResponse.json(
+        { error: 'দিন অতিক্রান্ত হওয়ায় অতীতের স্পেশাল মিল পরিবর্তন করা সম্ভব নয়।' },
+        { status: 400 }
+      );
+    }
+
     const formatted = await prisma.$transaction(async (tx) => {
-      const existing = await tx.specialMeal.findUnique({ where: { id } });
-      if (existing) {
-        const dateStr = existing.mealDate.toISOString().split('T')[0];
+      if (dateStr >= todayStr) {
         const slotType = existing.mealType as 'BREAKFAST' | 'LUNCH' | 'DINNER';
         await processSpecialMealCreationWithRefunds(dateStr, slotType, tx);
       }
@@ -142,10 +166,24 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'Special meal ID required' }, { status: 400 });
     }
 
+    const existing = await prisma.specialMeal.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Special meal not found' }, { status: 404 });
+    }
+
+    const todayStr = getBgdDateStr();
+    const dateStr = existing.mealDate.toISOString().split('T')[0];
+
+    // Block deleting past date non-recurring special meals
+    if (!existing.isRecurring && dateStr < todayStr) {
+      return NextResponse.json(
+        { error: 'দিন অতিক্রান্ত হওয়ায় অতীতের স্পেশাল মিল মুছে ফেলা সম্ভব নয়, কারণ এতে ডেটা ও পূর্ববর্তী রিফান্ড হিসেব বিনষ্ট হবে।' },
+        { status: 400 }
+      );
+    }
+
     await prisma.$transaction(async (tx) => {
-      const existing = await tx.specialMeal.findUnique({ where: { id } });
-      if (existing) {
-        const dateStr = existing.mealDate.toISOString().split('T')[0];
+      if (dateStr >= todayStr) {
         const slotType = existing.mealType as 'BREAKFAST' | 'LUNCH' | 'DINNER';
         await processSpecialMealCreationWithRefunds(dateStr, slotType, tx);
       }

@@ -477,12 +477,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleReject = async (userId: string) => {
-    await ApiService.updateUserStatus(userId, 'REJECTED', currentAdmin.id);
-    onRefreshData();
+    const targetUser = users.find(u => u.id === userId);
+    const userName = targetUser ? targetUser.name : 'মেম্বার';
+    if (!confirm(`আপনি কি নিশ্চিত যে ${userName} এর আবেদন প্রত্যাখ্যান করে ডাটাবেজ থেকে স্থায়ীভাবে মুছে ফেলতে চান?`)) {
+      return;
+    }
+    try {
+      await ApiService.updateUserStatus(userId, 'REJECTED', currentAdmin.id);
+      alert(`${userName} এর আবেদন প্রত্যাখ্যান করা হয়েছে এবং ডাটাবেজ থেকে তথ্য মুছে ফেলা হয়েছে।`);
+      onRefreshData();
+    } catch (err: any) {
+      alert(err.message || 'ইউজার বাতিল করতে সমস্যা হয়েছে');
+    }
   };
 
   const handleRemoveEmergency = async (id: string, date: string) => {
-    if (!confirm(`আপনি কি ${date} তারিখের জরুরি বন্ধ নোটিশটি বাতিল करना চান?`)) return;
+    if (date < todayStr) {
+      alert('দিন অতিক্রান্ত হওয়ায় অতীতের জরুরি বন্ধ বাতিল করা সম্ভব নয়।');
+      return;
+    }
+    if (!confirm(`আপনি কি ${date} তারিখের জরুরি বন্ধ নোটিশটি বাতিল করতে চান?`)) return;
     try {
       await ApiService.removeEmergency(id);
       alert(`${date} তারিখের জরুরি বন্ধ সফলভাবে বাতিল করা হয়েছে!`);
@@ -496,6 +510,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     e.preventDefault();
     if (!emergencyReason.trim()) {
       alert('অনুগ্রহ করে বন্ধের কারণ উল্লেখ করুন');
+      return;
+    }
+    if (emergencyStartDate < todayStr) {
+      alert('অতীতের তারিখের জন্য জরুরি বন্ধ জারি করা সম্ভব নয়।');
       return;
     }
     setEmergencySubmitting(true);
@@ -853,6 +871,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   type="date"
                   required
                   value={emergencyStartDate}
+                  min={todayStr}
                   onChange={(e) => {
                     setEmergencyStartDate(e.target.value);
                     if (e.target.value > emergencyEndDate) setEmergencyEndDate(e.target.value);
@@ -900,23 +919,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="pt-3 border-t border-slate-800">
               <p className="text-xs font-bold text-slate-400 mb-2 font-sans">সর্বশেষ জরুরি বন্ধ নোটিশসমূহ:</p>
               <div className="space-y-2">
-                {emergencies.map((em) => (
-                  <div key={em.id} className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs flex items-center justify-between gap-2">
-                    <div>
-                      <p className="font-bold text-rose-300 font-mono">
-                        {em.date} {em.endDate && em.endDate !== em.date ? `থেকে ${em.endDate}` : ''}: {em.reason}
-                      </p>
-                      <p className="text-[10px] text-slate-400 font-sans mt-0.5">ডেডলাইন সময়ের পূর্বে যেকোনো সময় বাতিল করতে পারবেন</p>
+                {emergencies.map((em) => {
+                  const isPast = em.date < todayStr;
+                  return (
+                    <div key={em.id} className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs flex items-center justify-between gap-2">
+                      <div>
+                        <p className="font-bold text-rose-300 font-mono">
+                          {em.date} {em.endDate && em.endDate !== em.date ? `থেকে ${em.endDate}` : ''}: {em.reason}
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-sans mt-0.5">
+                          {isPast ? 'দিন অতিক্রান্ত হওয়ায় নোটিশটি অপরিবর্তনযোগ্য ও সুরক্ষিত' : 'ডেডলাইন সময়ের পূর্বে যেকোনো সময় বাতিল করতে পারবেন'}
+                        </p>
+                      </div>
+                      {isPast ? (
+                        <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-bold text-[10px] whitespace-nowrap">
+                          🔒 দিন অতিক্রান্ত (View Only)
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEmergency(em.id, em.date)}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30 font-bold text-xs whitespace-nowrap transition-colors shadow-sm cursor-pointer"
+                        >
+                          জরুরি বন্ধ বাতিল
+                        </button>
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveEmergency(em.id, em.date)}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30 font-bold text-xs whitespace-nowrap transition-colors shadow-sm cursor-pointer"
-                    >
-                      জরুরি বন্ধ বাতিল
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
