@@ -107,8 +107,13 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'rounded-none bg-[#F0C020] text-black border-2 border-black shadow-[3px_3px_0px_0px_black]' 
                   : 'rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 shadow-cyan-500/10 backdrop-blur-md'
               }`}>
-                <Wallet className="w-4 h-4 text-black dark:text-slate-900" />
-                <AnimatedNumber value={currentUser.walletBalance} prefix={BN.tkSymbol} decimals={0} className="text-black font-extrabold" />
+                <Wallet className={`w-4 h-4 ${isBauhaus ? 'text-black' : 'text-cyan-600 dark:text-cyan-400'}`} />
+                <AnimatedNumber 
+                  value={currentUser.walletBalance} 
+                  prefix={BN.tkSymbol} 
+                  decimals={0} 
+                  className={isBauhaus ? 'text-black font-extrabold' : 'text-slate-900 dark:text-white font-bold'} 
+                />
               </div>
 
               {/* User Avatar & Name */}
