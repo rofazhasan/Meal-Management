@@ -1,8 +1,21 @@
 import React from 'react';
+import { CloudShader } from '../ui/cloud-shader';
 
 export const AmbientBackground: React.FC = () => {
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none">
+      {/* Aceternity Cloud Shader GPU Layer */}
+      <div className="absolute inset-0 opacity-20 dark:opacity-25 mix-blend-screen transition-opacity duration-1000">
+        <CloudShader
+          speed={0.6}
+          count={5}
+          cloudColor="#38bdf8"
+          skyTopColor="#020617"
+          skyBottomColor="#0f172a"
+          className="h-full w-full"
+        />
+      </div>
+
       {/* Top Left Glowing Orb */}
       <div className="absolute -top-32 -left-32 w-96 h-96 bg-cyan-600/20 rounded-full blur-[120px] animate-float-slow" />
       

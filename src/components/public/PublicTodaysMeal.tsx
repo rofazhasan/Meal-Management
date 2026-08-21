@@ -36,6 +36,7 @@ import { AlertOctagon } from 'lucide-react';
 import { User, MealDeclaration, MealRateConfig, SpecialMeal, EmergencyClosure } from '../../types';
 import { BN } from '../../constants/banglaText';
 import { AppLogo } from '../common/AppLogo';
+import { CloudShader } from '../ui/cloud-shader';
 import { getBangladeshDateStr, getBangladeshNow } from '../../utils/dateUtils';
 import { getUserMealStateForDate } from '../../utils/mealUtils';
 import { ApiService } from '../../services/apiService';
@@ -296,6 +297,16 @@ export const PublicTodaysMeal: React.FC<PublicTodaysMealProps> = ({
       
       {/* Top Hero Banner */}
       <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-cyan-500/20 shadow-2xl relative overflow-hidden bg-gradient-to-br from-slate-900/90 via-slate-950/90 to-cyan-950/40">
+        <div className="absolute inset-0 opacity-20 pointer-events-none overflow-hidden rounded-3xl">
+          <CloudShader
+            speed={0.5}
+            count={4}
+            cloudColor="#38bdf8"
+            skyTopColor="#0f172a"
+            skyBottomColor="#020617"
+            className="h-full w-full"
+          />
+        </div>
         <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
